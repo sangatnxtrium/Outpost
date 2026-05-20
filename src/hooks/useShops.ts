@@ -106,3 +106,29 @@ export function useVault(userId: string | null) {
 
   return { vaultItems, addVaultItem }
 }
+export function useCheckins(shopId: string) {
+    const [checkinCount, setCheckinCount] = useState(0)
+    const [userCheckedIn, setUserCheckedIn] = useState(false)
+  
+    useEffect(() => {
+      if (!shopId) return
+      supabase
+        .from('checkins')
+        .select('*', { count: 'exact' })
+        .eq('shop_id', shopId)
+        .then(({ count }) => setCheckinCount(count || 0))
+    }, [shopId])
+  
+    async function checkIn(userId: string, shopId: string): Promise<{ error: string | null }> {
+      const { error } = await supabase
+        .from('checkins')
+        .insert({ shop_id: shopId, user_id: userId })
+      if (!error) {
+        setCheckinCount(c => c + 1)
+        setUserCheckedIn(true)
+      }
+      return { error: error?.message || null }
+    }
+  
+    return { checkinCount, userCheckedIn, checkIn }
+  }

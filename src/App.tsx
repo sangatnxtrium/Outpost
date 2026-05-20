@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Compass, MapPin, Search, Flame, X, Store, User, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, Star, DollarSign, Plus, Check } from 'lucide-react'
+import { Compass, MapPin, Search, Flame, X, Store, User, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, Star, DollarSign, Plus, Check, Phone } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
-import { useShops, useReviews, useTradePosts, useVault } from './hooks/useShops'
+import { useShops, useReviews, useTradePosts, useVault, useCheckins } from './hooks/useShops'
 import { startCheckout } from './lib/stripe'
 
 type TabType = 'discover' | 'map' | 'classifieds' | 'marketplace' | 'vault' | 'profile'
 type ModalType = 'none' | 'sub' | 'auth' | 'ar' | 'shop' | 'menu' | 'claim' | 'additem'
 
-// ── Rotating drop banner ────────────────────────────────────────────────────
 function DropBanner({ shops }: { shops: any[] }) {
   const [idx, setIdx] = useState(0)
   const [fade, setFade] = useState(true)
@@ -17,10 +16,7 @@ function DropBanner({ shops }: { shops: any[] }) {
     if (drops.length <= 1) return
     const interval = setInterval(() => {
       setFade(false)
-      setTimeout(() => {
-        setIdx(i => (i + 1) % drops.length)
-        setFade(true)
-      }, 300)
+      setTimeout(() => { setIdx(i => (i + 1) % drops.length); setFade(true) }, 300)
     }, 3000)
     return () => clearInterval(interval)
   }, [drops.length])
@@ -42,17 +38,12 @@ function DropBanner({ shops }: { shops: any[] }) {
           </div>
         )}
       </div>
-      <p className="text-sm font-bold leading-snug opacity-90 transition-opacity duration-300" style={{ opacity: fade ? 1 : 0 }}>
-        "{shop.hot_find}"
-      </p>
-      <p className="text-xs mt-1 font-mono transition-opacity duration-300" style={{ color: 'rgba(255,255,255,0.4)', opacity: fade ? 1 : 0 }}>
-        {shop.name}
-      </p>
+      <p className="text-sm font-bold leading-snug opacity-90 transition-opacity duration-300" style={{ opacity: fade ? 1 : 0 }}>"{shop.hot_find}"</p>
+      <p className="text-xs mt-1 font-mono transition-opacity duration-300" style={{ color: 'rgba(255,255,255,0.4)', opacity: fade ? 1 : 0 }}>{shop.name}</p>
     </div>
   )
 }
 
-// ── SVG Map ─────────────────────────────────────────────────────────────────
 function LocalMap({ shops, onSelect }: { shops: any[], onSelect: (s: any) => void }) {
   const latMin = 39.55, latMax = 39.82, lngMin = -105.15, lngMax = -104.82
   const W = 380, H = 320
@@ -97,22 +88,33 @@ function LocalMap({ shops, onSelect }: { shops: any[], onSelect: (s: any) => voi
   )
 }
 
-// ── Distance calculator ──────────────────────────────────────────────────────
 function getDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 3959 // miles
+  const R = 3959
   const dLat = (lat2 - lat1) * Math.PI / 180
   const dLng = (lng2 - lng1) * Math.PI / 180
   const a = Math.sin(dLat/2) ** 2 + Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) * Math.sin(dLng/2) ** 2
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
 }
 
-// ── Main App ─────────────────────────────────────────────────────────────────
+function categoryStyle(cat: string) {
+  if (cat === 'comics') return { background: '#FEF3C7', color: '#92400E' }
+  if (cat === 'cards') return { background: '#E0F2FE', color: '#0369A1' }
+  return { background: '#EDE9FE', color: '#5B21B6' }
+}
+
+function categoryIcon(cat: string) {
+  if (cat === 'comics') return '#D97706'
+  if (cat === 'cards') return '#0284C7'
+  return '#7C3AED'
+}
+
 export default function App() {
   const { user, profile, loading: authLoading, sendOtp, verifyOtp, signOut } = useAuth()
   const { shops, loading: shopsLoading, updateHotFind } = useShops()
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null)
   const selectedShop = shops.find((s: any) => s.id === selectedShopId) || null
   const { reviews, addReview } = useReviews(selectedShop?.id || '')
+  const { checkinCount, userCheckedIn, checkIn } = useCheckins(selectedShop?.id || '')
   const { tradePosts, addTradePost } = useTradePosts()
   const { vaultItems, addVaultItem } = useVault(user?.id || null)
   const [rsvps, setRsvps] = useState<string[]>([])
@@ -123,11 +125,9 @@ export default function App() {
   const [userLat, setUserLat] = useState<number | null>(null)
   const [userLng, setUserLng] = useState<number | null>(null)
   const [marketItems, setMarketItems] = useState<any[]>([
-    { id: 1, user: 'SlabHunter', title: 'Charizard Base Holo PSA 9', price: 420, condition: 'Graded', category: 'cards', desc: 'Clean corners, no scratches. PSA cert included.' },
-    { id: 2, user: 'KeyCollector', title: 'Amazing Spider-Man #129 CGC 8.0', price: 580, condition: 'Graded', category: 'comics', desc: 'First appearance of Punisher. CGC universal blue label.' },
+    { id: 1, user: 'SlabHunter', title: 'Charizard Base Holo PSA 9', price: 420, condition: 'PSA 9', category: 'cards', desc: 'Clean corners, no scratches. PSA cert included.' },
+    { id: 2, user: 'KeyCollector', title: 'Amazing Spider-Man #129 CGC 8.0', price: 580, condition: 'CGC 8.0', category: 'comics', desc: 'First appearance of Punisher. CGC universal blue label.' },
   ])
-
-  // Form states
   const [inpRev, setInpRev] = useState('')
   const [inpFind, setInpFind] = useState('')
   const [inpOff, setInpOff] = useState('')
@@ -150,8 +150,6 @@ export default function App() {
   const [mktDesc, setMktDesc] = useState('')
   const [mktCondition, setMktCondition] = useState('Raw')
   const [mktCategory, setMktCategory] = useState('cards')
-
-  // Auth states
   const [role, setRole] = useState<'hunter' | 'merchant'>('hunter')
   const [email, setEmail] = useState('')
   const [authStep, setAuthStep] = useState<'gate' | 'verify'>('gate')
@@ -161,25 +159,17 @@ export default function App() {
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const codeRefs = Array.from({length: 8}, () => useRef<HTMLInputElement>(null))
 
-  // Get user location on mount
   useEffect(() => {
     navigator.geolocation?.getCurrentPosition(
       pos => { setUserLat(pos.coords.latitude); setUserLng(pos.coords.longitude) },
-      () => {} // silent fail — just won't sort by distance
+      () => {}
     )
   }, [])
 
-  // Sort and filter shops — nearest 5 first if geolocation available
   const sortedShops = [...shops]
-    .map((s: any) => ({
-      ...s,
-      distance: userLat && userLng ? getDistance(userLat, userLng, s.lat, s.lng) : null
-    }))
-    .sort((a: any, b: any) => {
-      if (a.distance !== null && b.distance !== null) return a.distance - b.distance
-      return 0
-    })
-    .slice(0, 5) // show nearest 5
+    .map((s: any) => ({ ...s, distance: userLat && userLng ? getDistance(userLat, userLng, s.lat, s.lng) : null }))
+    .sort((a: any, b: any) => a.distance !== null && b.distance !== null ? a.distance - b.distance : 0)
+    .slice(0, 5)
 
   const filteredShops = sortedShops.filter((s: any) =>
     (filter === 'all' || s.category === filter) &&
@@ -193,15 +183,10 @@ export default function App() {
 
   function openShop(s: any) { setSelectedShopId(s.id); setModal('shop') }
 
-  // Simulated eBay price lookup (replace with real API call using eBay Browse API)
   async function lookupEbayPrice(itemName: string, itemId: string) {
     setEbayLoading(itemId)
-    await new Promise(r => setTimeout(r, 1500)) // simulate API call
-    // In production: fetch(`https://api.ebay.com/buy/browse/v1/item_summary/search?q=${encodeURIComponent(itemName)}&limit=5`, { headers: { Authorization: `Bearer ${EBAY_TOKEN}` } })
-    const mockPrices: Record<string, string> = {
-      default: `$${(Math.random() * 500 + 50).toFixed(0)} – $${(Math.random() * 1000 + 500).toFixed(0)}`
-    }
-    setEbayPrices(prev => ({ ...prev, [itemId]: mockPrices.default }))
+    await new Promise(r => setTimeout(r, 1500))
+    setEbayPrices(prev => ({ ...prev, [itemId]: `$${(Math.random() * 500 + 50).toFixed(0)} – $${(Math.random() * 1000 + 500).toFixed(0)}` }))
     setEbayLoading(null)
   }
 
@@ -277,11 +262,7 @@ export default function App() {
   function handleMarketSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!mktTitle || !mktPrice || !user) return
-    setMarketItems(prev => [{
-      id: Date.now(), user: profile?.username || 'Guest',
-      title: mktTitle, price: parseFloat(mktPrice),
-      condition: mktCondition, category: mktCategory, desc: mktDesc
-    }, ...prev])
+    setMarketItems(prev => [{ id: Date.now(), user: profile?.username || 'Guest', title: mktTitle, price: parseFloat(mktPrice), condition: mktCondition, category: mktCategory, desc: mktDesc }, ...prev])
     setMktTitle(''); setMktPrice(''); setMktDesc(''); setModal('none')
   }
 
@@ -301,7 +282,7 @@ export default function App() {
   return (
     <div className="min-h-screen text-[#18191B] flex flex-col font-sans max-w-md mx-auto relative" style={{ background: '#F0EFE9' }}>
 
-      {/* ── HEADER ── */}
+      {/* HEADER */}
       <header className="sticky top-0 z-20 px-4 pt-12 pb-3" style={{ background: 'linear-gradient(135deg, #1a0a2e 0%, #16213e 100%)' }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -335,13 +316,11 @@ export default function App() {
         )}
       </header>
 
-      {/* ── CONTENT ── */}
       <main className="flex-1 overflow-y-auto pb-28">
 
-        {/* ══ DISCOVER ══ */}
+        {/* DISCOVER */}
         {tab === 'discover' && (
           <div className="p-4 space-y-3">
-            {/* Filter pills */}
             <div className="flex gap-2 pt-1 overflow-x-auto pb-1">
               {[
                 { id: 'all', label: 'All Shops', color: '#E0533C' },
@@ -351,15 +330,12 @@ export default function App() {
               ].map(f => (
                 <button key={f.id} onClick={() => setFilter(f.id)}
                   className="px-4 py-2 rounded-2xl text-xs font-black uppercase border-2 transition-all whitespace-nowrap flex-shrink-0"
-                  style={filter === f.id
-                    ? { background: f.color, borderColor: f.color, color: 'white' }
-                    : { background: 'white', borderColor: '#e5e7eb', color: '#9ca3af' }}>
+                  style={filter === f.id ? { background: f.color, borderColor: f.color, color: 'white' } : { background: 'white', borderColor: '#e5e7eb', color: '#9ca3af' }}>
                   {f.label}
                 </button>
               ))}
             </div>
 
-            {/* Geo notice */}
             {userLat && (
               <div className="flex items-center gap-2 px-1">
                 <MapPin className="h-3 w-3 text-emerald-500" />
@@ -367,26 +343,17 @@ export default function App() {
               </div>
             )}
 
-            {/* Rotating drop banner */}
             <DropBanner shops={shops} />
 
-            {/* Shop cards */}
             {filteredShops.map((s: any) => (
               <button key={s.id} onClick={() => openShop(s)}
                 className="w-full bg-white rounded-3xl p-4 text-left active:scale-[0.98] transition-all shadow-sm border border-zinc-100">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs font-black uppercase px-2.5 py-1 rounded-xl"
-                        style={s.category === 'comics' ? { background: '#FEF3C7', color: '#92400E' }
-                          : s.category === 'cards' ? { background: '#E0F2FE', color: '#0369A1' }
-                          : { background: '#EDE9FE', color: '#5B21B6' }}>
-                        {s.category}
-                      </span>
+                      <span className="text-xs font-black uppercase px-2.5 py-1 rounded-xl" style={categoryStyle(s.category)}>{s.category}</span>
                       <span className="text-sm text-amber-500 font-bold">{s.rating}★</span>
-                      {s.distance !== null && (
-                        <span className="text-xs text-zinc-400 font-mono ml-auto">{s.distance.toFixed(1)} mi</span>
-                      )}
+                      {s.distance !== null && <span className="text-xs text-zinc-400 font-mono ml-auto">{s.distance.toFixed(1)} mi</span>}
                     </div>
                     <h3 className="font-black text-base leading-tight">{s.name}</h3>
                     <p className="text-xs text-zinc-400 mt-1 font-mono">{s.address}</p>
@@ -396,9 +363,8 @@ export default function App() {
                       ))}
                     </div>
                   </div>
-                  <div className="h-10 w-10 rounded-2xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: s.category === 'comics' ? '#FEF3C7' : s.category === 'cards' ? '#E0F2FE' : '#EDE9FE' }}>
-                    <MapPin className="h-5 w-5" style={{ color: s.category === 'comics' ? '#D97706' : s.category === 'cards' ? '#0284C7' : '#7C3AED' }} />
+                  <div className="h-10 w-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: categoryStyle(s.category).background }}>
+                    <MapPin className="h-5 w-5" style={{ color: categoryIcon(s.category) }} />
                   </div>
                 </div>
                 {s.hot_find && (
@@ -410,7 +376,6 @@ export default function App() {
               </button>
             ))}
 
-            {/* Claim your shop CTA */}
             <button onClick={() => isSignedIn ? setModal('claim') : setModal('auth')}
               className="w-full rounded-3xl p-4 border-2 border-dashed text-center"
               style={{ borderColor: '#E0533C', background: 'rgba(224,83,60,0.04)' }}>
@@ -421,7 +386,7 @@ export default function App() {
           </div>
         )}
 
-        {/* ══ MAP ══ */}
+        {/* MAP */}
         {tab === 'map' && (
           <div className="p-4 space-y-4">
             <div className="rounded-3xl p-4 text-white" style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
@@ -434,9 +399,8 @@ export default function App() {
               {sortedShops.map((s: any) => (
                 <button key={s.id} onClick={() => openShop(s)}
                   className="w-full bg-white rounded-2xl p-3.5 flex items-center gap-3 text-left shadow-sm border border-zinc-100">
-                  <div className="h-10 w-10 rounded-2xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: s.category === 'comics' ? '#FEF3C7' : s.category === 'cards' ? '#E0F2FE' : '#EDE9FE' }}>
-                    <MapPin className="h-5 w-5" style={{ color: s.category === 'comics' ? '#D97706' : s.category === 'cards' ? '#0284C7' : '#7C3AED' }} />
+                  <div className="h-10 w-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: categoryStyle(s.category).background }}>
+                    <MapPin className="h-5 w-5" style={{ color: categoryIcon(s.category) }} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-black text-sm">{s.name}</p>
@@ -452,7 +416,7 @@ export default function App() {
           </div>
         )}
 
-        {/* ══ CLASSIFIEDS ══ */}
+        {/* CLASSIFIEDS */}
         {tab === 'classifieds' && (
           <div className="p-4 space-y-4">
             <div className="rounded-3xl p-4 text-white" style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
@@ -503,7 +467,7 @@ export default function App() {
           </div>
         )}
 
-        {/* ══ MARKETPLACE ══ */}
+        {/* MARKETPLACE */}
         {tab === 'marketplace' && (
           <div className="p-4 space-y-4">
             <div className="rounded-3xl p-4 text-white flex items-center justify-between" style={{ background: 'linear-gradient(135deg, #065F46, #047857)' }}>
@@ -516,18 +480,12 @@ export default function App() {
                 <Plus className="h-5 w-5 text-white" />
               </button>
             </div>
-
             {marketItems.map((item: any) => (
               <div key={item.id} className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
                     <div className="flex gap-2 mb-2">
-                      <span className="text-xs font-black px-2 py-0.5 rounded-lg uppercase"
-                        style={item.category === 'comics' ? { background: '#FEF3C7', color: '#92400E' }
-                          : item.category === 'cards' ? { background: '#E0F2FE', color: '#0369A1' }
-                          : { background: '#EDE9FE', color: '#5B21B6' }}>
-                        {item.category}
-                      </span>
+                      <span className="text-xs font-black px-2 py-0.5 rounded-lg uppercase" style={categoryStyle(item.category)}>{item.category}</span>
                       <span className="text-xs font-bold px-2 py-0.5 rounded-lg" style={{ background: '#F0FDF4', color: '#166534' }}>{item.condition}</span>
                     </div>
                     <h3 className="font-black text-base">{item.title}</h3>
@@ -548,7 +506,7 @@ export default function App() {
           </div>
         )}
 
-        {/* ══ VAULT ══ */}
+        {/* VAULT */}
         {tab === 'vault' && (
           <div className="p-4 space-y-4">
             <div className="rounded-3xl p-5 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
@@ -557,13 +515,11 @@ export default function App() {
               <p className="text-4xl font-black mt-1">${vaultTotal.toLocaleString()}</p>
               <p className="text-xs opacity-40 mt-1">{vaultItems.length} items tracked</p>
             </div>
-
             <button onClick={() => isSignedIn ? setModal('additem') : setModal('auth')}
               className="w-full text-white font-black py-3.5 rounded-2xl text-sm uppercase tracking-wide flex items-center justify-center gap-2"
               style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
               <Plus className="h-4 w-4" /> Add Item to Vault
             </button>
-
             <div className="space-y-3">
               {vaultItems.map((item: any) => (
                 <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-100">
@@ -599,7 +555,7 @@ export default function App() {
           </div>
         )}
 
-        {/* ══ PROFILE ══ */}
+        {/* PROFILE */}
         {tab === 'profile' && (
           <div className="p-4 space-y-4">
             {isSignedIn ? (
@@ -650,7 +606,7 @@ export default function App() {
         )}
       </main>
 
-      {/* ── BOTTOM NAV ── */}
+      {/* BOTTOM NAV */}
       <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md border-t border-zinc-200 px-1 py-2 pb-6 flex items-center justify-around z-20"
         style={{ background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(20px)' }}>
         {[
@@ -672,7 +628,7 @@ export default function App() {
         ))}
       </nav>
 
-      {/* ══ SHOP DETAIL ══ */}
+      {/* SHOP DETAIL */}
       {modal === 'shop' && selectedShop && (
         <div className="fixed inset-0 z-30 flex flex-col overflow-hidden" style={{ background: '#F0EFE9' }}>
           <div className="px-4 pt-12 pb-4 flex items-center gap-3" style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
@@ -682,37 +638,55 @@ export default function App() {
             <div className="flex-1 min-w-0">
               <h2 className="font-black text-base text-white leading-tight truncate">{selectedShop.name}</h2>
               <p className="text-xs text-white/40 font-mono">{selectedShop.address}</p>
-              <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent((selectedShop as any).address)}`}
-                target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 mt-1 text-xs font-bold px-2 py-0.5 rounded-lg"
-                style={{ background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.8)' }}
-                onClick={e => e.stopPropagation()}>
-                <Navigation className="h-3 w-3" /> Get Directions
-              </a>
+              <div className="flex items-center gap-2 mt-1">
+                <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent((selectedShop as any).address)}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-lg"
+                  style={{ background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.8)' }}
+                  onClick={e => e.stopPropagation()}>
+                  <Navigation className="h-3 w-3" /> Directions
+                </a>
+                {(selectedShop as any).phone && (
+                  <a href={`tel:${(selectedShop as any).phone}`}
+                    className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-lg"
+                    style={{ background: 'rgba(16,185,129,0.25)', color: '#6ee7b7' }}
+                    onClick={e => e.stopPropagation()}>
+                    <Phone className="h-3 w-3" /> Call
+                  </a>
+                )}
+              </div>
             </div>
             <span className="text-amber-400 font-bold">{selectedShop.rating}★</span>
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {/* Info */}
             <div className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
-              <span className="text-xs font-black uppercase px-2.5 py-1 rounded-xl"
-                style={(selectedShop as any).category === 'comics' ? { background: '#FEF3C7', color: '#92400E' }
-                  : (selectedShop as any).category === 'cards' ? { background: '#E0F2FE', color: '#0369A1' }
-                  : { background: '#EDE9FE', color: '#5B21B6' }}>
+              <span className="text-xs font-black uppercase px-2.5 py-1 rounded-xl" style={categoryStyle((selectedShop as any).category)}>
                 {(selectedShop as any).category}
               </span>
               <p className="mt-3 text-sm text-zinc-600 leading-relaxed">{selectedShop.description}</p>
               <div className="flex items-center justify-between mt-3 pt-3 border-t border-zinc-100">
                 <span className="text-sm font-mono text-zinc-400">⏱ {selectedShop.hours}</span>
-                <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent((selectedShop as any).address)}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs font-black px-3 py-2 rounded-2xl text-white"
-                  style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
-                  <Navigation className="h-3.5 w-3.5" /> Directions
-                </a>
+                <div className="flex gap-2">
+                  <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent((selectedShop as any).address)}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-black px-3 py-2 rounded-2xl text-white"
+                    style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
+                    <Navigation className="h-3.5 w-3.5" /> Directions
+                  </a>
+                  {(selectedShop as any).phone && (
+                    <a href={`tel:${(selectedShop as any).phone}`}
+                      className="inline-flex items-center gap-1.5 text-xs font-black px-3 py-2 rounded-2xl text-white"
+                      style={{ background: 'linear-gradient(135deg, #059669, #047857)' }}>
+                      <Phone className="h-3.5 w-3.5" /> Call
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
 
+            {/* Hot find */}
             <div className="rounded-3xl p-4 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
               <div className="flex items-center gap-2 mb-2">
                 <Flame className="h-4 w-4 text-orange-400" />
@@ -732,6 +706,7 @@ export default function App() {
               )}
             </div>
 
+            {/* Events */}
             {(selectedShop as any).events?.length > 0 && (
               <div className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
                 <div className="flex items-center gap-2 mb-3">
@@ -754,8 +729,21 @@ export default function App() {
               </div>
             )}
 
+            {/* Reviews + Check In */}
             <div className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
-              <p className="text-xs font-black uppercase text-zinc-400 mb-3">Reviews</p>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-black uppercase text-zinc-400">Reviews</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-zinc-400 font-mono">{checkinCount} check-ins</span>
+                  <button
+                    onClick={() => isSignedIn ? checkIn(user!.id, selectedShop.id) : setModal('auth')}
+                    disabled={userCheckedIn}
+                    className="text-xs font-black px-3 py-1.5 rounded-xl text-white disabled:opacity-60 flex items-center gap-1"
+                    style={{ background: userCheckedIn ? 'linear-gradient(135deg, #059669, #047857)' : 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
+                    {userCheckedIn ? <><Check className="h-3 w-3" /> Checked In</> : 'Check In'}
+                  </button>
+                </div>
+              </div>
               {reviews.map((r: any) => (
                 <div key={r.id} className="p-3 rounded-2xl mb-2" style={{ background: '#F8F7F2' }}>
                   <p className="text-sm font-medium">"{r.comment}"</p>
@@ -777,7 +765,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ══ ADD ITEM MODAL (vault + marketplace) ══ */}
+      {/* ADD ITEM MODAL */}
       {modal === 'additem' && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end justify-center">
           <div className="w-full max-w-md rounded-t-3xl p-5 pb-10 shadow-2xl" style={{ background: '#FAF9F5' }}>
@@ -804,7 +792,7 @@ export default function App() {
                     value={tab === 'vault' ? vaultCondition : mktCondition}
                     onChange={e => tab === 'vault' ? setVaultCondition(e.target.value) : setMktCondition(e.target.value)}
                     className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-3 py-3 text-sm font-medium focus:outline-none">
-                    {['Raw', 'Near Mint', 'PSA 10', 'PSA 9', 'PSA 8', 'PSA 7', 'CGC 9.8', 'CGC 9.6', 'BGS 9.5', 'Damaged'].map(c => (
+                    {['Raw','Near Mint','PSA 10','PSA 9','PSA 8','PSA 7','CGC 9.8','CGC 9.6','BGS 9.5','Damaged'].map(c => (
                       <option key={c}>{c}</option>
                     ))}
                   </select>
@@ -812,12 +800,10 @@ export default function App() {
                 <div>
                   <label className="block text-xs font-bold text-zinc-400 mb-1.5 uppercase">Category</label>
                   <select
-                    value={tab === 'vault' ? 'cards' : mktCategory}
+                    value={mktCategory}
                     onChange={e => setMktCategory(e.target.value)}
                     className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-3 py-3 text-sm font-medium focus:outline-none">
-                    {['cards', 'comics', 'collectibles'].map(c => (
-                      <option key={c}>{c}</option>
-                    ))}
+                    {['cards','comics','collectibles'].map(c => <option key={c}>{c}</option>)}
                   </select>
                 </div>
               </div>
@@ -844,7 +830,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ══ CLAIM SHOP MODAL ══ */}
+      {/* CLAIM SHOP */}
       {modal === 'claim' && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end justify-center">
           <div className="w-full max-w-md rounded-t-3xl p-5 pb-10 shadow-2xl" style={{ background: '#FAF9F5' }}>
@@ -853,10 +839,8 @@ export default function App() {
               <button onClick={closeModal}><X className="h-5 w-5 text-zinc-400" /></button>
             </div>
             <p className="text-xs text-zinc-400 mb-5">Verified listings get a badge, drop broadcasting, and event management</p>
-
-            {/* Step indicator */}
             <div className="flex items-center gap-2 mb-5">
-              {[1, 2, 3].map(s => (
+              {[1,2,3].map(s => (
                 <React.Fragment key={s}>
                   <div className="h-7 w-7 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
                     style={claimStep >= s ? { background: '#E0533C', color: 'white' } : { background: '#e5e7eb', color: '#9ca3af' }}>
@@ -866,57 +850,45 @@ export default function App() {
                 </React.Fragment>
               ))}
             </div>
-
             {claimStep === 1 && (
               <div className="space-y-3">
                 <p className="text-sm font-black mb-3">Step 1 — Business Info</p>
-                <input type="text" value={claimName} onChange={e => setClaimName(e.target.value)}
-                  placeholder="Business name"
+                <input type="text" value={claimName} onChange={e => setClaimName(e.target.value)} placeholder="Business name"
                   className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none" />
-                <input type="text" value={claimAddress} onChange={e => setClaimAddress(e.target.value)}
-                  placeholder="Full address"
+                <input type="text" value={claimAddress} onChange={e => setClaimAddress(e.target.value)} placeholder="Full address"
                   className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none" />
-                <input type="tel" value={claimPhone} onChange={e => setClaimPhone(e.target.value)}
-                  placeholder="Phone number"
+                <input type="tel" value={claimPhone} onChange={e => setClaimPhone(e.target.value)} placeholder="Phone number"
                   className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none" />
                 <select value={claimCategory} onChange={e => setClaimCategory(e.target.value)}
                   className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none">
-                  {['cards', 'comics', 'collectibles'].map(c => <option key={c}>{c}</option>)}
+                  {['cards','comics','collectibles'].map(c => <option key={c}>{c}</option>)}
                 </select>
-                <input type="text" value={claimHours} onChange={e => setClaimHours(e.target.value)}
-                  placeholder="Hours (e.g. Mon-Sat 10am-6pm)"
+                <input type="text" value={claimHours} onChange={e => setClaimHours(e.target.value)} placeholder="Hours (e.g. Mon-Sat 10am-6pm)"
                   className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none" />
                 <button onClick={() => setClaimStep(2)} disabled={!claimName || !claimAddress}
                   className="w-full text-white font-black py-4 rounded-2xl text-sm uppercase disabled:opacity-40"
-                  style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
-                  Continue →
-                </button>
+                  style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>Continue →</button>
               </div>
             )}
-
             {claimStep === 2 && (
               <div className="space-y-3">
                 <p className="text-sm font-black mb-3">Step 2 — Verify with EIN</p>
                 <div className="p-4 rounded-2xl" style={{ background: '#FEF3C7' }}>
                   <div className="flex items-start gap-2">
                     <Shield className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-amber-800 leading-relaxed">Your EIN (Employer Identification Number) is used only to verify business ownership. It is never stored or shared.</p>
+                    <p className="text-xs text-amber-800 leading-relaxed">Your EIN is used only to verify business ownership. It is never stored or shared.</p>
                   </div>
                 </div>
                 <input type="text" value={einInput} onChange={e => setEinInput(e.target.value)}
-                  placeholder="EIN (XX-XXXXXXX)"
-                  maxLength={10}
+                  placeholder="EIN (XX-XXXXXXX)" maxLength={10}
                   className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none font-mono tracking-widest" />
                 <p className="text-xs text-zinc-400">Format: 12-3456789</p>
                 <button onClick={() => setClaimStep(3)} disabled={einInput.length < 9}
                   className="w-full text-white font-black py-4 rounded-2xl text-sm uppercase disabled:opacity-40"
-                  style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
-                  Verify →
-                </button>
+                  style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>Verify →</button>
                 <button onClick={() => setClaimStep(1)} className="w-full text-zinc-400 text-sm font-bold py-2">← Back</button>
               </div>
             )}
-
             {claimStep === 3 && (
               <div className="text-center space-y-4 py-4">
                 <div className="h-16 w-16 rounded-3xl flex items-center justify-center mx-auto" style={{ background: '#F0FDF4' }}>
@@ -928,16 +900,14 @@ export default function App() {
                 </div>
                 <button onClick={closeModal}
                   className="w-full text-white font-black py-4 rounded-2xl text-sm uppercase"
-                  style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
-                  Done
-                </button>
+                  style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>Done</button>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* ══ AUTH MODAL ══ */}
+      {/* AUTH */}
       {modal === 'auth' && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end justify-center">
           <div className="w-full max-w-md rounded-t-3xl overflow-hidden shadow-2xl" style={{ background: '#FAF9F5' }}>
@@ -971,8 +941,7 @@ export default function App() {
                     ))}
                   </div>
                   <form onSubmit={handleAuthSend} className="space-y-3">
-                    <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                      placeholder="your@email.com"
+                    <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com"
                       className="w-full border-2 border-zinc-100 rounded-2xl px-4 py-4 text-sm font-medium outline-none focus:border-zinc-300"
                       style={{ background: '#F8F7F2' }} />
                     {authError && <p className="text-sm text-red-500">{authError}</p>}
@@ -1020,7 +989,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ══ SUBSCRIPTION ══ */}
+      {/* SUBSCRIPTION */}
       {modal === 'sub' && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end justify-center">
           <div className="w-full max-w-md rounded-t-3xl p-5 pb-10 shadow-2xl overflow-y-auto max-h-[90vh]" style={{ background: '#FAF9F5' }}>
@@ -1029,62 +998,44 @@ export default function App() {
               <button onClick={() => setModal('none')}><X className="h-5 w-5 text-zinc-400" /></button>
             </div>
             <p className="text-sm text-zinc-400 mb-5">Unlock the full Outpost experience</p>
-
-            {/* Free */}
             <div className="rounded-3xl p-4 mb-3 border-2 border-zinc-200 bg-white">
               <div className="flex justify-between items-start mb-3">
-                <div>
-                  <p className="font-black text-base">Hunter Base</p>
-                  <p className="text-2xl font-black mt-0.5">Free</p>
-                </div>
+                <div><p className="font-black text-base">Hunter Base</p><p className="text-2xl font-black mt-0.5">Free</p></div>
                 <span className="text-xs font-bold px-3 py-1.5 rounded-xl bg-zinc-100 text-zinc-500">Current</span>
               </div>
-              {['Browse all shops', 'View drops & events', 'Post trades', '3 vault items'].map(f => (
+              {['Browse all shops','View drops & events','Post trades','3 vault items'].map(f => (
                 <div key={f} className="flex items-center gap-2 py-1">
-                  <Check className="h-3.5 w-3.5 text-zinc-400" />
-                  <p className="text-sm text-zinc-500">{f}</p>
+                  <Check className="h-3.5 w-3.5 text-zinc-400" /><p className="text-sm text-zinc-500">{f}</p>
                 </div>
               ))}
             </div>
-
-            {/* Elite */}
             <div className="rounded-3xl p-4 mb-3 border-2 bg-white" style={{ borderColor: '#E0533C' }}>
               <div className="flex justify-between items-start mb-3">
-                <div>
-                  <p className="font-black text-base" style={{ color: '#E0533C' }}>Elite Pass</p>
-                  <p className="text-2xl font-black mt-0.5">$1.99<span className="text-sm font-normal text-zinc-400">/mo</span></p>
-                </div>
+                <div><p className="font-black text-base" style={{ color: '#E0533C' }}>Elite Pass</p><p className="text-2xl font-black mt-0.5">$1.99<span className="text-sm font-normal text-zinc-400">/mo</span></p></div>
                 <button onClick={() => handleUpgrade('elite')} disabled={checkoutLoading || profile?.tier === 'elite'}
                   className="text-xs font-black px-3 py-1.5 rounded-xl text-white disabled:opacity-50"
                   style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
                   {profile?.tier === 'elite' ? 'Active' : 'Upgrade'}
                 </button>
               </div>
-              {['Everything in Free', 'Unlimited vault items', 'eBay price lookups', 'Drop alerts & notifications', 'AR card scanner', 'Price history charts', 'Priority shop listings'].map(f => (
+              {['Everything in Free','Unlimited vault items','eBay price lookups','Drop alerts & notifications','AR card scanner','Price history charts','Priority shop listings'].map(f => (
                 <div key={f} className="flex items-center gap-2 py-1">
-                  <Check className="h-3.5 w-3.5" style={{ color: '#E0533C' }} />
-                  <p className="text-sm text-zinc-600">{f}</p>
+                  <Check className="h-3.5 w-3.5" style={{ color: '#E0533C' }} /><p className="text-sm text-zinc-600">{f}</p>
                 </div>
               ))}
             </div>
-
-            {/* Store */}
             <div className="rounded-3xl p-4 text-white" style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
               <div className="flex justify-between items-start mb-3">
-                <div>
-                  <p className="font-black text-base text-amber-400">Verified Store</p>
-                  <p className="text-2xl font-black mt-0.5">$2.99<span className="text-sm font-normal text-white/40">/mo</span></p>
-                </div>
+                <div><p className="font-black text-base text-amber-400">Verified Store</p><p className="text-2xl font-black mt-0.5">$2.99<span className="text-sm font-normal text-white/40">/mo</span></p></div>
                 <button onClick={() => handleUpgrade('store')} disabled={checkoutLoading || profile?.tier === 'store'}
                   className="text-xs font-black px-3 py-1.5 rounded-xl text-black disabled:opacity-50"
                   style={{ background: '#F59E0B' }}>
                   {profile?.tier === 'store' ? 'Active' : 'Claim'}
                 </button>
               </div>
-              {['Everything in Elite', 'Verified badge on listing', 'Broadcast live drops', 'Manage events & RSVPs', 'Analytics dashboard', 'Featured placement', 'Direct customer messaging'].map(f => (
+              {['Everything in Elite','Verified badge on listing','Broadcast live drops','Manage events & RSVPs','Analytics dashboard','Featured placement','Direct customer messaging'].map(f => (
                 <div key={f} className="flex items-center gap-2 py-1">
-                  <Check className="h-3.5 w-3.5 text-amber-400" />
-                  <p className="text-sm text-white/70">{f}</p>
+                  <Check className="h-3.5 w-3.5 text-amber-400" /><p className="text-sm text-white/70">{f}</p>
                 </div>
               ))}
             </div>
@@ -1092,7 +1043,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ══ MENU ══ */}
+      {/* MENU */}
       {modal === 'menu' && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end justify-center">
           <div className="w-full max-w-md rounded-t-3xl p-5 pb-10 shadow-2xl" style={{ background: '#FAF9F5' }}>
@@ -1109,10 +1060,7 @@ export default function App() {
               ].map((item, i) => (
                 <button key={i} onClick={item.action}
                   className="w-full px-5 py-4 flex items-center justify-between border-b border-zinc-50 last:border-0 text-left active:bg-zinc-50">
-                  <div>
-                    <p className="font-black text-sm">{item.label}</p>
-                    <p className="text-xs text-zinc-400 mt-0.5">{item.sub}</p>
-                  </div>
+                  <div><p className="font-black text-sm">{item.label}</p><p className="text-xs text-zinc-400 mt-0.5">{item.sub}</p></div>
                   <ChevronRight className="h-4 w-4 text-zinc-300" />
                 </button>
               ))}
@@ -1121,7 +1069,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ══ AR ══ */}
+      {/* AR */}
       {modal === 'ar' && (
         <div className="fixed inset-0 z-50 flex flex-col text-white font-mono" style={{ background: '#0a0a0f' }}>
           <div className="flex justify-between items-center border-b border-white/10 px-4 pt-12 pb-4">
