@@ -45,7 +45,7 @@ function DropBanner({ shops }: { shops: any[] }) {
 }
 
 function LocalMap({ shops, onSelect }: { shops: any[], onSelect: (s: any) => void }) {
-  const latMin = 36.9, latMax = 41.1, lngMin = -109.1, lngMax = -102.0
+  const latMin = 39.55, latMax = 39.82, lngMin = -105.15, lngMax = -104.82
   const W = 380, H = 320
   const toX = (lng: number) => ((lng - lngMin) / (lngMax - lngMin)) * W
   const toY = (lat: number) => (1 - (lat - latMin) / (latMax - latMin)) * H
@@ -68,10 +68,12 @@ function LocalMap({ shops, onSelect }: { shops: any[], onSelect: (s: any) => voi
           const color = s.category === 'comics' ? '#F59E0B' : s.category === 'cards' ? '#38BDF8' : '#A78BFA'
           return (
             <g key={s.id} onClick={() => onSelect(s)} style={{ cursor: 'pointer' }}>
-              <circle cx={x} cy={y} r={10} fill={color} opacity={0.15} />
-              <circle cx={x} cy={y} r={6} fill={color} opacity={0.9} />
-              <circle cx={x} cy={y} r={2.5} fill="white" />
-
+              <circle cx={x} cy={y} r={18} fill={color} opacity={0.15} />
+              <circle cx={x} cy={y} r={10} fill={color} opacity={0.9} />
+              <circle cx={x} cy={y} r={4} fill="white" />
+              <text x={x} y={y+26} textAnchor="middle" fill="white" fontSize="8" fontWeight="bold" opacity={0.8}>
+                {s.name.split(' ').slice(0,2).join(' ')}
+              </text>
             </g>
           )
         })}
@@ -81,7 +83,7 @@ function LocalMap({ shops, onSelect }: { shops: any[], onSelect: (s: any) => voi
         <span className="flex items-center gap-1 text-sky-400"><span className="w-2 h-2 rounded-full bg-sky-400 inline-block" />Cards</span>
         <span className="flex items-center gap-1 text-violet-400"><span className="w-2 h-2 rounded-full bg-violet-400 inline-block" />Collectibles</span>
       </div>
-      <div className="absolute top-3 right-3 text-xs font-mono text-white/30 font-bold">COLORADO</div>
+      <div className="absolute top-3 right-3 text-xs font-mono text-white/30 font-bold">DENVER METRO</div>
     </div>
   )
 }
@@ -135,9 +137,6 @@ export default function App() {
   const [vaultCondition, setVaultCondition] = useState('Raw')
   const [vaultPrice, setVaultPrice] = useState('')
   const [ebayPrices, setEbayPrices] = useState<Record<string, string>>({})
-  const [ebayResults, setEbayResults] = useState<any[]>([])
-  const [ebaySearching, setEbaySearching] = useState(false)
-  const [lastEbaySearch, setLastEbaySearch] = useState('')
   const [ebayLoading, setEbayLoading] = useState<string | null>(null)
   const [einInput, setEinInput] = useState('')
   const [claimName, setClaimName] = useState('')
@@ -184,51 +183,6 @@ export default function App() {
 
   function openShop(s: any) { setSelectedShopId(s.id); setModal('shop') }
 
-  async function searchEbay(query: string) {
-    if (query.length < 3) { setEbayResults([]); return }
-    if (query === lastEbaySearch) return
-    setEbaySearching(true)
-    setLastEbaySearch(query)
-
-    const appId = import.meta.env.VITE_EBAY_APP_ID
-
-    if (appId) {
-      // Real eBay API call — works once you have your App ID
-      try {
-        const res = await fetch(
-          `https://svcs.ebay.com/services/search/FindingService/v1?OPERATION-NAME=findItemsByKeywords&SERVICE-VERSION=1.0.0&SECURITY-APPNAME=${appId}&RESPONSE-DATA-FORMAT=JSON&REST-PAYLOAD&keywords=${encodeURIComponent(query)}&paginationInput.entriesPerPage=5&itemFilter(0).name=ListingType&itemFilter(0).value=FixedPrice&sortOrder=BestMatch`,
-          { headers: { 'Content-Type': 'application/json' } }
-        )
-        const data = await res.json()
-        const items = data?.findItemsByKeywordsResponse?.[0]?.searchResult?.[0]?.item || []
-        setEbayResults(items.map((item: any) => ({
-          id: item.itemId?.[0],
-          title: item.title?.[0],
-          price: parseFloat(item.sellingStatus?.[0]?.currentPrice?.[0]?.__value__ || '0'),
-          condition: item.condition?.[0]?.conditionDisplayName?.[0] || 'See listing',
-          url: item.viewItemURL?.[0],
-          image: item.galleryURL?.[0],
-        })))
-      } catch {
-        setEbayResults(getMockEbayResults(query))
-      }
-    } else {
-      // Mock results until App ID is set
-      await new Promise(r => setTimeout(r, 800))
-      setEbayResults(getMockEbayResults(query))
-    }
-    setEbaySearching(false)
-  }
-
-  function getMockEbayResults(query: string) {
-    return [
-      { id: '1', title: `${query} PSA 9`, price: Math.floor(Math.random() * 400 + 80), condition: 'Graded', url: 'https://ebay.com', image: null },
-      { id: '2', title: `${query} Raw Near Mint`, price: Math.floor(Math.random() * 200 + 30), condition: 'Ungraded', url: 'https://ebay.com', image: null },
-      { id: '3', title: `${query} CGC 9.8`, price: Math.floor(Math.random() * 800 + 200), condition: 'Graded', url: 'https://ebay.com', image: null },
-      { id: '4', title: `${query} Lot x4`, price: Math.floor(Math.random() * 100 + 20), condition: 'Ungraded', url: 'https://ebay.com', image: null },
-      { id: '5', title: `${query} 1st Edition`, price: Math.floor(Math.random() * 1200 + 400), condition: 'Graded', url: 'https://ebay.com', image: null },
-    ]
-  }
   async function lookupEbayPrice(itemName: string, itemId: string) {
     setEbayLoading(itemId)
     await new Promise(r => setTimeout(r, 1500))
@@ -355,7 +309,7 @@ export default function App() {
           <div className="mt-3 relative">
             <Search className="absolute left-3.5 top-3 h-4 w-4" style={{ color: 'rgba(255,255,255,0.4)' }} />
             <input type="text" placeholder="Search shops, tags, keys..."
-              value={search} onChange={e => { setSearch(e.target.value); searchEbay(e.target.value) }}
+              value={search} onChange={e => setSearch(e.target.value)}
               className="w-full rounded-2xl pl-10 pr-4 py-3 text-sm font-medium outline-none text-white placeholder:text-white/30"
               style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)' }} />
           </div>
@@ -421,51 +375,7 @@ export default function App() {
                 )}
               </button>
             ))}
-{/* eBay Results */}
-{(ebaySearching || ebayResults.length > 0) && search.length >= 3 && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 px-1">
-                  <div className="h-4 w-4 rounded flex items-center justify-center" style={{ background: '#E53238' }}>
-                    <span className="text-white font-black" style={{ fontSize: 8 }}>e</span>
-                  </div>
-                  <p className="text-xs font-black uppercase text-zinc-500">eBay Listings for "{search}"</p>
-                  {ebaySearching && <div className="h-3 w-3 rounded-full border-2 border-zinc-300 border-t-zinc-600 animate-spin ml-auto" />}
-                </div>
 
-                {ebayResults.map(item => (
-                  <a key={item.id} href={item.url} target="_blank" rel="noopener noreferrer"
-                    className="block bg-white rounded-3xl p-4 shadow-sm border border-zinc-100 active:scale-[0.98] transition-all">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs font-bold px-2 py-0.5 rounded-lg"
-                            style={item.condition === 'Graded'
-                              ? { background: '#EDE9FE', color: '#5B21B6' }
-                              : { background: '#F3F4F6', color: '#6B7280' }}>
-                            {item.condition}
-                          </span>
-                          <span className="text-xs text-zinc-400 font-mono ml-auto">eBay</span>
-                        </div>
-                        <p className="font-bold text-sm leading-tight line-clamp-2">{item.title}</p>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="font-black text-lg" style={{ color: '#059669' }}>${item.price}</p>
-                        <p className="text-xs text-zinc-400 mt-0.5">Buy It Now</p>
-                      </div>
-                    </div>
-                  </a>
-                ))}
-
-                {ebayResults.length > 0 && (
-                  <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(search)}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="block text-center py-3 rounded-2xl text-sm font-black border-2"
-                    style={{ borderColor: '#E53238', color: '#E53238' }}>
-                    See all results on eBay →
-                  </a>
-                )}
-              </div>
-            )}
             <button onClick={() => isSignedIn ? setModal('claim') : setModal('auth')}
               className="w-full rounded-3xl p-4 border-2 border-dashed text-center"
               style={{ borderColor: '#E0533C', background: 'rgba(224,83,60,0.04)' }}>
