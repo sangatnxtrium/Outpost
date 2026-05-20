@@ -43,7 +43,10 @@ export function useAuth() {
   async function sendOtp(email: string, role: UserRole): Promise<{ error: string | null }> {
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { data: { role }, shouldCreateUser: true },
+      options: {
+        data: { role },
+        shouldCreateUser: true,
+      },
     })
     return { error: error?.message || null }
   }
