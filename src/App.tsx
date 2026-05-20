@@ -45,7 +45,7 @@ function DropBanner({ shops }: { shops: any[] }) {
 }
 
 function LocalMap({ shops, onSelect }: { shops: any[], onSelect: (s: any) => void }) {
-  const latMin = 39.55, latMax = 39.82, lngMin = -105.15, lngMax = -104.82
+  const latMin = 36.9, latMax = 41.1, lngMin = -109.1, lngMax = -102.0
   const W = 380, H = 320
   const toX = (lng: number) => ((lng - lngMin) / (lngMax - lngMin)) * W
   const toY = (lat: number) => (1 - (lat - latMin) / (latMax - latMin)) * H
