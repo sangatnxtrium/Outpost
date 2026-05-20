@@ -68,12 +68,10 @@ function LocalMap({ shops, onSelect }: { shops: any[], onSelect: (s: any) => voi
           const color = s.category === 'comics' ? '#F59E0B' : s.category === 'cards' ? '#38BDF8' : '#A78BFA'
           return (
             <g key={s.id} onClick={() => onSelect(s)} style={{ cursor: 'pointer' }}>
-              <circle cx={x} cy={y} r={18} fill={color} opacity={0.15} />
-              <circle cx={x} cy={y} r={10} fill={color} opacity={0.9} />
-              <circle cx={x} cy={y} r={4} fill="white" />
-              <text x={x} y={y+26} textAnchor="middle" fill="white" fontSize="8" fontWeight="bold" opacity={0.8}>
-                {s.name.split(' ').slice(0,2).join(' ')}
-              </text>
+              <circle cx={x} cy={y} r={10} fill={color} opacity={0.15} />
+              <circle cx={x} cy={y} r={6} fill={color} opacity={0.9} />
+              <circle cx={x} cy={y} r={2.5} fill="white" />
+
             </g>
           )
         })}
@@ -83,7 +81,7 @@ function LocalMap({ shops, onSelect }: { shops: any[], onSelect: (s: any) => voi
         <span className="flex items-center gap-1 text-sky-400"><span className="w-2 h-2 rounded-full bg-sky-400 inline-block" />Cards</span>
         <span className="flex items-center gap-1 text-violet-400"><span className="w-2 h-2 rounded-full bg-violet-400 inline-block" />Collectibles</span>
       </div>
-      <div className="absolute top-3 right-3 text-xs font-mono text-white/30 font-bold">DENVER METRO</div>
+      <div className="absolute top-3 right-3 text-xs font-mono text-white/30 font-bold">COLORADO</div>
     </div>
   )
 }
