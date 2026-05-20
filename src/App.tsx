@@ -29,11 +29,13 @@ export default function App() {
   const [role, setRole] = useState<'hunter' | 'merchant'>('hunter')
   const [email, setEmail] = useState('')
   const [authStep, setAuthStep] = useState<'gate' | 'verify'>('gate')
-  const [authCode, setAuthCode] = useState(['', '', '', '', '', ''])
+  const [authCode, setAuthCode] = useState(['', '', '', '', '', '', '', ''])
   const [authError, setAuthError] = useState<string | null>(null)
   const [authLoading2, setAuthLoading2] = useState(false)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const codeRefs = [
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
     useRef<HTMLInputElement>(null),
     useRef<HTMLInputElement>(null),
     useRef<HTMLInputElement>(null),
@@ -63,7 +65,7 @@ export default function App() {
     setAuthLoading2(false)
     if (error) { setAuthError(error); return }
     setAuthStep('verify')
-    setAuthCode(['', '', '', '', '', ''])
+    setAuthCode(['', '', '', '', '', '', '', ''])
     setTimeout(() => codeRefs[0].current?.focus(), 80)
   }
 
@@ -72,7 +74,7 @@ export default function App() {
     const next = [...authCode]
     next[i] = v
     setAuthCode(next)
-    if (v && i < 5) setTimeout(() => codeRefs[i + 1].current?.focus(), 0)
+    if (v && i < 7) setTimeout(() => codeRefs[i + 1].current?.focus(), 0)
   }
 
   function handleCodeKey(i: number, e: React.KeyboardEvent<HTMLInputElement>) {
@@ -82,7 +84,7 @@ export default function App() {
   async function handleAuthVerify(e: React.FormEvent) {
     e.preventDefault()
     const code = authCode.join('')
-    if (code.length < 6) return
+    if (code.length < 8) return
     setAuthLoading2(true)
     setAuthError(null)
     const { error } = await verifyOtp(email, code)
@@ -94,7 +96,7 @@ export default function App() {
   function closeModal() {
     setModal('none')
     setAuthStep('gate')
-    setAuthCode(['', '', '', '', '', ''])
+    setAuthCode(['', '', '', '', '', '', '', ''])
     setAuthError(null)
   }
 
@@ -139,10 +141,10 @@ export default function App() {
   const filteredShops = shops.filter(s =>
     (filter === 'all' || s.category === filter) &&
     (s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.tags.some(t => t.toLowerCase().includes(search.toLowerCase())))
+      s.tags.some((t: string) => t.toLowerCase().includes(search.toLowerCase())))
   )
 
-  const vaultTotal = vaultItems.reduce((a, c) => a + c.est_value, 0)
+  const vaultTotal = vaultItems.reduce((a: number, c: any) => a + c.est_value, 0)
   const isMerchant = profile?.role === 'merchant'
   const isSignedIn = !!user
 
@@ -200,10 +202,10 @@ export default function App() {
                 ))}
               </div>
               <div className="space-y-2 pt-2">
-                {filteredShops.map(s => (
+                {filteredShops.map((s: any) => (
                   <div key={s.id} onClick={() => setSelectedShopId(s.id)} className={`p-2.5 border rounded-xl text-left cursor-pointer ${selectedShop?.id === s.id ? 'border-zinc-800 bg-[#F3F2EC]' : ''}`}>
                     <div className="flex justify-between font-bold"><h4>{s.name}</h4><span>{s.rating}★</span></div>
-                    <div className="flex gap-1 mt-1">{s.tags.map((t, i) => (<span key={i} className="text-[7px] bg-zinc-200 px-1 rounded font-mono uppercase font-black">{t}</span>))}</div>
+                    <div className="flex gap-1 mt-1">{s.tags.map((t: string, i: number) => (<span key={i} className="text-[7px] bg-zinc-200 px-1 rounded font-mono uppercase font-black">{t}</span>))}</div>
                   </div>
                 ))}
               </div>
@@ -248,10 +250,10 @@ export default function App() {
                   <div className="lg:col-span-2 bg-white border rounded-xl p-4 space-y-3">
                     <div className="border-b pb-1 font-mono font-bold uppercase opacity-40">Hobby Guild Events & Tournament Calendar</div>
                     <div className="space-y-1.5 max-h-[140px] overflow-y-auto">
-                      {(selectedShop.events || []).map(ev => (
+                      {(selectedShop.events || []).map((ev: any) => (
                         <div key={ev.id} className="p-2 bg-[#FAF9F5] border rounded-lg flex items-center justify-between text-[11px]">
                           <div><span className="text-[8px] bg-zinc-200 px-1 rounded font-mono font-bold mr-1">{ev.date}</span><strong>{ev.title}</strong></div>
-                          <button onClick={() => setRsvps(rsvps.includes(ev.id) ? rsvps.filter(id => id !== ev.id) : [...rsvps, ev.id])} className={`px-2 py-0.5 border text-[9px] rounded font-bold uppercase ${rsvps.includes(ev.id) ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-white'}`}>
+                          <button onClick={() => setRsvps(rsvps.includes(ev.id) ? rsvps.filter((id: string) => id !== ev.id) : [...rsvps, ev.id])} className={`px-2 py-0.5 border text-[9px] rounded font-bold uppercase ${rsvps.includes(ev.id) ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-white'}`}>
                             {rsvps.includes(ev.id) ? '✓ RSVP Linked' : 'RSVP Pass'}
                           </button>
                         </div>
@@ -268,7 +270,7 @@ export default function App() {
                 <div className="bg-white border rounded-xl p-4 space-y-3">
                   <div className="border-b pb-1 font-mono font-bold uppercase opacity-40">Collector Feedback Matrix</div>
                   <div className="space-y-1.5 max-h-[100px] overflow-y-auto">
-                    {reviews.map(r => (
+                    {reviews.map((r: any) => (
                       <div key={r.id} className="p-2 bg-[#FAF9F5] border rounded-lg font-medium">
                         "{r.comment}"<span className="text-[8px] text-[#E0533C] font-mono font-bold block mt-0.5">@{r.username}</span>
                       </div>
@@ -301,7 +303,7 @@ export default function App() {
               </form>
             </div>
             <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 auto-rows-max">
-              {tradePosts.map(p => (
+              {tradePosts.map((p: any) => (
                 <div key={p.id} className="bg-white border rounded-xl p-3 flex flex-col justify-between">
                   <div>
                     <span className="text-[8px] font-mono font-bold text-zinc-400">@ {p.username}</span>
@@ -357,7 +359,7 @@ export default function App() {
                       {authLoading2 ? 'Sending...' : 'Send Access Code →'}
                     </button>
                   </form>
-                  <p className="text-center text-[8px] text-zinc-300 font-mono mt-4">A 6-digit code will be sent to your email</p>
+                  <p className="text-center text-[8px] text-zinc-300 font-mono mt-4">An 8-digit code will be sent to your email</p>
                 </>
               )}
               {authStep === 'verify' && (
@@ -368,17 +370,17 @@ export default function App() {
                     <p className="text-[10px] text-zinc-400">Code sent to <span className="text-zinc-700 font-bold">{email}</span></p>
                   </div>
                   <form onSubmit={handleAuthVerify} className="space-y-4">
-                    <div className="flex gap-2 justify-center">
+                    <div className="flex gap-1.5 justify-center">
                       {authCode.map((digit, i) => (
                         <input key={i} ref={codeRefs[i]} type="text" inputMode="numeric" maxLength={1} value={digit}
                           onChange={e => handleCodeInput(i, e.target.value)}
                           onKeyDown={e => handleCodeKey(i, e)}
-                          className={`w-10 h-12 text-center text-lg font-black border-2 rounded-xl outline-none transition-all bg-white ${digit ? 'border-zinc-900 text-zinc-900' : 'border-zinc-200 text-zinc-300'} focus:border-[#E0533C] focus:scale-105`}
+                          className={`w-9 h-11 text-center text-base font-black border-2 rounded-xl outline-none transition-all bg-white ${digit ? 'border-zinc-900 text-zinc-900' : 'border-zinc-200 text-zinc-300'} focus:border-[#E0533C] focus:scale-105`}
                           style={{ caretColor: 'transparent' }} />
                       ))}
                     </div>
                     {authError && <p className="text-[10px] text-red-500 text-center font-medium">{authError}</p>}
-                    <button type="submit" disabled={authCode.join('').length < 6 || authLoading2} className={`w-full font-black py-2.5 rounded-xl uppercase text-[10px] tracking-widest transition-all disabled:opacity-25 disabled:cursor-not-allowed ${role === 'merchant' ? 'bg-purple-700 hover:bg-purple-800 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}>
+                    <button type="submit" disabled={authCode.join('').length < 8 || authLoading2} className={`w-full font-black py-2.5 rounded-xl uppercase text-[10px] tracking-widest transition-all disabled:opacity-25 disabled:cursor-not-allowed ${role === 'merchant' ? 'bg-purple-700 hover:bg-purple-800 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}>
                       {authLoading2 ? 'Verifying...' : 'Authorize Link'}
                     </button>
                     <p className="text-center text-[8px] text-zinc-300 font-mono">
@@ -451,7 +453,7 @@ export default function App() {
                 </button>
               </form>
               <div className="md:col-span-2 space-y-1 max-h-[140px] overflow-y-auto">
-                {vaultItems.map(item => (
+                {vaultItems.map((item: any) => (
                   <div key={item.id} className="p-2 bg-[#FAF9F5] border rounded-lg flex justify-between font-mono">
                     <span>{item.name}</span>
                     <span className="text-emerald-600 font-bold">${item.est_value}</span>
