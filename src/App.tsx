@@ -185,8 +185,8 @@ export default function App() {
               <Compass className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h1 className="text-base font-black tracking-tight text-white leading-none">OUTPOST</h1>
-              <p className="text-[8px] font-mono mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>EVERY SHOP. EVERY DROP. NEAR YOU.</p>
+              <h1 className="text-2xl font-black tracking-tight text-white leading-none">OUTPOST</h1>
+              <p className="text-xs font-mono mt-1" style={{ color: 'rgba(255,255,255,0.5)' }}>EVERY SHOP. EVERY DROP. NEAR YOU.</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -494,6 +494,15 @@ export default function App() {
             <div className="flex-1 min-w-0">
               <h2 className="font-black text-base text-white leading-tight truncate">{selectedShop.name}</h2>
               <p className="text-xs text-white/40 font-mono">{selectedShop.address}</p>
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent((selectedShop as any).address)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold px-2 py-0.5 rounded-lg"
+                style={{ background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.8)' }}
+                onClick={e => e.stopPropagation()}>
+                <Navigation className="h-3 w-3" /> Get Directions
+              </a>
             </div>
             <span className="text-amber-400 font-bold text-sm">{selectedShop.rating}★</span>
           </div>
@@ -507,8 +516,16 @@ export default function App() {
                 {(selectedShop as any).category}
               </span>
               <p className="mt-3 text-sm text-zinc-600 leading-relaxed">{selectedShop.description}</p>
-              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-zinc-100">
+              <div className="flex items-center justify-between mt-3 pt-3 border-t border-zinc-100">
                 <span className="text-sm font-mono text-zinc-400">⏱ {selectedShop.hours}</span>
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent((selectedShop as any).address)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-black px-3 py-2 rounded-2xl text-white"
+                  style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
+                  <Navigation className="h-3.5 w-3.5" /> Directions
+                </a>
               </div>
             </div>
 
