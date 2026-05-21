@@ -580,22 +580,20 @@ export default function App() {
                       ))}
                     </div>
 
-                    {/* State selector */}
+                    {/* State dropdown */}
                     <div className="flex items-center gap-2">
                       <MapPin className="h-3.5 w-3.5 text-zinc-400 flex-shrink-0" />
-                      <div className="flex-1 overflow-x-auto">
-                        <div className="flex gap-2 pb-1">
-                          {eventStates.map((state: string) => (
-                            <button key={state} onClick={() => setEventState(state)}
-                              className="px-3 py-1.5 rounded-xl text-xs font-black uppercase border-2 transition-all whitespace-nowrap flex-shrink-0"
-                              style={eventState === state
-                                ? { background: '#1a0a2e', borderColor: '#1a0a2e', color: 'white' }
-                                : { background: 'white', borderColor: '#e5e7eb', color: '#9ca3af' }}>
-                              {state === 'all' ? '🇺🇸 All States' : state}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
+                      <select
+                        value={eventState}
+                        onChange={e => setEventState(e.target.value)}
+                        className="flex-1 bg-white border-2 border-zinc-100 rounded-2xl px-4 py-2.5 text-sm font-black outline-none focus:border-zinc-300 appearance-none"
+                        style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 16px center' }}>
+                        {eventStates.map((state: string) => (
+                          <option key={state} value={state}>
+                            {state === 'all' ? '🇺🇸 All States' : state}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
                     {/* Results count */}
