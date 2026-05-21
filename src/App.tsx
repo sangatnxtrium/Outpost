@@ -6,7 +6,7 @@ import { startCheckout } from './lib/stripe'
 import { supabase } from './lib/supabase'
 
 type TabType = 'discover' | 'map' | 'classifieds' | 'marketplace' | 'vault' | 'profile'
-type ModalType = 'none' | 'sub' | 'auth' | 'notifications' | 'shop' | 'menu' | 'claim' | 'additem'
+type ModalType = 'none' | 'sub' | 'auth' | 'notifications' | 'shop' | 'menu' | 'claim' | 'additem' | 'submit'
 
 function DropBanner({ shops }: { shops: any[] }) {
   const [idx, setIdx] = useState(0)
@@ -43,7 +43,7 @@ function DropBanner({ shops }: { shops: any[] }) {
 }
 
 function LocalMap({ shops, onSelect }: { shops: any[], onSelect: (s: any) => void }) {
-  const latMin = 36.9, latMax = 41.1, lngMin = -109.1, lngMax = -102.0
+  const latMin = 39.4, latMax = 40.1, lngMin = -105.4, lngMax = -104.5
   const W = 500, H = 340
   const toX = (lng: number) => ((lng - lngMin) / (lngMax - lngMin)) * W
   const toY = (lat: number) => (1 - (lat - latMin) / (latMax - latMin)) * H
@@ -115,7 +115,7 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal }: any) {
         </div>
         <div>
           <h1 className="text-base font-black tracking-tight leading-none">OUTPOST</h1>
-          <p className="text-[9px] font-mono opacity-40 mt-0.5">EVERY DROP. NEAR YOU.</p>
+          <p className="text-[9px] font-mono opacity-40 mt-0.5 whitespace-nowrap">EVERY SHOP. EVERY DROP. NEAR YOU.</p>
         </div>
       </div>
       {items.map(({ id, icon: Icon, label }) => (
@@ -162,6 +162,8 @@ export default function App() {
   const [modal, setModal] = useState<ModalType>('none')
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
+  const [radius, setRadius] = useState(10)
+  const [activeSection, setActiveSection] = useState<'shops' | 'events'>('shops')
   const [userLat, setUserLat] = useState<number | null>(null)
   const [userLng, setUserLng] = useState<number | null>(null)
   const [marketItems, setMarketItems] = useState<any[]>([
@@ -182,6 +184,11 @@ export default function App() {
   const [ebaySearching, setEbaySearching] = useState(false)
   const [lastEbaySearch, setLastEbaySearch] = useState('')
   const [einInput, setEinInput] = useState('')
+  const [submitType, setSubmitType] = useState<'shop' | 'event'>('shop')
+  const [submitName, setSubmitName] = useState('')
+  const [submitAddress, setSubmitAddress] = useState('')
+  const [submitDetails, setSubmitDetails] = useState('')
+  const [submitSent, setSubmitSent] = useState(false)
   const [claimName, setClaimName] = useState('')
   const [claimAddress, setClaimAddress] = useState('')
   const [claimPhone, setClaimPhone] = useState('')
@@ -212,8 +219,8 @@ export default function App() {
   const sortedShops = [...shops]
     .map((s: any) => ({ ...s, distance: userLat && userLng ? getDistance(userLat, userLng, s.lat, s.lng) : null }))
     .sort((a: any, b: any) => a.distance !== null && b.distance !== null ? a.distance - b.distance : 0)
-    .filter((s: any) => s.distance === null || s.distance <= 10)
-    .slice(0, 10)
+    .filter((s: any) => s.distance === null || s.distance <= radius)
+    .slice(0, 50)
 
   const filteredShops = sortedShops.filter((s: any) =>
     (filter === 'all' || s.category === filter) &&
@@ -403,7 +410,7 @@ export default function App() {
                 </div>
                 <div>
                   <h1 className="text-2xl font-black tracking-tight text-white leading-none">OUTPOST</h1>
-                  <p className="text-xs font-mono mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>EVERY SHOP. EVERY DROP. NEAR YOU.</p>
+                  <p className="text-xs font-mono mt-0.5 whitespace-nowrap" style={{ color: 'rgba(255,255,255,0.5)' }}>EVERY SHOP. EVERY DROP. NEAR YOU.</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -443,12 +450,28 @@ export default function App() {
             {/* DISCOVER */}
             {tab === 'discover' && (
               <div className="p-4 space-y-4">
+                {/* Section toggle */}
+                <div className="flex gap-2">
+                  <button onClick={() => setActiveSection('shops')}
+                    className="flex-1 py-2.5 rounded-2xl text-xs font-black uppercase transition-all"
+                    style={activeSection === 'shops' ? { background: '#E0533C', color: 'white' } : { background: 'white', color: '#9ca3af', border: '2px solid #e5e7eb' }}>
+                    All Shops
+                  </button>
+                  <button onClick={() => setActiveSection('events')}
+                    className="flex-1 py-2.5 rounded-2xl text-xs font-black uppercase transition-all"
+                    style={activeSection === 'events' ? { background: '#7C3AED', color: 'white' } : { background: 'white', color: '#9ca3af', border: '2px solid #e5e7eb' }}>
+                    All Events
+                  </button>
+                </div>
+
+                {/* Category filter pills */}
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {[
-                    { id: 'all', label: 'All Shops', color: '#E0533C' },
+                    { id: 'all', label: 'All', color: '#E0533C' },
                     { id: 'comics', label: 'Comics', color: '#F59E0B' },
                     { id: 'cards', label: 'Cards', color: '#38BDF8' },
                     { id: 'collectibles', label: 'Collectibles', color: '#A78BFA' },
+                    { id: 'toys', label: 'Toys', color: '#10B981' },
                   ].map(f => (
                     <button key={f.id} onClick={() => setFilter(f.id)}
                       className="px-4 py-2 rounded-2xl text-xs font-black uppercase border-2 transition-all whitespace-nowrap flex-shrink-0"
@@ -457,10 +480,21 @@ export default function App() {
                     </button>
                   ))}
                 </div>
+
+                {/* Radius selector */}
                 {userLat && (
-                  <div className="flex items-center gap-2 px-1">
-                    <MapPin className="h-3 w-3 text-emerald-500" />
-                    <p className="text-xs text-zinc-400 font-mono">Showing Up To 10 Shops Within 10 Miles</p>
+                  <div className="flex items-center gap-3 px-1">
+                    <MapPin className="h-3 w-3 text-emerald-500 flex-shrink-0" />
+                    <p className="text-xs text-zinc-400 font-mono flex-1">Within {radius} miles</p>
+                    <div className="flex gap-1">
+                      {[10, 25, 50, 100].map(r => (
+                        <button key={r} onClick={() => setRadius(r)}
+                          className="px-2 py-1 rounded-lg text-xs font-black transition-all"
+                          style={radius === r ? { background: '#E0533C', color: 'white' } : { background: '#f3f4f6', color: '#9ca3af' }}>
+                          {r}mi
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
                 <DropBanner shops={shops} />
@@ -503,12 +537,40 @@ export default function App() {
                     )}
                   </div>
                 )}
+                {/* Events section */}
+                {activeSection === 'events' && (
+                  <div className="space-y-3">
+                    <div className="rounded-3xl p-4 text-white" style={{ background: 'linear-gradient(135deg, #7C3AED, #6D28D9)' }}>
+                      <h2 className="font-black text-lg">Upcoming Events</h2>
+                      <p className="text-xs text-white/70 mt-0.5">Card shows, tournaments, signings near you</p>
+                    </div>
+                    <div className="text-center py-10 text-zinc-400">
+                      <Calendar className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                      <p className="text-sm font-mono">No events yet in your area</p>
+                      <button onClick={() => setModal('menu')}
+                        className="mt-3 text-xs font-black px-4 py-2 rounded-xl text-white"
+                        style={{ background: '#7C3AED' }}>
+                        Submit an Event
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <button onClick={() => isSignedIn ? setModal('claim') : setModal('auth')}
                   className="w-full rounded-3xl p-4 border-2 border-dashed text-center"
                   style={{ borderColor: '#E0533C', background: 'rgba(224,83,60,0.04)' }}>
                   <Store className="h-5 w-5 mx-auto mb-1" style={{ color: '#E0533C' }} />
                   <p className="font-black text-sm" style={{ color: '#E0533C' }}>Own a shop? Claim your listing</p>
                   <p className="text-xs text-zinc-400 mt-0.5">Verified with EIN · Free to claim</p>
+                </button>
+
+                {/* Submit shop/event button */}
+                <button onClick={() => setModal('submit')}
+                  className="w-full rounded-3xl p-4 border-2 border-dashed text-center"
+                  style={{ borderColor: '#7C3AED', background: 'rgba(124,58,237,0.04)' }}>
+                  <Plus className="h-5 w-5 mx-auto mb-1" style={{ color: '#7C3AED' }} />
+                  <p className="font-black text-sm" style={{ color: '#7C3AED' }}>Submit a Shop or Event</p>
+                  <p className="text-xs text-zinc-400 mt-0.5">We'll review and add it to Outpost</p>
                 </button>
               </div>
             )}
@@ -703,6 +765,7 @@ export default function App() {
                         { label: 'Subscription', sub: 'Manage your plan', action: () => setModal('sub') },
                         { label: 'Notifications', sub: 'Drops, events and alerts', action: () => setModal('notifications') },
                         { label: 'Claim a Shop', sub: 'Verify with EIN', action: () => setModal('claim') },
+                { label: 'Submit Shop or Event', sub: 'Suggest a listing for review', action: () => setModal('submit') },
                         { label: 'Sign Out', sub: `Signed in as @${profile?.username}`, action: () => signOut() },
                       ].map((item, i) => (
                         <button key={i} onClick={item.action}
@@ -1169,6 +1232,7 @@ export default function App() {
                 { label: 'Subscription', sub: 'Manage your plan', action: () => setModal('sub') },
                 { label: 'Notifications', sub: 'Drops, events and alerts', action: () => setModal('notifications') },
                 { label: 'Claim a Shop', sub: 'Verify with EIN', action: () => setModal('claim') },
+                { label: 'Submit Shop or Event', sub: 'Suggest a listing for review', action: () => setModal('submit') },
                 { label: isSignedIn ? `Sign Out (@${profile?.username})` : 'Sign In', sub: isSignedIn ? 'See you next time' : 'Access your account', action: () => { isSignedIn ? signOut() : setModal('auth') } },
               ].map((item, i) => (
                 <button key={i} onClick={item.action}
@@ -1178,6 +1242,75 @@ export default function App() {
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* SUBMIT SHOP OR EVENT */}
+      {modal === 'submit' && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
+          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl p-5 pb-10 shadow-2xl" style={{ background: '#FAF9F5' }}>
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="font-black text-lg">Submit for Review</h3>
+              <button onClick={() => { setModal('none'); setSubmitSent(false); setSubmitName(''); setSubmitAddress(''); setSubmitDetails('') }}><X className="h-5 w-5 text-zinc-400" /></button>
+            </div>
+            {submitSent ? (
+              <div className="text-center py-6 space-y-3">
+                <div className="h-16 w-16 rounded-3xl flex items-center justify-center mx-auto" style={{ background: '#F0FDF4' }}>
+                  <Check className="h-8 w-8 text-emerald-600" />
+                </div>
+                <p className="font-black text-xl">Submitted!</p>
+                <p className="text-sm text-zinc-400">We'll review your submission and add it to Outpost within 48 hours.</p>
+                <button onClick={() => { setModal('none'); setSubmitSent(false); setSubmitName(''); setSubmitAddress(''); setSubmitDetails('') }}
+                  className="w-full text-white font-black py-3.5 rounded-2xl text-sm uppercase"
+                  style={{ background: 'linear-gradient(135deg, #7C3AED, #6D28D9)' }}>Done</button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  {(['shop', 'event'] as const).map(t => (
+                    <button key={t} onClick={() => setSubmitType(t)}
+                      className="py-3 rounded-2xl text-xs font-black uppercase border-2 transition-all"
+                      style={submitType === t ? { background: '#7C3AED', borderColor: '#7C3AED', color: 'white' } : { background: 'white', borderColor: '#e5e7eb', color: '#9ca3af' }}>
+                      {t === 'shop' ? '🏪 New Shop' : '📅 New Event'}
+                    </button>
+                  ))}
+                </div>
+                <input type="text" value={submitName} onChange={e => setSubmitName(e.target.value)}
+                  placeholder={submitType === 'shop' ? 'Shop name' : 'Event name'}
+                  className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none" />
+                <input type="text" value={submitAddress} onChange={e => setSubmitAddress(e.target.value)}
+                  placeholder={submitType === 'shop' ? 'Address' : 'Location / venue'}
+                  className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none" />
+                <textarea value={submitDetails} onChange={e => setSubmitDetails(e.target.value)}
+                  placeholder={submitType === 'shop' ? 'What do they sell? Hours? Website?' : 'Date, time, description...'}
+                  rows={3}
+                  className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none resize-none" />
+                <button
+                  onClick={async () => {
+                    if (!submitName.trim()) return
+                    await supabase.from('shop_claims').insert({
+                      user_id: user?.id || '00000000-0000-0000-0000-000000000000',
+                      username: profile?.username || 'anonymous',
+                      email: user?.email || 'anonymous',
+                      shop_name: submitName,
+                      shop_address: submitAddress,
+                      phone: '',
+                      category: submitType === 'event' ? 'event' : 'cards',
+                      hours: submitDetails,
+                      ein: 'SUBMISSION',
+                      status: 'pending',
+                    })
+                    setSubmitSent(true)
+                  }}
+                  disabled={!submitName.trim()}
+                  className="w-full text-white font-black py-3.5 rounded-2xl text-sm uppercase disabled:opacity-40"
+                  style={{ background: 'linear-gradient(135deg, #7C3AED, #6D28D9)' }}>
+                  Submit for Review
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
