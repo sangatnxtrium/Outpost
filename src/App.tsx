@@ -393,7 +393,7 @@ export default function App() {
               <h2 className="font-black text-lg">Shop Radar</h2>
               <p className="text-xs text-white/40 mt-0.5">Denver Metro · {shops.length} locations</p>
             </div>
-            <LocalMap shops={shops} onSelect={s => openShop(s)} />
+            <LocalMap shops={sortedShops} onSelect={s => openShop(s)} />
             <p className="text-center text-xs text-zinc-400 font-mono">Tap a dot to open shop details</p>
             <div className="space-y-2">
               {sortedShops.map((s: any) => (
