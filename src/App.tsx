@@ -222,8 +222,13 @@ export default function App() {
 
   const sortedShops = [...shops]
     .map((s: any) => ({ ...s, distance: userLat && userLng ? getDistance(userLat, userLng, s.lat, s.lng) : null }))
-    .sort((a: any, b: any) => a.distance !== null && b.distance !== null ? a.distance - b.distance : 0)
-    .filter((s: any) => s.distance === null || s.distance <= radius)
+    .sort((a: any, b: any) => {
+      if (a.distance !== null && b.distance !== null) return a.distance - b.distance
+      if (a.distance !== null) return -1
+      if (b.distance !== null) return 1
+      return 0
+    })
+    .filter((s: any) => userLat && userLng ? s.distance !== null && s.distance <= radius : true)
     .slice(0, 50)
 
   const filteredShops = sortedShops.filter((s: any) =>
