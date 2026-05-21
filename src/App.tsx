@@ -403,20 +403,26 @@ export default function App() {
           {/* HEADER */}
           <header className="sticky top-0 z-20 px-4 pt-10 pb-3 md:pt-4 md:border-b md:border-zinc-200 md:bg-white"
             style={{ background: 'linear-gradient(135deg, #1a0a2e 0%, #16213e 100%)' }}>
-            <div className="flex items-center justify-between md:hidden">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
-                  <Compass className="h-5 w-5 text-white" />
+            <div className="flex items-center justify-between gap-2 md:hidden">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <div className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
+                  <Compass className="h-4 w-4 text-white" />
                 </div>
-                <div>
-                  <h1 className="text-2xl font-black tracking-tight text-white leading-none">OUTPOST</h1>
-                  <p className="text-xs font-mono mt-0.5 whitespace-nowrap" style={{ color: 'rgba(255,255,255,0.5)' }}>EVERY SHOP. EVERY DROP. NEAR YOU.</p>
+                <div className="min-w-0">
+                  <h1 className="text-lg font-black tracking-tight text-white leading-none">OUTPOST</h1>
+                  <p className="text-[10px] font-mono mt-0.5 whitespace-nowrap" style={{ color: 'rgba(255,255,255,0.5)' }}>EVERY SHOP. EVERY DROP. NEAR YOU.</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                {isSignedIn && <div className="px-3 py-1.5 rounded-xl text-xs font-bold" style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)' }}>@{profile?.username}</div>}
-                <button onClick={() => setModal('menu')} className="h-9 w-9 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.1)' }}>
-                  <Menu className="h-4 w-4 text-white" />
+              <div className="flex-shrink-0">
+                <button onClick={() => setModal('menu')} className="flex flex-col items-center justify-center h-8 w-8 rounded-xl gap-0.5" style={{ background: 'rgba(255,255,255,0.1)' }}>
+                  {isSignedIn ? (
+                    <>
+                      <span className="text-[8px] font-black text-white/70 leading-none truncate max-w-[28px]">@{profile?.username?.slice(0,6)}</span>
+                      <Menu className="h-3 w-3 text-white" />
+                    </>
+                  ) : (
+                    <Menu className="h-4 w-4 text-white" />
+                  )}
                 </button>
               </div>
             </div>
