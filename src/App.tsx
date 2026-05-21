@@ -339,7 +339,7 @@ export default function App() {
             {userLat && (
               <div className="flex items-center gap-2 px-1">
                 <MapPin className="h-3 w-3 text-emerald-500" />
-                <p className="text-xs text-zinc-400 font-mono">Showing 5 nearest shops</p>
+                <p className="text-xs text-zinc-400 font-mono">Showing All Shops Within 10 Miles</p>
               </div>
             )}
 
