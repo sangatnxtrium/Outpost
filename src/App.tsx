@@ -1108,7 +1108,14 @@ export default function App() {
               <h3 className="font-black text-xl">Membership</h3>
               <button onClick={() => setModal('none')}><X className="h-5 w-5 text-zinc-400" /></button>
             </div>
-            <p className="text-sm text-zinc-400 mb-5">Unlock the full Outpost experience</p>
+            <p className="text-sm text-zinc-400 mb-3">Unlock the full Outpost experience</p>
+            <div className="mb-4 p-3 rounded-2xl flex items-center gap-2" style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)" }}>
+              <span className="text-lg">🎉</span>
+              <div>
+                <p className="text-xs font-black text-emerald-700">Free for Your First 6 Months</p>
+                <p className="text-xs text-emerald-600 mt-0.5">All plans are free for 6 months from when you signed up. No credit card needed.</p>
+              </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="rounded-3xl p-4 border-2 border-zinc-200 bg-white">
                 <p className="font-black text-base">Hunter Base</p>
@@ -1120,26 +1127,28 @@ export default function App() {
               </div>
               <div className="rounded-3xl p-4 border-2 bg-white" style={{ borderColor: '#E0533C' }}>
                 <p className="font-black text-base" style={{ color: '#E0533C' }}>Elite Pass</p>
-                <p className="text-2xl font-black mt-0.5 mb-3">$1.99<span className="text-sm font-normal text-zinc-400">/mo</span></p>
+                <p className="text-2xl font-black mt-0.5 mb-1">$1.99<span className="text-sm font-normal text-zinc-400">/mo</span></p>
+                <p className="text-xs font-black text-emerald-600 mb-3">FREE during launch</p>
                 {['Everything in Free','Unlimited vault','eBay price lookups','Drop notifications','Price charts'].map(f => (
                   <div key={f} className="flex items-center gap-2 py-1"><Check className="h-3.5 w-3.5" style={{ color: '#E0533C' }} /><p className="text-sm text-zinc-600">{f}</p></div>
                 ))}
                 <button onClick={() => handleUpgrade('elite')} disabled={checkoutLoading || profile?.tier === 'elite'}
                   className="w-full mt-3 py-2.5 rounded-2xl text-xs font-black uppercase text-white disabled:opacity-50"
                   style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
-                  {profile?.tier === 'elite' ? 'Active' : 'Upgrade'}
+                  {profile?.tier === 'elite' ? 'Active' : 'Get Free'}
                 </button>
               </div>
               <div className="rounded-3xl p-4 text-white" style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
                 <p className="font-black text-base text-amber-400">Verified Store</p>
-                <p className="text-2xl font-black mt-0.5 mb-3">$2.99<span className="text-sm font-normal text-white/40">/mo</span></p>
+                <p className="text-2xl font-black mt-0.5 mb-1">$2.99<span className="text-sm font-normal text-white/40">/mo</span></p>
+                <p className="text-xs font-black text-emerald-400 mb-3">FREE during launch</p>
                 {['Everything in Elite','Verified badge','Broadcast drops','Manage events','Analytics','Featured placement'].map(f => (
                   <div key={f} className="flex items-center gap-2 py-1"><Check className="h-3.5 w-3.5 text-amber-400" /><p className="text-sm text-white/70">{f}</p></div>
                 ))}
                 <button onClick={() => handleUpgrade('store')} disabled={checkoutLoading || profile?.tier === 'store'}
                   className="w-full mt-3 py-2.5 rounded-2xl text-xs font-black uppercase text-black disabled:opacity-50"
                   style={{ background: '#F59E0B' }}>
-                  {profile?.tier === 'store' ? 'Active' : 'Claim'}
+                  {profile?.tier === 'store' ? 'Active' : 'Claim Free'}
                 </button>
               </div>
             </div>
