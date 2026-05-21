@@ -166,6 +166,7 @@ export default function App() {
   const [radius, setRadius] = useState(10)
   const [activeSection, setActiveSection] = useState<'shops' | 'events'>('shops')
   const [eventFilter, setEventFilter] = useState('all')
+  const [eventState, setEventState] = useState('all')
   const [userLat, setUserLat] = useState<number | null>(null)
   const [userLng, setUserLng] = useState<number | null>(null)
   const [marketItems, setMarketItems] = useState<any[]>([
@@ -232,10 +233,10 @@ export default function App() {
   )
 
   const allEvents = allEventsData
+  const eventStates = ['all', ...Array.from(new Set(allEventsData.map((ev: any) => ev.state).filter(Boolean))).sort()]
   const filteredEvents = allEvents.filter((ev: any) =>
-    eventFilter === 'all' ||
-    ev.category === eventFilter ||
-    (ev.categories && ev.categories.includes(eventFilter))
+    (eventFilter === 'all' || ev.category === eventFilter || (ev.categories && ev.categories.includes(eventFilter))) &&
+    (eventState === 'all' || ev.state === eventState)
   )
 
   const vaultTotal = vaultItems.reduce((a: number, c: any) => a + (c.est_value || 0), 0)
@@ -578,6 +579,29 @@ export default function App() {
                         </button>
                       ))}
                     </div>
+
+                    {/* State selector */}
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-3.5 w-3.5 text-zinc-400 flex-shrink-0" />
+                      <div className="flex-1 overflow-x-auto">
+                        <div className="flex gap-2 pb-1">
+                          {eventStates.map((state: string) => (
+                            <button key={state} onClick={() => setEventState(state)}
+                              className="px-3 py-1.5 rounded-xl text-xs font-black uppercase border-2 transition-all whitespace-nowrap flex-shrink-0"
+                              style={eventState === state
+                                ? { background: '#1a0a2e', borderColor: '#1a0a2e', color: 'white' }
+                                : { background: 'white', borderColor: '#e5e7eb', color: '#9ca3af' }}>
+                              {state === 'all' ? '🇺🇸 All States' : state}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Results count */}
+                    <p className="text-xs text-zinc-400 font-mono px-1">
+                      {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''} {eventState !== 'all' ? `in ${eventState}` : 'nationwide'}
+                    </p>
                     {filteredEvents.length === 0 ? (
                       <div className="text-center py-10 text-zinc-400">
                         <Calendar className="h-10 w-10 mx-auto mb-2 opacity-20" />
