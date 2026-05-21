@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
-import { BarChart2, Users, Store, Star, Trash2, Edit2, Check, X, LogOut, Shield, TrendingUp, Package, MessageSquare, ArrowLeftRight, ChevronDown, ChevronUp, Search, RefreshCw } from 'lucide-react'
+import { BarChart2, Users, Store, Star, Trash2, Edit2, Check, X, LogOut, Shield, TrendingUp, Package, MessageSquare, ArrowLeftRight, Search, RefreshCw, Calendar } from 'lucide-react'
 
 // ── Auth guard ───────────────────────────────────────────────────────────────
 const ADMIN_EMAILS = ['sangtruong@gmail.com'] // Add your email here
 
-type AdminTab = 'dashboard' | 'shops' | 'users' | 'reviews' | 'trades' | 'marketplace'
+type AdminTab = 'dashboard' | 'shops' | 'users' | 'reviews' | 'trades' | 'events' | 'marketplace'
 
 // ── Stat card ────────────────────────────────────────────────────────────────
 function StatCard({ label, value, icon: Icon, color }: any) {
@@ -37,6 +37,7 @@ export default function Admin() {
   const [reviews, setReviews] = useState<any[]>([])
   const [trades, setTrades] = useState<any[]>([])
   const [checkins, setCheckins] = useState<any[]>([])
+  const [events, setEvents] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
 
@@ -60,18 +61,20 @@ export default function Admin() {
 
   async function fetchAll() {
     setLoading(true)
-    const [shopsRes, usersRes, reviewsRes, tradesRes, checkinsRes] = await Promise.all([
+    const [shopsRes, usersRes, reviewsRes, tradesRes, checkinsRes, eventsRes] = await Promise.all([
       supabase.from('shops').select('*').order('name'),
       supabase.from('profiles').select('*').order('created_at', { ascending: false }),
       supabase.from('reviews').select('*').order('created_at', { ascending: false }),
       supabase.from('trade_posts').select('*').order('created_at', { ascending: false }),
       supabase.from('checkins').select('*'),
+      supabase.from('events').select('*, shops(name)').order('date', { ascending: true }),
     ])
     setShops(shopsRes.data || [])
     setUsers(usersRes.data || [])
     setReviews(reviewsRes.data || [])
     setTrades(tradesRes.data || [])
     setCheckins(checkinsRes.data || [])
+    setEvents(eventsRes.data || [])
     setLoading(false)
   }
 
@@ -118,6 +121,11 @@ export default function Admin() {
   async function deleteTrade(id: string) {
     await supabase.from('trade_posts').delete().eq('id', id)
     setTrades(trades.filter(t => t.id !== id))
+  }
+
+  async function deleteEvent(id: string) {
+    await supabase.from('events').delete().eq('id', id)
+    setEvents(events.filter(e => e.id !== id))
   }
 
   async function updateUserTier(id: string, tier: string) {
@@ -188,6 +196,7 @@ export default function Admin() {
   const filteredUsers = users.filter(u => u.username?.toLowerCase().includes(search.toLowerCase()))
   const filteredReviews = reviews.filter(r => r.comment?.toLowerCase().includes(search.toLowerCase()) || r.username?.toLowerCase().includes(search.toLowerCase()))
   const filteredTrades = trades.filter(t => t.offer?.toLowerCase().includes(search.toLowerCase()) || t.look_for?.toLowerCase().includes(search.toLowerCase()))
+  const filteredEvents = events.filter(e => e.title?.toLowerCase().includes(search.toLowerCase()) || e.shops?.name?.toLowerCase().includes(search.toLowerCase()))
 
   return (
     <div className="min-h-screen font-sans" style={{ background: '#F0EFE9' }}>
@@ -225,6 +234,7 @@ export default function Admin() {
             { id: 'users', icon: Users, label: `Users (${users.length})` },
             { id: 'reviews', icon: MessageSquare, label: `Reviews (${reviews.length})` },
             { id: 'trades', icon: ArrowLeftRight, label: `Trades (${trades.length})` },
+            { id: 'events', icon: Calendar, label: `Events (${events.length})` },
           ].map(({ id, icon: Icon, label }) => (
             <button key={id} onClick={() => setTab(id as AdminTab)}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black whitespace-nowrap flex-shrink-0 transition-all"
@@ -487,6 +497,45 @@ export default function Admin() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {/* EVENTS */}
+          {tab === 'events' && (
+            <div className="space-y-3">
+              <h2 className="font-black text-xl">Events ({filteredEvents.length})</h2>
+              <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-zinc-100 text-xs font-bold uppercase text-zinc-400">
+                        <th className="text-left px-5 py-3">Title</th>
+                        <th className="text-left px-5 py-3">Shop</th>
+                        <th className="text-left px-5 py-3">Date</th>
+                        <th className="text-left px-5 py-3">Spots</th>
+                        <th className="text-right px-5 py-3">Delete</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredEvents.map(ev => (
+                        <tr key={ev.id} className="border-b border-zinc-50 hover:bg-zinc-50 transition-all">
+                          <td className="px-5 py-3 font-bold">{ev.title}</td>
+                          <td className="px-5 py-3 text-zinc-400 text-xs">{ev.shops?.name || '—'}</td>
+                          <td className="px-5 py-3">
+                            <span className="text-xs bg-zinc-100 px-2 py-0.5 rounded-lg font-mono font-bold">{ev.date}</span>
+                          </td>
+                          <td className="px-5 py-3 text-zinc-500">{ev.spots}</td>
+                          <td className="px-5 py-3 text-right">
+                            <button onClick={() => deleteEvent(ev.id)} className="text-red-400 hover:text-red-600 transition-colors">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
