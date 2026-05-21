@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Compass, MapPin, Search, Flame, X, Store, User, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, DollarSign, Plus, Check, Phone, Bell } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
-import { useShops, useReviews, useTradePosts, useVault, useCheckins } from './hooks/useShops'
+import { useShops, useReviews, useTradePosts, useVault, useCheckins, useEvents } from './hooks/useShops'
 import { startCheckout } from './lib/stripe'
 import { supabase } from './lib/supabase'
 
@@ -156,6 +156,7 @@ export default function App() {
   const { reviews, addReview } = useReviews(selectedShop?.id || '')
   const { checkinCount, userCheckedIn, checkIn } = useCheckins(selectedShop?.id || '')
   const { tradePosts, addTradePost } = useTradePosts()
+  const { events: allEventsData } = useEvents()
   const { vaultItems, addVaultItem } = useVault(user?.id || null)
   const [rsvps, setRsvps] = useState<string[]>([])
   const [tab, setTab] = useState<TabType>('discover')
@@ -230,7 +231,7 @@ export default function App() {
       s.tags?.some((t: string) => t.toLowerCase().includes(search.toLowerCase())))
   )
 
-  const allEvents = shops.flatMap((s: any) => (s.events || []).map((ev: any) => ({ ...ev, shopName: s.name })))
+  const allEvents = allEventsData
   const filteredEvents = allEvents.filter((ev: any) =>
     eventFilter === 'all' ||
     ev.category === eventFilter ||
