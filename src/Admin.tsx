@@ -216,7 +216,7 @@ export default function Admin() {
             <form onSubmit={verifyCode} className="space-y-3">
               <p className="text-xs text-zinc-400">Code sent to <span className="font-bold text-zinc-700">{emailInput}</span></p>
               <input type="text" value={codeInput} onChange={e => setCodeInput(e.target.value)}
-                placeholder="6-digit code" inputMode="numeric"
+                placeholder="8-digit code" inputMode="numeric"
                 className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-mono tracking-widest outline-none" />
               {authError && <p className="text-xs text-red-500">{authError}</p>}
               <button type="submit" disabled={authLoading}

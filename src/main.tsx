@@ -4,7 +4,8 @@ import App from './App.tsx'
 import Admin from './Admin.tsx'
 import './index.css'
 
-const isAdmin = window.location.pathname === '/admin'
+const path = window.location.pathname
+const isAdmin = path === '/admin' || path === '/admin/'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
