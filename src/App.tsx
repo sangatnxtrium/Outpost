@@ -3,6 +3,7 @@ import { Compass, MapPin, Search, Flame, X, Store, User, ArrowLeftRight, Package
 import { useAuth } from './hooks/useAuth'
 import { useShops, useReviews, useTradePosts, useVault, useCheckins } from './hooks/useShops'
 import { startCheckout } from './lib/stripe'
+import { supabase } from './lib/supabase'
 
 type TabType = 'discover' | 'map' | 'classifieds' | 'marketplace' | 'vault' | 'profile'
 type ModalType = 'none' | 'sub' | 'auth' | 'notifications' | 'shop' | 'menu' | 'claim' | 'additem'
@@ -268,6 +269,23 @@ export default function App() {
 
   function handleCodeKey(i: number, e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Backspace' && !authCode[i] && i > 0) codeRefs[i-1].current?.focus()
+  }
+
+  async function handleClaimSubmit() {
+    if (!user) return
+    setClaimStep(3)
+    await supabase.from('shop_claims').insert({
+      user_id: user.id,
+      username: profile?.username || user.email?.split('@')[0] || 'unknown',
+      email: user.email || '',
+      shop_name: claimName,
+      shop_address: claimAddress,
+      phone: claimPhone,
+      category: claimCategory,
+      hours: claimHours,
+      ein: einInput,
+      status: 'pending',
+    })
   }
 
   async function handleAuthVerify(e: React.FormEvent) {
@@ -977,7 +995,7 @@ export default function App() {
                 <input type="text" value={einInput} onChange={e => setEinInput(e.target.value)}
                   placeholder="EIN (XX-XXXXXXX)" maxLength={10}
                   className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-mono tracking-widest focus:outline-none" />
-                <button onClick={() => setClaimStep(3)} disabled={einInput.length < 9}
+                <button onClick={handleClaimSubmit} disabled={einInput.length < 9}
                   className="w-full text-white font-black py-4 rounded-2xl text-sm uppercase disabled:opacity-40"
                   style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>Verify →</button>
                 <button onClick={() => setClaimStep(1)} className="w-full text-zinc-400 text-sm font-bold py-2">← Back</button>

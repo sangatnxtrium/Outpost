@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
-import { BarChart2, Users, Store, Star, Trash2, Edit2, Check, X, LogOut, Shield, TrendingUp, Package, MessageSquare, ArrowLeftRight, Search, RefreshCw, Calendar } from 'lucide-react'
+import { BarChart2, Users, Store, Star, Trash2, Edit2, Check, X, LogOut, Shield, TrendingUp, Package, MessageSquare, ArrowLeftRight, Search, RefreshCw, Calendar, Flame, Plus } from 'lucide-react'
 
 // ── Auth guard ───────────────────────────────────────────────────────────────
 const ADMIN_EMAILS = ['sangtruong@gmail.com'] // Add your email here
 
-type AdminTab = 'dashboard' | 'shops' | 'users' | 'reviews' | 'trades' | 'events' | 'marketplace'
+type AdminTab = 'dashboard' | 'shops' | 'users' | 'reviews' | 'trades' | 'events' | 'claims' | 'marketplace'
 
 // ── Stat card ────────────────────────────────────────────────────────────────
 function StatCard({ label, value, icon: Icon, color }: any) {
@@ -18,6 +18,113 @@ function StatCard({ label, value, icon: Icon, color }: any) {
         </div>
       </div>
       <p className="text-2xl font-black">{value}</p>
+          {/* CLAIMS */}
+          {tab === 'claims' && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="font-black text-xl">Shop Claims ({filteredClaims.length})</h2>
+                {pendingClaims > 0 && (
+                  <span className="text-xs font-black px-2 py-1 rounded-lg text-white" style={{ background: '#F59E0B' }}>
+                    {pendingClaims} pending
+                  </span>
+                )}
+              </div>
+              <div className="space-y-3">
+                {filteredClaims.map(c => (
+                  <div key={c.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4">
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-black text-sm">{c.shop_name}</p>
+                          <span className="text-xs font-black px-2 py-0.5 rounded-lg"
+                            style={c.status === 'approved' ? { background: '#F0FDF4', color: '#166534' }
+                              : c.status === 'rejected' ? { background: '#FEF2F2', color: '#991B1B' }
+                              : { background: '#FEF3C7', color: '#92400E' }}>
+                            {c.status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-zinc-400">{c.shop_address}</p>
+                        <p className="text-xs text-zinc-400 font-mono mt-0.5">@{c.username} · {c.email}</p>
+                        <p className="text-xs text-zinc-400 mt-0.5">{c.category} · {c.hours}</p>
+                        {c.phone && <p className="text-xs text-zinc-400">{c.phone}</p>}
+                        <p className="text-xs font-mono text-zinc-300 mt-1">EIN: {c.ein}</p>
+                        <p className="text-xs text-zinc-300 font-mono">{new Date(c.created_at).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    {c.status === 'pending' && (
+                      <div className="flex gap-2 pt-3 border-t border-zinc-100">
+                        <button onClick={() => approveClaim(c)}
+                          className="flex-1 py-2.5 rounded-xl text-xs font-black text-white flex items-center justify-center gap-1"
+                          style={{ background: 'linear-gradient(135deg, #059669, #047857)' }}>
+                          <Check className="h-3.5 w-3.5" /> Approve
+                        </button>
+                        <button onClick={() => rejectClaim(c.id)}
+                          className="flex-1 py-2.5 rounded-xl text-xs font-black border-2 border-red-200 text-red-500 flex items-center justify-center gap-1">
+                          <X className="h-3.5 w-3.5" /> Reject
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {filteredClaims.length === 0 && (
+                  <div className="text-center py-12 text-zinc-400">
+                    <Shield className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                    <p className="text-sm font-mono">No claims yet</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+    {/* DROP MODAL */}
+      {dropShop && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
+          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl p-5 pb-10 shadow-2xl" style={{ background: '#FAF9F5' }}>
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h3 className="font-black text-lg">Publish Drop</h3>
+                <p className="text-xs text-zinc-400 mt-0.5 truncate max-w-[260px]">{dropShop.name}</p>
+              </div>
+              <button onClick={() => { setDropShop(null); setDropText('') }}>
+                <X className="h-5 w-5 text-zinc-400" />
+              </button>
+            </div>
+
+            {dropShop.hot_find && (
+              <div className="mb-4 p-3 rounded-2xl" style={{ background: 'rgba(224,83,60,0.06)', border: '1px solid rgba(224,83,60,0.15)' }}>
+                <p className="text-xs font-bold text-zinc-400 mb-1 uppercase">Current Drop</p>
+                <p className="text-sm italic text-zinc-600">"{dropShop.hot_find}"</p>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 mb-1.5 uppercase">New Drop</label>
+                <textarea
+                  value={dropText}
+                  onChange={e => setDropText(e.target.value)}
+                  placeholder="e.g. Amazing Spider-Man #129 CGC 9.2 just hit the floor..."
+                  rows={3}
+                  className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none resize-none focus:border-orange-300"
+                />
+              </div>
+              <button
+                onClick={() => publishDrop(dropShop)}
+                disabled={!dropText.trim() || dropSaving}
+                className="w-full text-white font-black py-3.5 rounded-2xl text-sm uppercase flex items-center justify-center gap-2 disabled:opacity-40"
+                style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
+                <Flame className="h-4 w-4" />
+                {dropSaving ? 'Publishing...' : 'Publish Drop'}
+              </button>
+              <button
+                onClick={() => { setDropShop(null); setDropText('') }}
+                className="w-full py-2.5 rounded-2xl text-sm font-black text-zinc-400 border-2 border-zinc-100">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -38,11 +145,15 @@ export default function Admin() {
   const [trades, setTrades] = useState<any[]>([])
   const [checkins, setCheckins] = useState<any[]>([])
   const [events, setEvents] = useState<any[]>([])
+  const [claims, setClaims] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
 
   // Edit state
   const [editingShop, setEditingShop] = useState<any>(null)
+  const [dropShop, setDropShop] = useState<any>(null)
+  const [dropText, setDropText] = useState('')
+  const [dropSaving, setDropSaving] = useState(false)
   const [editFields, setEditFields] = useState<any>({})
 
   // Check if already authed via session
@@ -61,13 +172,14 @@ export default function Admin() {
 
   async function fetchAll() {
     setLoading(true)
-    const [shopsRes, usersRes, reviewsRes, tradesRes, checkinsRes, eventsRes] = await Promise.all([
+    const [shopsRes, usersRes, reviewsRes, tradesRes, checkinsRes, eventsRes, claimsRes] = await Promise.all([
       supabase.from('shops').select('*').order('name'),
       supabase.from('profiles').select('*').order('created_at', { ascending: false }),
       supabase.from('reviews').select('*').order('created_at', { ascending: false }),
       supabase.from('trade_posts').select('*').order('created_at', { ascending: false }),
       supabase.from('checkins').select('*'),
       supabase.from('events').select('*, shops(name)').order('date', { ascending: true }),
+      supabase.from('shop_claims').select('*').order('created_at', { ascending: false }),
     ])
     setShops(shopsRes.data || [])
     setUsers(usersRes.data || [])
@@ -75,6 +187,7 @@ export default function Admin() {
     setTrades(tradesRes.data || [])
     setCheckins(checkinsRes.data || [])
     setEvents(eventsRes.data || [])
+    setClaims(claimsRes.data || [])
     setLoading(false)
   }
 
@@ -98,6 +211,16 @@ export default function Admin() {
     setAuthLoading(false)
     if (error) { setAuthError('Invalid code. Try again.'); return }
     setAuthed(true)
+  }
+
+  async function publishDrop(shop: any) {
+    if (!dropText.trim()) return
+    setDropSaving(true)
+    await supabase.from('shops').update({ hot_find: dropText }).eq('id', shop.id)
+    setShops(shops.map(s => s.id === shop.id ? { ...s, hot_find: dropText } : s))
+    setDropText('')
+    setDropShop(null)
+    setDropSaving(false)
   }
 
   async function deleteShop(id: string) {
@@ -126,6 +249,47 @@ export default function Admin() {
   async function deleteEvent(id: string) {
     await supabase.from('events').delete().eq('id', id)
     setEvents(events.filter(e => e.id !== id))
+  }
+
+  async function approveClaim(claim: any) {
+    // 1. Update claim status
+    await supabase.from('shop_claims').update({ status: 'approved' }).eq('id', claim.id)
+    // 2. Try to find matching shop and link owner
+    const { data: matchingShop } = await supabase
+      .from('shops')
+      .select('id')
+      .ilike('name', `%${claim.shop_name}%`)
+      .single()
+    if (matchingShop) {
+      // Link existing shop to merchant
+      await supabase.from('shops').update({ owner_id: claim.user_id }).eq('id', matchingShop.id)
+    } else {
+      // Create new shop listing
+      await supabase.from('shops').insert({
+        name: claim.shop_name,
+        address: claim.shop_address,
+        phone: claim.phone,
+        category: claim.category,
+        hours: claim.hours,
+        owner_id: claim.user_id,
+        hot_find: '',
+        rating: 5.0,
+        tags: [],
+        lat: 39.7392,
+        lng: -104.9903,
+        description: `${claim.shop_name} — verified Colorado collectibles shop.`,
+      })
+    }
+    // 3. Upgrade user to merchant role
+    await supabase.from('profiles').update({ role: 'merchant', tier: 'store' }).eq('id', claim.user_id)
+    setClaims(claims.map(c => c.id === claim.id ? { ...c, status: 'approved' } : c))
+    alert(`✅ Approved! ${claim.shop_name} is now live and ${claim.username} is a verified merchant.`)
+    fetchAll()
+  }
+
+  async function rejectClaim(id: string) {
+    await supabase.from('shop_claims').update({ status: 'rejected' }).eq('id', id)
+    setClaims(claims.map(c => c.id === id ? { ...c, status: 'rejected' } : c))
   }
 
   async function updateUserTier(id: string, tier: string) {
@@ -197,6 +361,8 @@ export default function Admin() {
   const filteredReviews = reviews.filter(r => r.comment?.toLowerCase().includes(search.toLowerCase()) || r.username?.toLowerCase().includes(search.toLowerCase()))
   const filteredTrades = trades.filter(t => t.offer?.toLowerCase().includes(search.toLowerCase()) || t.look_for?.toLowerCase().includes(search.toLowerCase()))
   const filteredEvents = events.filter(e => e.title?.toLowerCase().includes(search.toLowerCase()) || e.shops?.name?.toLowerCase().includes(search.toLowerCase()))
+  const filteredClaims = claims.filter(c => c.shop_name?.toLowerCase().includes(search.toLowerCase()) || c.username?.toLowerCase().includes(search.toLowerCase()) || c.email?.toLowerCase().includes(search.toLowerCase()))
+  const pendingClaims = claims.filter(c => c.status === 'pending').length
 
   return (
     <div className="min-h-screen font-sans" style={{ background: '#F0EFE9' }}>
@@ -235,6 +401,7 @@ export default function Admin() {
             { id: 'reviews', icon: MessageSquare, label: `Reviews (${reviews.length})` },
             { id: 'trades', icon: ArrowLeftRight, label: `Trades (${trades.length})` },
             { id: 'events', icon: Calendar, label: `Events (${events.length})` },
+            { id: 'claims', icon: Shield, label: `Claims (${pendingClaims})` },
           ].map(({ id, icon: Icon, label }) => (
             <button key={id} onClick={() => setTab(id as AdminTab)}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black whitespace-nowrap flex-shrink-0 transition-all"
@@ -272,6 +439,7 @@ export default function Admin() {
                 <StatCard label="Store Subs" value={storeCount} icon={Shield} color="#D97706" />
                 <StatCard label="Trade Posts" value={trades.length} icon={ArrowLeftRight} color="#E0533C" />
                 <StatCard label="Est. MRR" value={`$${((eliteCount * 1.99) + (storeCount * 2.99)).toFixed(0)}`} icon={TrendingUp} color="#059669" />
+              <StatCard label="Pending Claims" value={pendingClaims} icon={Shield} color="#F59E0B" />
               </div>
 
               {/* Recent users */}
@@ -348,6 +516,10 @@ export default function Admin() {
                             <td className="px-5 py-3 text-zinc-400 text-xs italic truncate max-w-[200px]">{s.hot_find || '—'}</td>
                             <td className="px-5 py-3 text-right">
                               <div className="flex items-center justify-end gap-2">
+                                <button onClick={() => { setDropShop(s); setDropText(s.hot_find || '') }}
+                                  className="text-orange-400 hover:text-orange-600 transition-colors" title="Add Drop">
+                                  <Flame className="h-4 w-4" />
+                                </button>
                                 <button onClick={() => { setEditingShop(s.id); setEditFields({ name: s.name, hot_find: s.hot_find, hours: s.hours, category: s.category, rating: s.rating, description: s.description }) }}
                                   className="text-zinc-400 hover:text-zinc-700 transition-colors">
                                   <Edit2 className="h-4 w-4" />
@@ -576,6 +748,113 @@ export default function Admin() {
           )}
         </main>
       </div>
+          {/* CLAIMS */}
+          {tab === 'claims' && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="font-black text-xl">Shop Claims ({filteredClaims.length})</h2>
+                {pendingClaims > 0 && (
+                  <span className="text-xs font-black px-2 py-1 rounded-lg text-white" style={{ background: '#F59E0B' }}>
+                    {pendingClaims} pending
+                  </span>
+                )}
+              </div>
+              <div className="space-y-3">
+                {filteredClaims.map(c => (
+                  <div key={c.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4">
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-black text-sm">{c.shop_name}</p>
+                          <span className="text-xs font-black px-2 py-0.5 rounded-lg"
+                            style={c.status === 'approved' ? { background: '#F0FDF4', color: '#166534' }
+                              : c.status === 'rejected' ? { background: '#FEF2F2', color: '#991B1B' }
+                              : { background: '#FEF3C7', color: '#92400E' }}>
+                            {c.status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-zinc-400">{c.shop_address}</p>
+                        <p className="text-xs text-zinc-400 font-mono mt-0.5">@{c.username} · {c.email}</p>
+                        <p className="text-xs text-zinc-400 mt-0.5">{c.category} · {c.hours}</p>
+                        {c.phone && <p className="text-xs text-zinc-400">{c.phone}</p>}
+                        <p className="text-xs font-mono text-zinc-300 mt-1">EIN: {c.ein}</p>
+                        <p className="text-xs text-zinc-300 font-mono">{new Date(c.created_at).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    {c.status === 'pending' && (
+                      <div className="flex gap-2 pt-3 border-t border-zinc-100">
+                        <button onClick={() => approveClaim(c)}
+                          className="flex-1 py-2.5 rounded-xl text-xs font-black text-white flex items-center justify-center gap-1"
+                          style={{ background: 'linear-gradient(135deg, #059669, #047857)' }}>
+                          <Check className="h-3.5 w-3.5" /> Approve
+                        </button>
+                        <button onClick={() => rejectClaim(c.id)}
+                          className="flex-1 py-2.5 rounded-xl text-xs font-black border-2 border-red-200 text-red-500 flex items-center justify-center gap-1">
+                          <X className="h-3.5 w-3.5" /> Reject
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {filteredClaims.length === 0 && (
+                  <div className="text-center py-12 text-zinc-400">
+                    <Shield className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                    <p className="text-sm font-mono">No claims yet</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+    {/* DROP MODAL */}
+      {dropShop && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
+          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl p-5 pb-10 shadow-2xl" style={{ background: '#FAF9F5' }}>
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h3 className="font-black text-lg">Publish Drop</h3>
+                <p className="text-xs text-zinc-400 mt-0.5 truncate max-w-[260px]">{dropShop.name}</p>
+              </div>
+              <button onClick={() => { setDropShop(null); setDropText('') }}>
+                <X className="h-5 w-5 text-zinc-400" />
+              </button>
+            </div>
+
+            {dropShop.hot_find && (
+              <div className="mb-4 p-3 rounded-2xl" style={{ background: 'rgba(224,83,60,0.06)', border: '1px solid rgba(224,83,60,0.15)' }}>
+                <p className="text-xs font-bold text-zinc-400 mb-1 uppercase">Current Drop</p>
+                <p className="text-sm italic text-zinc-600">"{dropShop.hot_find}"</p>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 mb-1.5 uppercase">New Drop</label>
+                <textarea
+                  value={dropText}
+                  onChange={e => setDropText(e.target.value)}
+                  placeholder="e.g. Amazing Spider-Man #129 CGC 9.2 just hit the floor..."
+                  rows={3}
+                  className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none resize-none focus:border-orange-300"
+                />
+              </div>
+              <button
+                onClick={() => publishDrop(dropShop)}
+                disabled={!dropText.trim() || dropSaving}
+                className="w-full text-white font-black py-3.5 rounded-2xl text-sm uppercase flex items-center justify-center gap-2 disabled:opacity-40"
+                style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
+                <Flame className="h-4 w-4" />
+                {dropSaving ? 'Publishing...' : 'Publish Drop'}
+              </button>
+              <button
+                onClick={() => { setDropShop(null); setDropText('') }}
+                className="w-full py-2.5 rounded-2xl text-sm font-black text-zinc-400 border-2 border-zinc-100">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
