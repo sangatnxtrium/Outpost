@@ -114,7 +114,7 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal }: any) {
           <Compass className="h-5 w-5 text-white" />
         </div>
         <div>
-          <h1 className="text-base font-black tracking-tight leading-none">OUTPOST</h1>
+          <h1 style={{ fontFamily: "Barlow, sans-serif", fontWeight: 900, letterSpacing: "-0.02em" }} className="text-base leading-none">OUTPOST</h1>
           <p className="text-[9px] font-mono opacity-40 mt-0.5">EVERY DROP. NEAR YOU.</p>
         </div>
       </div>
@@ -388,7 +388,7 @@ export default function App() {
                   <Compass className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-black tracking-tight text-white leading-none">OUTPOST</h1>
+                  <h1 style={{ fontFamily: "Barlow, sans-serif", fontWeight: 900, letterSpacing: "-0.02em" }} className="text-2xl text-white leading-none">OUTPOST</h1>
                   <p className="text-xs font-mono mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>EVERY SHOP. EVERY DROP. NEAR YOU.</p>
                 </div>
               </div>
