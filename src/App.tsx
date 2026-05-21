@@ -497,8 +497,8 @@ export default function App() {
                   ))}
                 </div>
 
-                {/* Radius selector */}
-                {userLat && (
+                {/* Radius selector - only for shops */}
+                {activeSection === 'shops' && userLat && (
                   <div className="flex items-center gap-3 px-1">
                     <MapPin className="h-3 w-3 text-emerald-500 flex-shrink-0" />
                     <p className="text-xs text-zinc-400 font-mono flex-1">Within {radius} miles</p>
@@ -513,11 +513,13 @@ export default function App() {
                     </div>
                   </div>
                 )}
-                <DropBanner shops={shops} />
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                  {filteredShops.map((s: any) => <ShopCard key={s.id} s={s} />)}
-                </div>
-                {(ebaySearching || ebayResults.length > 0) && search.length >= 3 && (
+                {activeSection === 'shops' && <DropBanner shops={shops} />}
+                {activeSection === 'shops' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                    {filteredShops.map((s: any) => <ShopCard key={s.id} s={s} />)}
+                  </div>
+                )}
+                {activeSection === 'shops' && (ebaySearching || ebayResults.length > 0) && search.length >= 3 && (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 px-1">
                       <div className="h-4 w-4 rounded flex items-center justify-center" style={{ background: '#E53238' }}>
