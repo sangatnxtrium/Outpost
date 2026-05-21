@@ -1,170 +1,45 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
-import { BarChart2, Users, Store, Star, Trash2, Edit2, Check, X, LogOut, Shield, TrendingUp, Package, MessageSquare, ArrowLeftRight, Search, RefreshCw, Calendar, Flame, Plus } from 'lucide-react'
+import { Shield, Store, Users, Star, Trash2, Edit2, Check, X, LogOut, RefreshCw, Search, Flame, BarChart2, MessageSquare, ArrowLeftRight, Calendar, Plus } from 'lucide-react'
 
-// ── Auth guard ───────────────────────────────────────────────────────────────
-const ADMIN_EMAILS = ['sangtruong@gmail.com'] // Add your email here
+const ADMIN_EMAILS = ['sangtruong@gmail.com']
 
-type AdminTab = 'dashboard' | 'shops' | 'users' | 'reviews' | 'trades' | 'events' | 'claims' | 'marketplace'
-
-// ── Stat card ────────────────────────────────────────────────────────────────
-function StatCard({ label, value, icon: Icon, color }: any) {
-  return (
-    <div className="bg-white rounded-2xl p-3 border border-zinc-100 shadow-sm">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-xs font-bold uppercase text-zinc-400">{label}</p>
-        <div className="h-8 w-8 rounded-xl flex items-center justify-center" style={{ background: color + '20' }}>
-          <Icon className="h-4 w-4" style={{ color }} />
-        </div>
-      </div>
-      <p className="text-2xl font-black">{value}</p>
-          {/* CLAIMS */}
-          {tab === 'claims' && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="font-black text-xl">Shop Claims ({filteredClaims.length})</h2>
-                {pendingClaims > 0 && (
-                  <span className="text-xs font-black px-2 py-1 rounded-lg text-white" style={{ background: '#F59E0B' }}>
-                    {pendingClaims} pending
-                  </span>
-                )}
-              </div>
-              <div className="space-y-3">
-                {filteredClaims.map(c => (
-                  <div key={c.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4">
-                    <div className="flex items-start justify-between gap-3 mb-3">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-black text-sm">{c.shop_name}</p>
-                          <span className="text-xs font-black px-2 py-0.5 rounded-lg"
-                            style={c.status === 'approved' ? { background: '#F0FDF4', color: '#166534' }
-                              : c.status === 'rejected' ? { background: '#FEF2F2', color: '#991B1B' }
-                              : { background: '#FEF3C7', color: '#92400E' }}>
-                            {c.status}
-                          </span>
-                        </div>
-                        <p className="text-xs text-zinc-400">{c.shop_address}</p>
-                        <p className="text-xs text-zinc-400 font-mono mt-0.5">@{c.username} · {c.email}</p>
-                        <p className="text-xs text-zinc-400 mt-0.5">{c.category} · {c.hours}</p>
-                        {c.phone && <p className="text-xs text-zinc-400">{c.phone}</p>}
-                        <p className="text-xs font-mono text-zinc-300 mt-1">EIN: {c.ein}</p>
-                        <p className="text-xs text-zinc-300 font-mono">{new Date(c.created_at).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                    {c.status === 'pending' && (
-                      <div className="flex gap-2 pt-3 border-t border-zinc-100">
-                        <button onClick={() => approveClaim(c)}
-                          className="flex-1 py-2.5 rounded-xl text-xs font-black text-white flex items-center justify-center gap-1"
-                          style={{ background: 'linear-gradient(135deg, #059669, #047857)' }}>
-                          <Check className="h-3.5 w-3.5" /> Approve
-                        </button>
-                        <button onClick={() => rejectClaim(c.id)}
-                          className="flex-1 py-2.5 rounded-xl text-xs font-black border-2 border-red-200 text-red-500 flex items-center justify-center gap-1">
-                          <X className="h-3.5 w-3.5" /> Reject
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {filteredClaims.length === 0 && (
-                  <div className="text-center py-12 text-zinc-400">
-                    <Shield className="h-10 w-10 mx-auto mb-2 opacity-20" />
-                    <p className="text-sm font-mono">No claims yet</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-    {/* DROP MODAL */}
-      {dropShop && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
-          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl p-5 pb-10 shadow-2xl" style={{ background: '#FAF9F5' }}>
-            <div className="flex justify-between items-center mb-4">
-              <div>
-                <h3 className="font-black text-lg">Publish Drop</h3>
-                <p className="text-xs text-zinc-400 mt-0.5 truncate max-w-[260px]">{dropShop.name}</p>
-              </div>
-              <button onClick={() => { setDropShop(null); setDropText('') }}>
-                <X className="h-5 w-5 text-zinc-400" />
-              </button>
-            </div>
-
-            {dropShop.hot_find && (
-              <div className="mb-4 p-3 rounded-2xl" style={{ background: 'rgba(224,83,60,0.06)', border: '1px solid rgba(224,83,60,0.15)' }}>
-                <p className="text-xs font-bold text-zinc-400 mb-1 uppercase">Current Drop</p>
-                <p className="text-sm italic text-zinc-600">"{dropShop.hot_find}"</p>
-              </div>
-            )}
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-zinc-400 mb-1.5 uppercase">New Drop</label>
-                <textarea
-                  value={dropText}
-                  onChange={e => setDropText(e.target.value)}
-                  placeholder="e.g. Amazing Spider-Man #129 CGC 9.2 just hit the floor..."
-                  rows={3}
-                  className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none resize-none focus:border-orange-300"
-                />
-              </div>
-              <button
-                onClick={() => publishDrop(dropShop)}
-                disabled={!dropText.trim() || dropSaving}
-                className="w-full text-white font-black py-3.5 rounded-2xl text-sm uppercase flex items-center justify-center gap-2 disabled:opacity-40"
-                style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
-                <Flame className="h-4 w-4" />
-                {dropSaving ? 'Publishing...' : 'Publish Drop'}
-              </button>
-              <button
-                onClick={() => { setDropShop(null); setDropText('') }}
-                className="w-full py-2.5 rounded-2xl text-sm font-black text-zinc-400 border-2 border-zinc-100">
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
+type Tab = 'dashboard' | 'shops' | 'users' | 'reviews' | 'trades' | 'events' | 'claims'
 
 export default function Admin() {
+  const [checking, setChecking] = useState(true)
   const [authed, setAuthed] = useState(false)
-  const [authChecking, setAuthChecking] = useState(true)
-  const [authEmail, setAuthEmail] = useState('')
-  const [authCode, setAuthCode] = useState('')
+  const [adminEmail, setAdminEmail] = useState('')
   const [authStep, setAuthStep] = useState<'email' | 'code'>('email')
+  const [emailInput, setEmailInput] = useState('')
+  const [codeInput, setCodeInput] = useState('')
   const [authError, setAuthError] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
-  const [tab, setTab] = useState<AdminTab>('dashboard')
 
-  // Data
+  const [tab, setTab] = useState<Tab>('dashboard')
+  const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(false)
+
   const [shops, setShops] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
   const [reviews, setReviews] = useState<any[]>([])
   const [trades, setTrades] = useState<any[]>([])
-  const [checkins, setCheckins] = useState<any[]>([])
   const [events, setEvents] = useState<any[]>([])
   const [claims, setClaims] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
-  const [search, setSearch] = useState('')
+  const [checkins, setCheckins] = useState(0)
 
-  // Edit state
-  const [editingShop, setEditingShop] = useState<any>(null)
+  const [editShop, setEditShop] = useState<any>(null)
+  const [editFields, setEditFields] = useState<any>({})
   const [dropShop, setDropShop] = useState<any>(null)
   const [dropText, setDropText] = useState('')
-  const [dropSaving, setDropSaving] = useState(false)
-  const [editFields, setEditFields] = useState<any>({})
 
-  // Check if already authed via session
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user?.email && ADMIN_EMAILS.includes(session.user.email)) {
         setAuthed(true)
-        setAuthEmail(session.user.email)
+        setAdminEmail(session.user.email)
       }
-      setAuthChecking(false)
+      setChecking(false)
     })
   }, [])
 
@@ -174,118 +49,93 @@ export default function Admin() {
 
   async function fetchAll() {
     setLoading(true)
-    const [shopsRes, usersRes, reviewsRes, tradesRes, checkinsRes, eventsRes, claimsRes] = await Promise.all([
-      supabase.from('shops').select('*').order('name'),
-      supabase.from('profiles').select('*').order('created_at', { ascending: false }),
-      supabase.from('reviews').select('*').order('created_at', { ascending: false }),
-      supabase.from('trade_posts').select('*').order('created_at', { ascending: false }),
-      supabase.from('checkins').select('*'),
-      supabase.from('events').select('*, shops(name)').order('date', { ascending: true }),
-      supabase.from('shop_claims').select('*').order('created_at', { ascending: false }),
-    ])
-    setShops(shopsRes.data || [])
-    setUsers(usersRes.data || [])
-    setReviews(reviewsRes.data || [])
-    setTrades(tradesRes.data || [])
-    setCheckins(checkinsRes.data || [])
-    setEvents(eventsRes.data || [])
-    setClaims(claimsRes.data || [])
+    try {
+      const [s, u, r, t, e, c, ci] = await Promise.all([
+        supabase.from('shops').select('*').order('name'),
+        supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+        supabase.from('reviews').select('*').order('created_at', { ascending: false }),
+        supabase.from('trade_posts').select('*').order('created_at', { ascending: false }),
+        supabase.from('events').select('*, shops(name)').order('date'),
+        supabase.from('shop_claims').select('*').order('created_at', { ascending: false }),
+        supabase.from('checkins').select('*', { count: 'exact', head: true }),
+      ])
+      setShops(s.data || [])
+      setUsers(u.data || [])
+      setReviews(r.data || [])
+      setTrades(t.data || [])
+      setEvents(e.data || [])
+      setClaims(c.data || [])
+      setCheckins(ci.count || 0)
+    } catch (err) {
+      console.error('fetchAll error', err)
+    }
     setLoading(false)
   }
 
-  async function handleSendCode(e: React.FormEvent) {
+  async function sendCode(e: React.FormEvent) {
     e.preventDefault()
-    if (!ADMIN_EMAILS.includes(authEmail)) {
-      setAuthError('This email is not authorized as admin.')
-      return
-    }
-    setAuthLoading(true)
-    const { error } = await supabase.auth.signInWithOtp({ email: authEmail })
+    if (!ADMIN_EMAILS.includes(emailInput)) { setAuthError('Not authorized'); return }
+    setAuthLoading(true); setAuthError('')
+    const { error } = await supabase.auth.signInWithOtp({ email: emailInput })
     setAuthLoading(false)
     if (error) { setAuthError(error.message); return }
     setAuthStep('code')
   }
 
-  async function handleVerifyCode(e: React.FormEvent) {
+  async function verifyCode(e: React.FormEvent) {
     e.preventDefault()
-    setAuthLoading(true)
-    const { error } = await supabase.auth.verifyOtp({ email: authEmail, token: authCode, type: 'email' })
+    setAuthLoading(true); setAuthError('')
+    const { error } = await supabase.auth.verifyOtp({ email: emailInput, token: codeInput, type: 'email' })
     setAuthLoading(false)
-    if (error) { setAuthError('Invalid code. Try again.'); return }
+    if (error) { setAuthError('Invalid code'); return }
     setAuthed(true)
+    setAdminEmail(emailInput)
   }
 
-  async function publishDrop(shop: any) {
-    if (!dropText.trim()) return
-    setDropSaving(true)
-    await supabase.from('shops').update({ hot_find: dropText }).eq('id', shop.id)
-    setShops(shops.map(s => s.id === shop.id ? { ...s, hot_find: dropText } : s))
-    setDropText('')
-    setDropShop(null)
-    setDropSaving(false)
+  async function signOut() {
+    await supabase.auth.signOut()
+    setAuthed(false)
   }
 
-  async function deleteShop(id: string) {
-    if (!confirm('Delete this shop? This cannot be undone.')) return
-    await supabase.from('shops').delete().eq('id', id)
-    setShops(shops.filter(s => s.id !== id))
+  async function deleteItem(table: string, id: string, setter: any, items: any[]) {
+    await supabase.from(table).delete().eq('id', id)
+    setter(items.filter((i: any) => i.id !== id))
   }
 
-  async function saveShop(id: string) {
-    await supabase.from('shops').update(editFields).eq('id', id)
-    setShops(shops.map(s => s.id === id ? { ...s, ...editFields } : s))
-    setEditingShop(null)
-    setEditFields({})
+  async function saveShop() {
+    if (!editShop) return
+    await supabase.from('shops').update(editFields).eq('id', editShop.id)
+    setShops(shops.map(s => s.id === editShop.id ? { ...s, ...editFields } : s))
+    setEditShop(null); setEditFields({})
   }
 
-  async function deleteReview(id: string) {
-    await supabase.from('reviews').delete().eq('id', id)
-    setReviews(reviews.filter(r => r.id !== id))
+  async function publishDrop() {
+    if (!dropShop || !dropText.trim()) return
+    await supabase.from('shops').update({ hot_find: dropText }).eq('id', dropShop.id)
+    setShops(shops.map(s => s.id === dropShop.id ? { ...s, hot_find: dropText } : s))
+    setDropShop(null); setDropText('')
   }
 
-  async function deleteTrade(id: string) {
-    await supabase.from('trade_posts').delete().eq('id', id)
-    setTrades(trades.filter(t => t.id !== id))
-  }
-
-  async function deleteEvent(id: string) {
-    await supabase.from('events').delete().eq('id', id)
-    setEvents(events.filter(e => e.id !== id))
+  async function updateUserTier(id: string, tier: string) {
+    await supabase.from('profiles').update({ tier }).eq('id', id)
+    setUsers(users.map(u => u.id === id ? { ...u, tier } : u))
   }
 
   async function approveClaim(claim: any) {
-    // 1. Update claim status
     await supabase.from('shop_claims').update({ status: 'approved' }).eq('id', claim.id)
-    // 2. Try to find matching shop and link owner
-    const { data: matchingShop } = await supabase
-      .from('shops')
-      .select('id')
-      .ilike('name', `%${claim.shop_name}%`)
-      .single()
-    if (matchingShop) {
-      // Link existing shop to merchant
-      await supabase.from('shops').update({ owner_id: claim.user_id }).eq('id', matchingShop.id)
+    const { data: match } = await supabase.from('shops').select('id').ilike('name', `%${claim.shop_name}%`).single()
+    if (match) {
+      await supabase.from('shops').update({ owner_id: claim.user_id }).eq('id', match.id)
     } else {
-      // Create new shop listing
       await supabase.from('shops').insert({
-        name: claim.shop_name,
-        address: claim.shop_address,
-        phone: claim.phone,
-        category: claim.category,
-        hours: claim.hours,
-        owner_id: claim.user_id,
-        hot_find: '',
-        rating: 5.0,
-        tags: [],
-        lat: 39.7392,
-        lng: -104.9903,
+        name: claim.shop_name, address: claim.shop_address, phone: claim.phone,
+        category: claim.category, hours: claim.hours, owner_id: claim.user_id,
+        hot_find: '', rating: 5.0, tags: [], lat: 39.7392, lng: -104.9903,
         description: `${claim.shop_name} — verified Colorado collectibles shop.`,
       })
     }
-    // 3. Upgrade user to merchant role
     await supabase.from('profiles').update({ role: 'merchant', tier: 'store' }).eq('id', claim.user_id)
     setClaims(claims.map(c => c.id === claim.id ? { ...c, status: 'approved' } : c))
-    alert(`✅ Approved! ${claim.shop_name} is now live and ${claim.username} is a verified merchant.`)
     fetchAll()
   }
 
@@ -294,31 +144,49 @@ export default function Admin() {
     setClaims(claims.map(c => c.id === id ? { ...c, status: 'rejected' } : c))
   }
 
-  async function updateUserTier(id: string, tier: string) {
-    await supabase.from('profiles').update({ tier }).eq('id', id)
-    setUsers(users.map(u => u.id === id ? { ...u, tier } : u))
+  const pendingClaims = claims.filter(c => c.status === 'pending').length
+  const eliteCount = users.filter(u => u.tier === 'elite').length
+  const storeCount = users.filter(u => u.tier === 'store').length
+  const mrr = ((eliteCount * 1.99) + (storeCount * 2.99)).toFixed(0)
+
+  const fShops = shops.filter(s => s.name?.toLowerCase().includes(search.toLowerCase()) || s.address?.toLowerCase().includes(search.toLowerCase()))
+  const fUsers = users.filter(u => u.username?.toLowerCase().includes(search.toLowerCase()))
+  const fReviews = reviews.filter(r => r.comment?.toLowerCase().includes(search.toLowerCase()) || r.username?.toLowerCase().includes(search.toLowerCase()))
+  const fTrades = trades.filter(t => t.offer?.toLowerCase().includes(search.toLowerCase()) || t.look_for?.toLowerCase().includes(search.toLowerCase()))
+  const fEvents = events.filter(e => e.title?.toLowerCase().includes(search.toLowerCase()))
+  const fClaims = claims.filter(c => c.shop_name?.toLowerCase().includes(search.toLowerCase()) || c.username?.toLowerCase().includes(search.toLowerCase()))
+
+  const TABS = [
+    { id: 'dashboard', icon: BarChart2, label: 'Dashboard' },
+    { id: 'shops', icon: Store, label: `Shops (${shops.length})` },
+    { id: 'users', icon: Users, label: `Users (${users.length})` },
+    { id: 'reviews', icon: MessageSquare, label: `Reviews (${reviews.length})` },
+    { id: 'trades', icon: ArrowLeftRight, label: `Trades (${trades.length})` },
+    { id: 'events', icon: Calendar, label: `Events (${events.length})` },
+    { id: 'claims', icon: Shield, label: `Claims (${pendingClaims})` },
+  ]
+
+  function catStyle(cat: string) {
+    if (cat === 'comics') return { background: '#FEF3C7', color: '#92400E' }
+    if (cat === 'cards') return { background: '#E0F2FE', color: '#0369A1' }
+    return { background: '#EDE9FE', color: '#5B21B6' }
   }
 
-  async function signOut() {
-    await supabase.auth.signOut()
-    setAuthed(false)
-  }
-
-  // ── Loading screen ───────────────────────────────────────────────────────
-  if (authChecking) {
+  // Loading
+  if (checking) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
-        <div className="text-center space-y-3">
-          <div className="h-12 w-12 rounded-2xl flex items-center justify-center mx-auto" style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
+        <div className="text-center">
+          <div className="h-12 w-12 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
             <Shield className="h-6 w-6 text-white animate-pulse" />
           </div>
-          <p className="text-white/40 text-xs font-mono uppercase tracking-widest">Loading Admin...</p>
+          <p className="text-white/40 text-xs font-mono uppercase">Loading...</p>
         </div>
       </div>
     )
   }
 
-  // ── Login screen ─────────────────────────────────────────────────────────
+  // Login
   if (!authed) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
@@ -328,36 +196,33 @@ export default function Admin() {
               <Shield className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h1 className="font-black text-lg">Outpost Admin</h1>
+              <h1 className="font-black text-base">Outpost Admin</h1>
               <p className="text-xs text-zinc-400">Restricted access</p>
             </div>
           </div>
-
-          {authStep === 'email' && (
-            <form onSubmit={handleSendCode} className="space-y-3">
-              <input type="email" value={authEmail} onChange={e => setAuthEmail(e.target.value)}
+          {authStep === 'email' ? (
+            <form onSubmit={sendCode} className="space-y-3">
+              <input type="email" value={emailInput} onChange={e => setEmailInput(e.target.value)}
                 placeholder="Admin email"
-                className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium outline-none focus:border-zinc-300" />
+                className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium outline-none" />
               {authError && <p className="text-xs text-red-500">{authError}</p>}
               <button type="submit" disabled={authLoading}
                 className="w-full text-white font-black py-3 rounded-2xl text-sm uppercase disabled:opacity-50"
                 style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
-                {authLoading ? 'Sending...' : 'Send Access Code'}
+                {authLoading ? 'Sending...' : 'Send Code'}
               </button>
             </form>
-          )}
-
-          {authStep === 'code' && (
-            <form onSubmit={handleVerifyCode} className="space-y-3">
-              <p className="text-xs text-zinc-400 mb-2">Code sent to <span className="font-bold text-zinc-700">{authEmail}</span></p>
-              <input type="text" value={authCode} onChange={e => setAuthCode(e.target.value)}
-                placeholder="Enter 6-digit code"
-                className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium outline-none font-mono tracking-widest" />
+          ) : (
+            <form onSubmit={verifyCode} className="space-y-3">
+              <p className="text-xs text-zinc-400">Code sent to <span className="font-bold text-zinc-700">{emailInput}</span></p>
+              <input type="text" value={codeInput} onChange={e => setCodeInput(e.target.value)}
+                placeholder="6-digit code" inputMode="numeric"
+                className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-mono tracking-widest outline-none" />
               {authError && <p className="text-xs text-red-500">{authError}</p>}
               <button type="submit" disabled={authLoading}
                 className="w-full text-white font-black py-3 rounded-2xl text-sm uppercase disabled:opacity-50"
                 style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
-                {authLoading ? 'Verifying...' : 'Enter Admin Panel'}
+                {authLoading ? 'Verifying...' : 'Enter Admin'}
               </button>
               <button type="button" onClick={() => setAuthStep('email')} className="w-full text-zinc-400 text-xs py-2">← Back</button>
             </form>
@@ -367,31 +232,20 @@ export default function Admin() {
     )
   }
 
-  // ── Stats ─────────────────────────────────────────────────────────────────
-  const totalRevenue = (users || []).filter(u => u.tier !== 'free').length * 1.99
-  const eliteCount = (users || []).filter(u => u.tier === 'elite').length
-  const storeCount = (users || []).filter(u => u.tier === 'store').length
-
-  const filteredShops = shops.filter(s => s.name?.toLowerCase().includes(search.toLowerCase()) || s.address?.toLowerCase().includes(search.toLowerCase()))
-  const filteredUsers = users.filter(u => u.username?.toLowerCase().includes(search.toLowerCase()))
-  const filteredReviews = reviews.filter(r => r.comment?.toLowerCase().includes(search.toLowerCase()) || r.username?.toLowerCase().includes(search.toLowerCase()))
-  const filteredTrades = trades.filter(t => t.offer?.toLowerCase().includes(search.toLowerCase()) || t.look_for?.toLowerCase().includes(search.toLowerCase()))
-  const filteredEvents = events.filter(e => e.title?.toLowerCase().includes(search.toLowerCase()) || e.shops?.name?.toLowerCase().includes(search.toLowerCase()))
-  const filteredClaims = claims.filter(c => c.shop_name?.toLowerCase().includes(search.toLowerCase()) || c.username?.toLowerCase().includes(search.toLowerCase()) || c.email?.toLowerCase().includes(search.toLowerCase()))
-  const pendingClaims = claims.filter(c => c.status === 'pending').length
-
+  // Admin panel
   return (
-    <div className="min-h-screen font-sans" style={{ background: '#F0EFE9', WebkitOverflowScrolling: 'touch' }}>
+    <div className="min-h-screen font-sans" style={{ background: '#F0EFE9' }}>
+
       {/* Header */}
-      <header className="sticky top-0 z-20 px-4 py-3 border-b border-zinc-200 bg-white shadow-sm">
+      <header className="sticky top-0 z-20 bg-white border-b border-zinc-200 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
+            <div className="h-8 w-8 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
               <Shield className="h-4 w-4 text-white" />
             </div>
             <div>
-              <h1 className="font-black text-sm">OUTPOST ADMIN</h1>
-              <p className="text-xs text-zinc-400 truncate max-w-[140px]">{authEmail}</p>
+              <p className="font-black text-sm leading-none">OUTPOST ADMIN</p>
+              <p className="text-[10px] text-zinc-400 truncate max-w-[150px]">{adminEmail}</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5">
@@ -399,475 +253,310 @@ export default function Admin() {
               <RefreshCw className={`h-3.5 w-3.5 text-zinc-500 ${loading ? 'animate-spin' : ''}`} />
             </button>
             <a href="/" className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-zinc-100 text-zinc-600">← App</a>
-            <button onClick={signOut} className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-white flex items-center gap-1"
-              style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
-              <LogOut className="h-3 w-3" /> Out
+            <button onClick={signOut} className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-white"
+              style={{ background: '#1a0a2e' }}>
+              Out
             </button>
           </div>
         </div>
       </header>
 
-      <div className="flex flex-col">
-        {/* Mobile tab bar */}
-        <div className="flex overflow-x-auto gap-2 px-4 py-3 bg-white border-b border-zinc-100 sticky top-14 z-10">
-          {[
-            { id: 'dashboard', icon: BarChart2, label: 'Dashboard' },
-            { id: 'shops', icon: Store, label: `Shops (${shops.length})` },
-            { id: 'users', icon: Users, label: `Users (${users.length})` },
-            { id: 'reviews', icon: MessageSquare, label: `Reviews (${reviews.length})` },
-            { id: 'trades', icon: ArrowLeftRight, label: `Trades (${trades.length})` },
-            { id: 'events', icon: Calendar, label: `Events (${events.length})` },
-            { id: 'claims', icon: Shield, label: `Claims (${pendingClaims})` },
-          ].map(({ id, icon: Icon, label }) => (
-            <button key={id} onClick={() => setTab(id as AdminTab)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black whitespace-nowrap flex-shrink-0 transition-all"
-              style={tab === id ? { background: 'linear-gradient(135deg, #E0533C, #ff6b4a)', color: 'white' } : { background: '#f4f4f5', color: '#6b7280' }}>
-              <Icon className="h-3.5 w-3.5" />
-              {label}
-            </button>
-          ))}
-        </div>
+      {/* Tab bar */}
+      <div className="bg-white border-b border-zinc-100 px-3 py-2 flex gap-2 overflow-x-auto sticky top-14 z-10">
+        {TABS.map(({ id, icon: Icon, label }) => (
+          <button key={id} onClick={() => setTab(id as Tab)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap flex-shrink-0 transition-all"
+            style={tab === id ? { background: 'linear-gradient(135deg, #E0533C, #ff6b4a)', color: 'white' } : { background: '#f4f4f5', color: '#6b7280' }}>
+            <Icon className="h-3 w-3" />{label}
+          </button>
+        ))}
+      </div>
 
-        {/* Main */}
-        <main className="flex-1 p-4 space-y-4">
+      <main className="p-4 space-y-4 pb-10">
 
-          {/* Search bar */}
-          {tab !== 'dashboard' && (
-            <div className="relative">
-              <Search className="absolute left-3.5 top-3 h-4 w-4 text-zinc-400" />
-              <input type="text" placeholder={`Search ${tab}...`} value={search} onChange={e => setSearch(e.target.value)}
-                className="w-full bg-white border border-zinc-200 rounded-2xl pl-10 pr-4 py-2.5 text-sm font-medium outline-none focus:border-zinc-400 shadow-sm" />
-            </div>
-          )}
+        {/* Search */}
+        {tab !== 'dashboard' && (
+          <div className="relative">
+            <Search className="absolute left-3.5 top-3 h-4 w-4 text-zinc-400" />
+            <input type="text" placeholder={`Search ${tab}...`} value={search} onChange={e => setSearch(e.target.value)}
+              className="w-full bg-white border border-zinc-200 rounded-2xl pl-10 pr-4 py-2.5 text-sm font-medium outline-none shadow-sm" />
+          </div>
+        )}
 
-          {/* DASHBOARD */}
-          {tab === 'dashboard' && (
-            <div className="space-y-6">
-              <h2 className="font-black text-xl">Dashboard</h2>
-              <div className="grid grid-cols-2 gap-3">
-                <StatCard label="Total Shops" value={shops.length} icon={Store} color="#E0533C" />
-                <StatCard label="Total Users" value={users.length} icon={Users} color="#7C3AED" />
-                <StatCard label="Reviews" value={reviews.length} icon={Star} color="#F59E0B" />
-                <StatCard label="Check-ins" value={checkins.length} icon={TrendingUp} color="#059669" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <StatCard label="Elite Subs" value={eliteCount} icon={Package} color="#0284C7" />
-                <StatCard label="Store Subs" value={storeCount} icon={Shield} color="#D97706" />
-                <StatCard label="Trade Posts" value={trades.length} icon={ArrowLeftRight} color="#E0533C" />
-                <StatCard label="Est. MRR" value={`$${((eliteCount * 1.99) + (storeCount * 2.99)).toFixed(0)}`} icon={TrendingUp} color="#059669" />
-              <StatCard label="Pending Claims" value={pendingClaims} icon={Shield} color="#F59E0B" />
-              </div>
-
-              {/* Recent users */}
-              <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
-                <div className="px-5 py-4 border-b border-zinc-100 font-black text-sm">Recent Sign Ups</div>
-                {users.slice(0, 5).map(u => (
-                  <div key={u.id} className="px-5 py-3 flex items-center justify-between border-b border-zinc-50 last:border-0">
-                    <div>
-                      <p className="font-bold text-sm">@{u.username}</p>
-                      <p className="text-xs text-zinc-400 font-mono">{u.role}</p>
+        {/* DASHBOARD */}
+        {tab === 'dashboard' && (
+          <div className="space-y-4">
+            <h2 className="font-black text-xl">Dashboard</h2>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: 'Shops', value: shops.length, color: '#E0533C', icon: Store },
+                { label: 'Users', value: users.length, color: '#7C3AED', icon: Users },
+                { label: 'Check-ins', value: checkins, color: '#059669', icon: BarChart2 },
+                { label: 'Reviews', value: reviews.length, color: '#F59E0B', icon: Star },
+                { label: 'Elite Subs', value: eliteCount, color: '#0284C7', icon: Shield },
+                { label: 'Store Subs', value: storeCount, color: '#D97706', icon: Store },
+                { label: 'Trades', value: trades.length, color: '#E0533C', icon: ArrowLeftRight },
+                { label: 'Est. MRR', value: `$${mrr}`, color: '#059669', icon: BarChart2 },
+                { label: 'Pending Claims', value: pendingClaims, color: '#F59E0B', icon: Shield },
+              ].map(({ label, value, color, icon: Icon }) => (
+                <div key={label} className="bg-white rounded-2xl p-3 border border-zinc-100 shadow-sm">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-bold text-zinc-400 uppercase">{label}</p>
+                    <div className="h-7 w-7 rounded-lg flex items-center justify-center" style={{ background: color + '20' }}>
+                      <Icon className="h-3.5 w-3.5" style={{ color }} />
                     </div>
-                    <span className="text-xs font-black px-2 py-1 rounded-lg"
-                      style={u.tier === 'elite' ? { background: '#EDE9FE', color: '#5B21B6' }
-                        : u.tier === 'store' ? { background: '#FEF3C7', color: '#92400E' }
-                        : { background: '#F3F4F6', color: '#6B7280' }}>
-                      {u.tier}
-                    </span>
                   </div>
-                ))}
-              </div>
+                  <p className="text-2xl font-black">{value}</p>
+                </div>
+              ))}
+            </div>
 
-              {/* Recent reviews */}
-              <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
-                <div className="px-5 py-4 border-b border-zinc-100 font-black text-sm">Recent Reviews</div>
-                {reviews.slice(0, 5).map(r => (
-                  <div key={r.id} className="px-5 py-3 flex items-center justify-between border-b border-zinc-50 last:border-0">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">"{r.comment}"</p>
-                      <p className="text-xs text-zinc-400 font-mono">@{r.username}</p>
+            <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 border-b border-zinc-100 font-black text-sm">Recent Users</div>
+              {users.slice(0, 5).map(u => (
+                <div key={u.id} className="px-4 py-3 flex items-center justify-between border-b border-zinc-50 last:border-0">
+                  <p className="font-bold text-sm">@{u.username}</p>
+                  <span className="text-xs font-black px-2 py-0.5 rounded-lg"
+                    style={u.tier === 'elite' ? { background: '#EDE9FE', color: '#5B21B6' }
+                      : u.tier === 'store' ? { background: '#FEF3C7', color: '#92400E' }
+                      : { background: '#F3F4F6', color: '#6B7280' }}>
+                    {u.tier}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* SHOPS */}
+        {tab === 'shops' && (
+          <div className="space-y-3">
+            <h2 className="font-black text-xl">Shops ({fShops.length})</h2>
+            {fShops.map(s => (
+              <div key={s.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4">
+                {editShop?.id === s.id ? (
+                  <div className="space-y-2">
+                    <input value={editFields.name || ''} onChange={e => setEditFields({ ...editFields, name: e.target.value })}
+                      placeholder="Name" className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                    <input value={editFields.hot_find || ''} onChange={e => setEditFields({ ...editFields, hot_find: e.target.value })}
+                      placeholder="Hot find" className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                    <input value={editFields.hours || ''} onChange={e => setEditFields({ ...editFields, hours: e.target.value })}
+                      placeholder="Hours" className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                    <select value={editFields.category || ''} onChange={e => setEditFields({ ...editFields, category: e.target.value })}
+                      className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none">
+                      {['cards','comics','collectibles'].map(c => <option key={c}>{c}</option>)}
+                    </select>
+                    <input type="number" step="0.1" min="1" max="5" value={editFields.rating || ''} onChange={e => setEditFields({ ...editFields, rating: parseFloat(e.target.value) })}
+                      placeholder="Rating" className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                    <div className="flex gap-2">
+                      <button onClick={saveShop} className="flex-1 py-2 rounded-xl text-xs font-black text-white flex items-center justify-center gap-1"
+                        style={{ background: '#059669' }}><Check className="h-3 w-3" /> Save</button>
+                      <button onClick={() => { setEditShop(null); setEditFields({}) }} className="flex-1 py-2 rounded-xl text-xs font-black bg-zinc-100 text-zinc-600">Cancel</button>
                     </div>
-                    <button onClick={() => deleteReview(r.id)} className="ml-3 text-red-400 hover:text-red-600 transition-colors flex-shrink-0">
-                      <Trash2 className="h-4 w-4" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-black px-2 py-0.5 rounded-lg uppercase" style={catStyle(s.category)}>{s.category}</span>
+                          <span className="text-xs text-amber-500 font-bold">{s.rating}★</span>
+                        </div>
+                        <p className="font-black text-sm">{s.name}</p>
+                        <p className="text-xs text-zinc-400 font-mono mt-0.5 truncate">{s.address}</p>
+                        {s.hot_find && <p className="text-xs text-zinc-400 italic mt-1 truncate">🔥 "{s.hot_find}"</p>}
+                      </div>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <button onClick={() => { setDropShop(s); setDropText(s.hot_find || '') }}
+                          className="text-orange-400"><Flame className="h-4 w-4" /></button>
+                        <button onClick={() => { setEditShop(s); setEditFields({ name: s.name, hot_find: s.hot_find, hours: s.hours, category: s.category, rating: s.rating }) }}
+                          className="text-zinc-400"><Edit2 className="h-4 w-4" /></button>
+                        <button onClick={() => deleteItem('shops', s.id, setShops, shops)}
+                          className="text-red-400"><Trash2 className="h-4 w-4" /></button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* USERS */}
+        {tab === 'users' && (
+          <div className="space-y-3">
+            <h2 className="font-black text-xl">Users ({fUsers.length})</h2>
+            {fUsers.map(u => (
+              <div key={u.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4 flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-black text-sm">@{u.username}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-lg"
+                      style={u.role === 'merchant' ? { background: '#EDE9FE', color: '#5B21B6' } : { background: '#F3F4F6', color: '#6B7280' }}>
+                      {u.role}
+                    </span>
+                    <span className="text-xs text-zinc-400 font-mono">{new Date(u.created_at).toLocaleDateString()}</span>
+                  </div>
+                </div>
+                <select value={u.tier} onChange={e => updateUserTier(u.id, e.target.value)}
+                  className="text-xs bg-zinc-50 border border-zinc-200 rounded-xl px-2 py-1.5 outline-none font-bold flex-shrink-0">
+                  {['free','elite','store'].map(t => <option key={t}>{t}</option>)}
+                </select>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* REVIEWS */}
+        {tab === 'reviews' && (
+          <div className="space-y-3">
+            <h2 className="font-black text-xl">Reviews ({fReviews.length})</h2>
+            {fReviews.map(r => (
+              <div key={r.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4 flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium italic">"{r.comment}"</p>
+                  <p className="text-xs font-mono font-bold mt-1" style={{ color: '#E0533C' }}>@{r.username}</p>
+                  <p className="text-xs text-zinc-300 font-mono mt-0.5">{new Date(r.created_at).toLocaleDateString()}</p>
+                </div>
+                <button onClick={() => deleteItem('reviews', r.id, setReviews, reviews)} className="text-red-400 flex-shrink-0">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* TRADES */}
+        {tab === 'trades' && (
+          <div className="space-y-3">
+            <h2 className="font-black text-xl">Trades ({fTrades.length})</h2>
+            {fTrades.map(t => (
+              <div key={t.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4 flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-mono text-zinc-400 mb-1">@{t.username}</p>
+                  <div className="flex gap-2 items-center mb-1">
+                    <span className="text-xs font-black px-1.5 py-0.5 rounded-lg" style={{ background: '#F0FDF4', color: '#166534' }}>OFFER</span>
+                    <p className="text-sm font-bold truncate">{t.offer}</p>
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <span className="text-xs font-black px-1.5 py-0.5 rounded-lg" style={{ background: '#FEF2F2', color: '#991B1B' }}>WANT</span>
+                    <p className="text-sm font-bold truncate" style={{ color: '#E0533C' }}>{t.look_for}</p>
+                  </div>
+                </div>
+                <button onClick={() => deleteItem('trade_posts', t.id, setTrades, trades)} className="text-red-400 flex-shrink-0">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* EVENTS */}
+        {tab === 'events' && (
+          <div className="space-y-3">
+            <h2 className="font-black text-xl">Events ({fEvents.length})</h2>
+            {fEvents.map(ev => (
+              <div key={ev.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4 flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="font-black text-sm">{ev.title}</p>
+                  <p className="text-xs text-zinc-400 mt-0.5">{ev.shops?.name}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs bg-zinc-100 px-2 py-0.5 rounded-lg font-mono font-bold">{ev.date}</span>
+                    <span className="text-xs text-zinc-400">{ev.spots} spots</span>
+                  </div>
+                </div>
+                <button onClick={() => deleteItem('events', ev.id, setEvents, events)} className="text-red-400 flex-shrink-0">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+            {fEvents.length === 0 && <p className="text-center text-zinc-400 py-8 text-sm font-mono">No events yet</p>}
+          </div>
+        )}
+
+        {/* CLAIMS */}
+        {tab === 'claims' && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="font-black text-xl">Claims ({fClaims.length})</h2>
+              {pendingClaims > 0 && (
+                <span className="text-xs font-black px-2 py-1 rounded-lg text-white" style={{ background: '#F59E0B' }}>
+                  {pendingClaims} pending
+                </span>
+              )}
+            </div>
+            {fClaims.map(c => (
+              <div key={c.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4">
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-black text-sm">{c.shop_name}</p>
+                      <span className="text-xs font-black px-2 py-0.5 rounded-lg"
+                        style={c.status === 'approved' ? { background: '#F0FDF4', color: '#166534' }
+                          : c.status === 'rejected' ? { background: '#FEF2F2', color: '#991B1B' }
+                          : { background: '#FEF3C7', color: '#92400E' }}>
+                        {c.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-zinc-400">{c.shop_address}</p>
+                    <p className="text-xs text-zinc-400 font-mono">@{c.username} · {c.email}</p>
+                    <p className="text-xs text-zinc-400">{c.category} · {c.hours}</p>
+                    {c.phone && <p className="text-xs text-zinc-400">{c.phone}</p>}
+                    <p className="text-xs text-zinc-300 font-mono mt-1">EIN: {c.ein}</p>
+                  </div>
+                </div>
+                {c.status === 'pending' && (
+                  <div className="flex gap-2 pt-3 border-t border-zinc-100">
+                    <button onClick={() => approveClaim(c)}
+                      className="flex-1 py-2.5 rounded-xl text-xs font-black text-white flex items-center justify-center gap-1"
+                      style={{ background: 'linear-gradient(135deg, #059669, #047857)' }}>
+                      <Check className="h-3.5 w-3.5" /> Approve
+                    </button>
+                    <button onClick={() => rejectClaim(c.id)}
+                      className="flex-1 py-2.5 rounded-xl text-xs font-black border-2 border-red-200 text-red-500 flex items-center justify-center gap-1">
+                      <X className="h-3.5 w-3.5" /> Reject
                     </button>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* SHOPS */}
-          {tab === 'shops' && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="font-black text-xl">Shops ({filteredShops.length})</h2>
-              </div>
-              <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto -mx-0">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-zinc-100 text-xs font-bold uppercase text-zinc-400">
-                        <th className="text-left px-5 py-3">Name</th>
-                        <th className="text-left px-5 py-3">Category</th>
-                        <th className="text-left px-5 py-3">Rating</th>
-                        <th className="text-left px-5 py-3">City</th>
-                        <th className="text-left px-5 py-3">Hot Find</th>
-                        <th className="text-right px-5 py-3">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredShops.map(s => (
-                        <React.Fragment key={s.id}>
-                          <tr className="border-b border-zinc-50 hover:bg-zinc-50 transition-all">
-                            <td className="px-5 py-3 font-bold">{s.name}</td>
-                            <td className="px-5 py-3">
-                              <span className="text-xs font-black px-2 py-0.5 rounded-lg"
-                                style={s.category === 'comics' ? { background: '#FEF3C7', color: '#92400E' }
-                                  : s.category === 'cards' ? { background: '#E0F2FE', color: '#0369A1' }
-                                  : { background: '#EDE9FE', color: '#5B21B6' }}>
-                                {s.category}
-                              </span>
-                            </td>
-                            <td className="px-5 py-3 text-amber-500 font-bold">{s.rating}★</td>
-                            <td className="px-5 py-3 text-zinc-400 text-xs font-mono">{s.address?.split(',')[1]?.trim()}</td>
-                            <td className="px-5 py-3 text-zinc-400 text-xs italic truncate max-w-[200px]">{s.hot_find || '—'}</td>
-                            <td className="px-5 py-3 text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                <button onClick={() => { setDropShop(s); setDropText(s.hot_find || '') }}
-                                  className="text-orange-400 hover:text-orange-600 transition-colors" title="Add Drop">
-                                  <Flame className="h-4 w-4" />
-                                </button>
-                                <button onClick={() => { setEditingShop(s.id); setEditFields({ name: s.name, hot_find: s.hot_find, hours: s.hours, category: s.category, rating: s.rating, description: s.description }) }}
-                                  className="text-zinc-400 hover:text-zinc-700 transition-colors">
-                                  <Edit2 className="h-4 w-4" />
-                                </button>
-                                <button onClick={() => deleteShop(s.id)} className="text-red-400 hover:text-red-600 transition-colors">
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                          {editingShop === s.id && (
-                            <tr className="bg-zinc-50 border-b border-zinc-100">
-                              <td colSpan={6} className="px-5 py-4">
-                                <div className="grid grid-cols-2 gap-3 mb-3">
-                                  <div>
-                                    <label className="block text-xs font-bold text-zinc-400 mb-1">Name</label>
-                                    <input value={editFields.name || ''} onChange={e => setEditFields({ ...editFields, name: e.target.value })}
-                                      className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
-                                  </div>
-                                  <div>
-                                    <label className="block text-xs font-bold text-zinc-400 mb-1">Category</label>
-                                    <select value={editFields.category || ''} onChange={e => setEditFields({ ...editFields, category: e.target.value })}
-                                      className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none">
-                                      {['cards', 'comics', 'collectibles'].map(c => <option key={c}>{c}</option>)}
-                                    </select>
-                                  </div>
-                                  <div>
-                                    <label className="block text-xs font-bold text-zinc-400 mb-1">Hot Find</label>
-                                    <input value={editFields.hot_find || ''} onChange={e => setEditFields({ ...editFields, hot_find: e.target.value })}
-                                      className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
-                                  </div>
-                                  <div>
-                                    <label className="block text-xs font-bold text-zinc-400 mb-1">Hours</label>
-                                    <input value={editFields.hours || ''} onChange={e => setEditFields({ ...editFields, hours: e.target.value })}
-                                      className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
-                                  </div>
-                                  <div>
-                                    <label className="block text-xs font-bold text-zinc-400 mb-1">Rating</label>
-                                    <input type="number" step="0.1" min="1" max="5" value={editFields.rating || ''} onChange={e => setEditFields({ ...editFields, rating: parseFloat(e.target.value) })}
-                                      className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
-                                  </div>
-                                  <div>
-                                    <label className="block text-xs font-bold text-zinc-400 mb-1">Description</label>
-                                    <input value={editFields.description || ''} onChange={e => setEditFields({ ...editFields, description: e.target.value })}
-                                      className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
-                                  </div>
-                                </div>
-                                <div className="flex gap-2">
-                                  <button onClick={() => saveShop(s.id)} className="px-4 py-2 rounded-xl text-xs font-black text-white flex items-center gap-1"
-                                    style={{ background: 'linear-gradient(135deg, #059669, #047857)' }}>
-                                    <Check className="h-3 w-3" /> Save
-                                  </button>
-                                  <button onClick={() => { setEditingShop(null); setEditFields({}) }} className="px-4 py-2 rounded-xl text-xs font-black bg-zinc-200 text-zinc-600 flex items-center gap-1">
-                                    <X className="h-3 w-3" /> Cancel
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* USERS */}
-          {tab === 'users' && (
-            <div className="space-y-3">
-              <h2 className="font-black text-xl">Users ({filteredUsers.length})</h2>
-              <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-zinc-100 text-xs font-bold uppercase text-zinc-400">
-                      <th className="text-left px-5 py-3">Username</th>
-                      <th className="text-left px-5 py-3">Role</th>
-                      <th className="text-left px-5 py-3">Tier</th>
-                      <th className="text-left px-5 py-3">Joined</th>
-                      <th className="text-right px-5 py-3">Change Tier</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredUsers.map(u => (
-                      <tr key={u.id} className="border-b border-zinc-50 hover:bg-zinc-50 transition-all">
-                        <td className="px-5 py-3 font-bold">@{u.username}</td>
-                        <td className="px-5 py-3">
-                          <span className="text-xs font-bold px-2 py-0.5 rounded-lg"
-                            style={u.role === 'merchant' ? { background: '#EDE9FE', color: '#5B21B6' } : { background: '#F3F4F6', color: '#6B7280' }}>
-                            {u.role}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3">
-                          <span className="text-xs font-black px-2 py-0.5 rounded-lg"
-                            style={u.tier === 'elite' ? { background: '#EDE9FE', color: '#5B21B6' }
-                              : u.tier === 'store' ? { background: '#FEF3C7', color: '#92400E' }
-                              : { background: '#F3F4F6', color: '#6B7280' }}>
-                            {u.tier}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3 text-zinc-400 text-xs font-mono">
-                          {new Date(u.created_at).toLocaleDateString()}
-                        </td>
-                        <td className="px-5 py-3 text-right">
-                          <select value={u.tier} onChange={e => updateUserTier(u.id, e.target.value)}
-                            className="text-xs bg-zinc-50 border border-zinc-200 rounded-lg px-2 py-1 outline-none font-bold">
-                            {['free', 'elite', 'store'].map(t => <option key={t}>{t}</option>)}
-                          </select>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* REVIEWS */}
-          {tab === 'reviews' && (
-            <div className="space-y-3">
-              <h2 className="font-black text-xl">Reviews ({filteredReviews.length})</h2>
-              <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-zinc-100 text-xs font-bold uppercase text-zinc-400">
-                      <th className="text-left px-5 py-3">User</th>
-                      <th className="text-left px-5 py-3">Comment</th>
-                      <th className="text-left px-5 py-3">Rating</th>
-                      <th className="text-left px-5 py-3">Date</th>
-                      <th className="text-right px-5 py-3">Delete</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredReviews.map(r => (
-                      <tr key={r.id} className="border-b border-zinc-50 hover:bg-zinc-50 transition-all">
-                        <td className="px-5 py-3 font-bold text-xs">@{r.username}</td>
-                        <td className="px-5 py-3 text-zinc-600 italic max-w-xs truncate">"{r.comment}"</td>
-                        <td className="px-5 py-3 text-amber-500 font-bold">{r.rating}★</td>
-                        <td className="px-5 py-3 text-zinc-400 text-xs font-mono">{new Date(r.created_at).toLocaleDateString()}</td>
-                        <td className="px-5 py-3 text-right">
-                          <button onClick={() => deleteReview(r.id)} className="text-red-400 hover:text-red-600 transition-colors">
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* EVENTS */}
-          {tab === 'events' && (
-            <div className="space-y-3">
-              <h2 className="font-black text-xl">Events ({filteredEvents.length})</h2>
-              <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-zinc-100 text-xs font-bold uppercase text-zinc-400">
-                        <th className="text-left px-5 py-3">Title</th>
-                        <th className="text-left px-5 py-3">Shop</th>
-                        <th className="text-left px-5 py-3">Date</th>
-                        <th className="text-left px-5 py-3">Spots</th>
-                        <th className="text-right px-5 py-3">Delete</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredEvents.map(ev => (
-                        <tr key={ev.id} className="border-b border-zinc-50 hover:bg-zinc-50 transition-all">
-                          <td className="px-5 py-3 font-bold">{ev.title}</td>
-                          <td className="px-5 py-3 text-zinc-400 text-xs">{ev.shops?.name || '—'}</td>
-                          <td className="px-5 py-3">
-                            <span className="text-xs bg-zinc-100 px-2 py-0.5 rounded-lg font-mono font-bold">{ev.date}</span>
-                          </td>
-                          <td className="px-5 py-3 text-zinc-500">{ev.spots}</td>
-                          <td className="px-5 py-3 text-right">
-                            <button onClick={() => deleteEvent(ev.id)} className="text-red-400 hover:text-red-600 transition-colors">
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TRADES */}
-          {tab === 'trades' && (
-            <div className="space-y-3">
-              <h2 className="font-black text-xl">Trade Posts ({filteredTrades.length})</h2>
-              <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-zinc-100 text-xs font-bold uppercase text-zinc-400">
-                      <th className="text-left px-5 py-3">User</th>
-                      <th className="text-left px-5 py-3">Offering</th>
-                      <th className="text-left px-5 py-3">Seeking</th>
-                      <th className="text-left px-5 py-3">Date</th>
-                      <th className="text-right px-5 py-3">Delete</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredTrades.map(t => (
-                      <tr key={t.id} className="border-b border-zinc-50 hover:bg-zinc-50 transition-all">
-                        <td className="px-5 py-3 font-bold text-xs">@{t.username}</td>
-                        <td className="px-5 py-3 font-medium">{t.offer}</td>
-                        <td className="px-5 py-3 font-medium" style={{ color: '#E0533C' }}>{t.look_for}</td>
-                        <td className="px-5 py-3 text-zinc-400 text-xs font-mono">{new Date(t.created_at).toLocaleDateString()}</td>
-                        <td className="px-5 py-3 text-right">
-                          <button onClick={() => deleteTrade(t.id)} className="text-red-400 hover:text-red-600 transition-colors">
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </main>
-      </div>
-          {/* CLAIMS */}
-          {tab === 'claims' && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="font-black text-xl">Shop Claims ({filteredClaims.length})</h2>
-                {pendingClaims > 0 && (
-                  <span className="text-xs font-black px-2 py-1 rounded-lg text-white" style={{ background: '#F59E0B' }}>
-                    {pendingClaims} pending
-                  </span>
                 )}
               </div>
-              <div className="space-y-3">
-                {filteredClaims.map(c => (
-                  <div key={c.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4">
-                    <div className="flex items-start justify-between gap-3 mb-3">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-black text-sm">{c.shop_name}</p>
-                          <span className="text-xs font-black px-2 py-0.5 rounded-lg"
-                            style={c.status === 'approved' ? { background: '#F0FDF4', color: '#166534' }
-                              : c.status === 'rejected' ? { background: '#FEF2F2', color: '#991B1B' }
-                              : { background: '#FEF3C7', color: '#92400E' }}>
-                            {c.status}
-                          </span>
-                        </div>
-                        <p className="text-xs text-zinc-400">{c.shop_address}</p>
-                        <p className="text-xs text-zinc-400 font-mono mt-0.5">@{c.username} · {c.email}</p>
-                        <p className="text-xs text-zinc-400 mt-0.5">{c.category} · {c.hours}</p>
-                        {c.phone && <p className="text-xs text-zinc-400">{c.phone}</p>}
-                        <p className="text-xs font-mono text-zinc-300 mt-1">EIN: {c.ein}</p>
-                        <p className="text-xs text-zinc-300 font-mono">{new Date(c.created_at).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                    {c.status === 'pending' && (
-                      <div className="flex gap-2 pt-3 border-t border-zinc-100">
-                        <button onClick={() => approveClaim(c)}
-                          className="flex-1 py-2.5 rounded-xl text-xs font-black text-white flex items-center justify-center gap-1"
-                          style={{ background: 'linear-gradient(135deg, #059669, #047857)' }}>
-                          <Check className="h-3.5 w-3.5" /> Approve
-                        </button>
-                        <button onClick={() => rejectClaim(c.id)}
-                          className="flex-1 py-2.5 rounded-xl text-xs font-black border-2 border-red-200 text-red-500 flex items-center justify-center gap-1">
-                          <X className="h-3.5 w-3.5" /> Reject
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {filteredClaims.length === 0 && (
-                  <div className="text-center py-12 text-zinc-400">
-                    <Shield className="h-10 w-10 mx-auto mb-2 opacity-20" />
-                    <p className="text-sm font-mono">No claims yet</p>
-                  </div>
-                )}
+            ))}
+            {fClaims.length === 0 && (
+              <div className="text-center py-12 text-zinc-400">
+                <Shield className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                <p className="text-sm font-mono">No claims yet</p>
               </div>
-            </div>
-          )}
+            )}
+          </div>
+        )}
 
-    {/* DROP MODAL */}
+      </main>
+
+      {/* DROP MODAL */}
       {dropShop && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
-          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl p-5 pb-10 shadow-2xl" style={{ background: '#FAF9F5' }}>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end justify-center">
+          <div className="w-full max-w-md rounded-t-3xl p-5 pb-10 shadow-2xl" style={{ background: '#FAF9F5' }}>
             <div className="flex justify-between items-center mb-4">
               <div>
                 <h3 className="font-black text-lg">Publish Drop</h3>
-                <p className="text-xs text-zinc-400 mt-0.5 truncate max-w-[260px]">{dropShop.name}</p>
+                <p className="text-xs text-zinc-400 truncate max-w-[260px]">{dropShop.name}</p>
               </div>
-              <button onClick={() => { setDropShop(null); setDropText('') }}>
-                <X className="h-5 w-5 text-zinc-400" />
-              </button>
+              <button onClick={() => { setDropShop(null); setDropText('') }}><X className="h-5 w-5 text-zinc-400" /></button>
             </div>
-
             {dropShop.hot_find && (
-              <div className="mb-4 p-3 rounded-2xl" style={{ background: 'rgba(224,83,60,0.06)', border: '1px solid rgba(224,83,60,0.15)' }}>
-                <p className="text-xs font-bold text-zinc-400 mb-1 uppercase">Current Drop</p>
+              <div className="mb-3 p-3 rounded-2xl bg-zinc-50 border border-zinc-100">
+                <p className="text-xs font-bold text-zinc-400 mb-1 uppercase">Current</p>
                 <p className="text-sm italic text-zinc-600">"{dropShop.hot_find}"</p>
               </div>
             )}
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-zinc-400 mb-1.5 uppercase">New Drop</label>
-                <textarea
-                  value={dropText}
-                  onChange={e => setDropText(e.target.value)}
-                  placeholder="e.g. Amazing Spider-Man #129 CGC 9.2 just hit the floor..."
-                  rows={3}
-                  className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none resize-none focus:border-orange-300"
-                />
-              </div>
-              <button
-                onClick={() => publishDrop(dropShop)}
-                disabled={!dropText.trim() || dropSaving}
-                className="w-full text-white font-black py-3.5 rounded-2xl text-sm uppercase flex items-center justify-center gap-2 disabled:opacity-40"
-                style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
-                <Flame className="h-4 w-4" />
-                {dropSaving ? 'Publishing...' : 'Publish Drop'}
-              </button>
-              <button
-                onClick={() => { setDropShop(null); setDropText('') }}
-                className="w-full py-2.5 rounded-2xl text-sm font-black text-zinc-400 border-2 border-zinc-100">
-                Cancel
-              </button>
-            </div>
+            <textarea value={dropText} onChange={e => setDropText(e.target.value)}
+              placeholder="New drop text..."
+              rows={3}
+              className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none resize-none mb-3" />
+            <button onClick={publishDrop} disabled={!dropText.trim()}
+              className="w-full text-white font-black py-3.5 rounded-2xl text-sm uppercase flex items-center justify-center gap-2 disabled:opacity-40"
+              style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
+              <Flame className="h-4 w-4" /> Publish Drop
+            </button>
           </div>
         </div>
       )}
