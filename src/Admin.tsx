@@ -2,6 +2,31 @@ import React, { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
 import { Shield, Store, Users, Star, Trash2, Edit2, Check, X, LogOut, RefreshCw, Search, Flame, BarChart2, MessageSquare, ArrowLeftRight, Calendar, Plus } from 'lucide-react'
 
+
+class AdminErrorBoundary extends React.Component<{children: any}, {error: string}> {
+  constructor(props: any) {
+    super(props)
+    this.state = { error: '' }
+  }
+  static getDerivedStateFromError(error: any) {
+    return { error: error?.message || 'Unknown error' }
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 24, fontFamily: 'monospace', background: '#1a0a2e', minHeight: '100vh', color: 'white' }}>
+          <h2 style={{ color: '#E0533C', marginBottom: 12 }}>Admin Error</h2>
+          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, wordBreak: 'break-all' }}>{this.state.error}</p>
+          <button onClick={() => window.location.reload()} style={{ marginTop: 16, padding: '8px 16px', background: '#E0533C', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer' }}>
+            Reload
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
 const ADMIN_EMAILS = ['sangtruong@gmail.com']
 
 type Tab = 'dashboard' | 'shops' | 'users' | 'reviews' | 'trades' | 'events' | 'claims'
@@ -234,6 +259,7 @@ export default function Admin() {
 
   // Admin panel
   return (
+    <AdminErrorBoundary>
     <div className="min-h-screen font-sans" style={{ background: '#F0EFE9' }}>
 
       {/* Header */}
@@ -561,5 +587,6 @@ export default function Admin() {
         </div>
       )}
     </div>
+    </AdminErrorBoundary>
   )
 }
