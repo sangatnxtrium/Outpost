@@ -10,14 +10,14 @@ type AdminTab = 'dashboard' | 'shops' | 'users' | 'reviews' | 'trades' | 'market
 // ── Stat card ────────────────────────────────────────────────────────────────
 function StatCard({ label, value, icon: Icon, color }: any) {
   return (
-    <div className="bg-white rounded-2xl p-5 border border-zinc-100 shadow-sm">
+    <div className="bg-white rounded-2xl p-3 border border-zinc-100 shadow-sm">
       <div className="flex items-center justify-between mb-3">
         <p className="text-xs font-bold uppercase text-zinc-400">{label}</p>
         <div className="h-8 w-8 rounded-xl flex items-center justify-center" style={{ background: color + '20' }}>
           <Icon className="h-4 w-4" style={{ color }} />
         </div>
       </div>
-      <p className="text-3xl font-black">{value}</p>
+      <p className="text-2xl font-black">{value}</p>
     </div>
   )
 }
@@ -192,31 +192,33 @@ export default function Admin() {
   return (
     <div className="min-h-screen font-sans" style={{ background: '#F0EFE9' }}>
       {/* Header */}
-      <header className="sticky top-0 z-20 px-6 py-4 flex items-center justify-between border-b border-zinc-200 bg-white shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
-            <Shield className="h-4 w-4 text-white" />
+      <header className="sticky top-0 z-20 px-4 py-3 border-b border-zinc-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
+              <Shield className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <h1 className="font-black text-sm">OUTPOST ADMIN</h1>
+              <p className="text-xs text-zinc-400 truncate max-w-[140px]">{authEmail}</p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-black text-sm">OUTPOST ADMIN</h1>
-            <p className="text-xs text-zinc-400">{authEmail}</p>
+          <div className="flex items-center gap-1.5">
+            <button onClick={fetchAll} className="h-8 w-8 rounded-xl bg-zinc-100 flex items-center justify-center">
+              <RefreshCw className={`h-3.5 w-3.5 text-zinc-500 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+            <a href="/" className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-zinc-100 text-zinc-600">← App</a>
+            <button onClick={signOut} className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-white flex items-center gap-1"
+              style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
+              <LogOut className="h-3 w-3" /> Out
+            </button>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={fetchAll} className="h-8 w-8 rounded-xl bg-zinc-100 flex items-center justify-center hover:bg-zinc-200 transition-all">
-            <RefreshCw className={`h-4 w-4 text-zinc-500 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-          <a href="/" className="px-3 py-1.5 rounded-xl text-xs font-bold bg-zinc-100 text-zinc-600">← App</a>
-          <button onClick={signOut} className="px-3 py-1.5 rounded-xl text-xs font-bold text-white flex items-center gap-1"
-            style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
-            <LogOut className="h-3 w-3" /> Sign Out
-          </button>
         </div>
       </header>
 
-      <div className="flex">
-        {/* Sidebar */}
-        <aside className="w-48 min-h-screen bg-white border-r border-zinc-200 p-3 sticky top-16 flex-shrink-0">
+      <div className="flex flex-col">
+        {/* Mobile tab bar */}
+        <div className="flex overflow-x-auto gap-2 px-4 py-3 bg-white border-b border-zinc-100 sticky top-[57px] z-10">
           {[
             { id: 'dashboard', icon: BarChart2, label: 'Dashboard' },
             { id: 'shops', icon: Store, label: `Shops (${shops.length})` },
@@ -225,16 +227,16 @@ export default function Admin() {
             { id: 'trades', icon: ArrowLeftRight, label: `Trades (${trades.length})` },
           ].map(({ id, icon: Icon, label }) => (
             <button key={id} onClick={() => setTab(id as AdminTab)}
-              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left text-sm font-bold transition-all mb-1"
-              style={tab === id ? { background: 'linear-gradient(135deg, #E0533C, #ff6b4a)', color: 'white' } : { color: '#6b7280' }}>
-              <Icon className="h-4 w-4 flex-shrink-0" />
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black whitespace-nowrap flex-shrink-0 transition-all"
+              style={tab === id ? { background: 'linear-gradient(135deg, #E0533C, #ff6b4a)', color: 'white' } : { background: '#f4f4f5', color: '#6b7280' }}>
+              <Icon className="h-3.5 w-3.5" />
               {label}
             </button>
           ))}
-        </aside>
+        </div>
 
         {/* Main */}
-        <main className="flex-1 p-6 space-y-6">
+        <main className="flex-1 p-4 space-y-4">
 
           {/* Search bar */}
           {tab !== 'dashboard' && (
@@ -249,13 +251,13 @@ export default function Admin() {
           {tab === 'dashboard' && (
             <div className="space-y-6">
               <h2 className="font-black text-xl">Dashboard</h2>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <StatCard label="Total Shops" value={shops.length} icon={Store} color="#E0533C" />
                 <StatCard label="Total Users" value={users.length} icon={Users} color="#7C3AED" />
                 <StatCard label="Reviews" value={reviews.length} icon={Star} color="#F59E0B" />
                 <StatCard label="Check-ins" value={checkins.length} icon={TrendingUp} color="#059669" />
               </div>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <StatCard label="Elite Subs" value={eliteCount} icon={Package} color="#0284C7" />
                 <StatCard label="Store Subs" value={storeCount} icon={Shield} color="#D97706" />
                 <StatCard label="Trade Posts" value={trades.length} icon={ArrowLeftRight} color="#E0533C" />
@@ -306,7 +308,7 @@ export default function Admin() {
                 <h2 className="font-black text-xl">Shops ({filteredShops.length})</h2>
               </div>
               <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto -mx-0">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-zinc-100 text-xs font-bold uppercase text-zinc-400">
