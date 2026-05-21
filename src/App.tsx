@@ -164,6 +164,7 @@ export default function App() {
   const [filter, setFilter] = useState('all')
   const [radius, setRadius] = useState(10)
   const [activeSection, setActiveSection] = useState<'shops' | 'events'>('shops')
+  const [eventFilter, setEventFilter] = useState('all')
   const [userLat, setUserLat] = useState<number | null>(null)
   const [userLng, setUserLng] = useState<number | null>(null)
   const [marketItems, setMarketItems] = useState<any[]>([
@@ -193,6 +194,7 @@ export default function App() {
   const [claimAddress, setClaimAddress] = useState('')
   const [claimPhone, setClaimPhone] = useState('')
   const [claimCategory, setClaimCategory] = useState('cards')
+  const [claimCategories, setClaimCategories] = useState<string[]>(['cards'])
   const [claimHours, setClaimHours] = useState('')
   const [claimStep, setClaimStep] = useState(1)
   const [mktTitle, setMktTitle] = useState('')
@@ -223,9 +225,16 @@ export default function App() {
     .slice(0, 50)
 
   const filteredShops = sortedShops.filter((s: any) =>
-    (filter === 'all' || s.category === filter) &&
+    (filter === 'all' || s.category === filter || (s.categories && s.categories.includes(filter))) &&
     (s.name.toLowerCase().includes(search.toLowerCase()) ||
       s.tags?.some((t: string) => t.toLowerCase().includes(search.toLowerCase())))
+  )
+
+  const allEvents = shops.flatMap((s: any) => (s.events || []).map((ev: any) => ({ ...ev, shopName: s.name })))
+  const filteredEvents = allEvents.filter((ev: any) =>
+    eventFilter === 'all' ||
+    ev.category === eventFilter ||
+    (ev.categories && ev.categories.includes(eventFilter))
   )
 
   const vaultTotal = vaultItems.reduce((a: number, c: any) => a + (c.est_value || 0), 0)
@@ -368,7 +377,9 @@ export default function App() {
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2 flex-wrap">
-            <span className="text-xs font-black uppercase px-2.5 py-1 rounded-xl" style={categoryStyle(s.category)}>{s.category}</span>
+            {(s.categories?.length > 0 ? s.categories : [s.category]).map((cat: string) => (
+              <span key={cat} className="text-xs font-black uppercase px-2.5 py-1 rounded-xl" style={categoryStyle(cat)}>{cat}</span>
+            ))}
             <span className="text-sm text-amber-500 font-bold">{s.rating}★</span>
             {s.distance !== null && <span className="text-xs text-zinc-400 font-mono ml-auto">{s.distance.toFixed(1)} mi</span>}
           </div>
@@ -548,15 +559,67 @@ export default function App() {
                       <h2 className="font-black text-lg">Upcoming Events</h2>
                       <p className="text-xs text-white/70 mt-0.5">Card shows, tournaments, signings near you</p>
                     </div>
-                    <div className="text-center py-10 text-zinc-400">
-                      <Calendar className="h-10 w-10 mx-auto mb-2 opacity-20" />
-                      <p className="text-sm font-mono">No events yet in your area</p>
-                      <button onClick={() => setModal('menu')}
-                        className="mt-3 text-xs font-black px-4 py-2 rounded-xl text-white"
-                        style={{ background: '#7C3AED' }}>
-                        Submit an Event
-                      </button>
+                    {/* Event category filter */}
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {[
+                        { id: 'all', label: 'All', color: '#7C3AED' },
+                        { id: 'cards', label: 'Cards', color: '#38BDF8' },
+                        { id: 'comics', label: 'Comics', color: '#F59E0B' },
+                        { id: 'collectibles', label: 'Collectibles', color: '#A78BFA' },
+                        { id: 'toys', label: 'Toys', color: '#10B981' },
+                      ].map(f => (
+                        <button key={f.id} onClick={() => setEventFilter(f.id)}
+                          className="px-4 py-2 rounded-2xl text-xs font-black uppercase border-2 transition-all whitespace-nowrap flex-shrink-0"
+                          style={eventFilter === f.id ? { background: f.color, borderColor: f.color, color: 'white' } : { background: 'white', borderColor: '#e5e7eb', color: '#9ca3af' }}>
+                          {f.label}
+                        </button>
+                      ))}
                     </div>
+                    {filteredEvents.length === 0 ? (
+                      <div className="text-center py-10 text-zinc-400">
+                        <Calendar className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                        <p className="text-sm font-mono">No events yet</p>
+                        <button onClick={() => setModal('submit')}
+                          className="mt-3 text-xs font-black px-4 py-2 rounded-xl text-white"
+                          style={{ background: '#7C3AED' }}>
+                          Submit an Event
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {filteredEvents.map((ev: any) => (
+                          <div key={ev.id} className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <div className="flex-1">
+                                <div className="flex gap-2 flex-wrap mb-2">
+                                  {(ev.categories || [ev.category]).map((cat: string) => (
+                                    <span key={cat} className="text-xs font-black px-2 py-0.5 rounded-lg uppercase"
+                                      style={cat === 'comics' ? { background: '#FEF3C7', color: '#92400E' }
+                                        : cat === 'cards' ? { background: '#E0F2FE', color: '#0369A1' }
+                                        : cat === 'toys' ? { background: '#D1FAE5', color: '#065F46' }
+                                        : { background: '#EDE9FE', color: '#5B21B6' }}>
+                                      {cat}
+                                    </span>
+                                  ))}
+                                </div>
+                                <p className="font-black text-base">{ev.title}</p>
+                                <p className="text-xs text-zinc-400 mt-1">{ev.location || ev.shops?.name}</p>
+                              </div>
+                              <div className="text-right flex-shrink-0">
+                                <span className="text-xs bg-zinc-100 px-2 py-1 rounded-lg font-mono font-bold block">{ev.date}</span>
+                                {ev.spots && <p className="text-xs text-zinc-400 mt-1">{ev.spots} spots</p>}
+                              </div>
+                            </div>
+                            {ev.description && <p className="text-xs text-zinc-500 leading-relaxed">{ev.description}</p>}
+                            <button onClick={() => setRsvps(rsvps.includes(ev.id) ? rsvps.filter((id: string) => id !== ev.id) : [...rsvps, ev.id])}
+                              className="w-full mt-3 py-2.5 rounded-2xl text-xs font-black uppercase border-2 transition-all"
+                              style={rsvps.includes(ev.id) ? { background: '#F0FDF4', color: '#166534', borderColor: '#BBF7D0' } : { background: 'white', color: '#9ca3af', borderColor: '#e5e7eb' }}>
+                              {rsvps.includes(ev.id) ? '✓ Going' : 'RSVP'}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -857,9 +920,11 @@ export default function App() {
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-4 md:max-w-2xl md:mx-auto md:w-full">
             <div className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
-              <span className="text-xs font-black uppercase px-2.5 py-1 rounded-xl" style={categoryStyle((selectedShop as any).category)}>
-                {(selectedShop as any).category}
-              </span>
+              <div className="flex gap-2 flex-wrap">
+                {((selectedShop as any).categories?.length > 0 ? (selectedShop as any).categories : [(selectedShop as any).category]).map((cat: string) => (
+                  <span key={cat} className="text-xs font-black uppercase px-2.5 py-1 rounded-xl" style={categoryStyle(cat)}>{cat}</span>
+                ))}
+              </div>
               <p className="mt-3 text-sm text-zinc-600 leading-relaxed">{selectedShop.description}</p>
               <div className="flex items-center justify-between mt-3 pt-3 border-t border-zinc-100">
                 <span className="text-sm font-mono text-zinc-400">⏱ {selectedShop.hours}</span>
@@ -1039,10 +1104,24 @@ export default function App() {
                   className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm focus:outline-none" />
                 <input type="tel" value={claimPhone} onChange={e => setClaimPhone(e.target.value)} placeholder="Phone number"
                   className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm focus:outline-none" />
-                <select value={claimCategory} onChange={e => setClaimCategory(e.target.value)}
-                  className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm focus:outline-none">
-                  {['cards','comics','collectibles'].map(c => <option key={c}>{c}</option>)}
-                </select>
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 mb-2 uppercase">Categories (select all that apply)</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {['cards','comics','collectibles','toys'].map(cat => (
+                      <button key={cat} type="button"
+                        onClick={() => setClaimCategories(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat])}
+                        className="px-3 py-2 rounded-xl text-xs font-black uppercase border-2 transition-all"
+                        style={claimCategories.includes(cat)
+                          ? cat === 'cards' ? { background: '#E0F2FE', borderColor: '#0284C7', color: '#0284C7' }
+                          : cat === 'comics' ? { background: '#FEF3C7', borderColor: '#D97706', color: '#D97706' }
+                          : cat === 'toys' ? { background: '#D1FAE5', borderColor: '#059669', color: '#059669' }
+                          : { background: '#EDE9FE', borderColor: '#7C3AED', color: '#7C3AED' }
+                          : { background: 'white', borderColor: '#e5e7eb', color: '#9ca3af' }}>
+                        {cat === 'cards' ? '🃏' : cat === 'comics' ? '📚' : cat === 'toys' ? '🧸' : '🏆'} {cat}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <input type="text" value={claimHours} onChange={e => setClaimHours(e.target.value)} placeholder="Hours"
                   className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm focus:outline-none" />
                 <button onClick={() => setClaimStep(2)} disabled={!claimName || !claimAddress}
