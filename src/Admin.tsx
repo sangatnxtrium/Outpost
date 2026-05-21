@@ -368,9 +368,9 @@ export default function Admin() {
   }
 
   // ── Stats ─────────────────────────────────────────────────────────────────
-  const totalRevenue = users.filter(u => u.tier !== 'free').length * 1.99
-  const eliteCount = users.filter(u => u.tier === 'elite').length
-  const storeCount = users.filter(u => u.tier === 'store').length
+  const totalRevenue = (users || []).filter(u => u.tier !== 'free').length * 1.99
+  const eliteCount = (users || []).filter(u => u.tier === 'elite').length
+  const storeCount = (users || []).filter(u => u.tier === 'store').length
 
   const filteredShops = shops.filter(s => s.name?.toLowerCase().includes(search.toLowerCase()) || s.address?.toLowerCase().includes(search.toLowerCase()))
   const filteredUsers = users.filter(u => u.username?.toLowerCase().includes(search.toLowerCase()))
