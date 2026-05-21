@@ -115,7 +115,7 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal }: any) {
         </div>
         <div>
           <h1 className="text-base font-black tracking-tight leading-none">OUTPOST</h1>
-          <p className="text-[9px] font-mono opacity-40 mt-0.5 whitespace-nowrap">EVERY SHOP. EVERY DROP. NEAR YOU.</p>
+          <p className="text-[9px] font-mono opacity-40 mt-0.5 truncate max-w-[120px]">EVERY SHOP. EVERY DROP. NEAR YOU.</p>
         </div>
       </div>
       {items.map(({ id, icon: Icon, label }) => (
@@ -413,16 +413,14 @@ export default function App() {
                   <p className="text-[10px] font-mono mt-0.5 whitespace-nowrap" style={{ color: 'rgba(255,255,255,0.5)' }}>EVERY SHOP. EVERY DROP. NEAR YOU.</p>
                 </div>
               </div>
-              <div className="flex-shrink-0">
-                <button onClick={() => setModal('menu')} className="flex flex-col items-center justify-center h-8 w-8 rounded-xl gap-0.5" style={{ background: 'rgba(255,255,255,0.1)' }}>
-                  {isSignedIn ? (
-                    <>
-                      <span className="text-[8px] font-black text-white/70 leading-none truncate max-w-[28px]">@{profile?.username?.slice(0,6)}</span>
-                      <Menu className="h-3 w-3 text-white" />
-                    </>
-                  ) : (
-                    <Menu className="h-4 w-4 text-white" />
-                  )}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {isSignedIn && (
+                  <div className="px-3 py-1.5 rounded-xl font-black text-xs text-white" style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
+                    @{profile?.username}
+                  </div>
+                )}
+                <button onClick={() => setModal('menu')} className="h-8 w-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.15)' }}>
+                  <Menu className="h-4 w-4 text-white" />
                 </button>
               </div>
             </div>
