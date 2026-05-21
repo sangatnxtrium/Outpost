@@ -586,8 +586,7 @@ export default function App() {
                       <select
                         value={eventState}
                         onChange={e => setEventState(e.target.value)}
-                        className="flex-1 bg-white border-2 border-zinc-100 rounded-2xl px-4 py-2.5 text-sm font-black outline-none focus:border-zinc-300 appearance-none"
-                        style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 16px center' }}>
+                        className="flex-1 bg-white border-2 border-zinc-100 rounded-2xl px-4 py-2.5 text-sm font-black outline-none focus:border-zinc-300">
                         {eventStates.map((state: string) => (
                           <option key={state} value={state}>
                             {state === 'all' ? '🇺🇸 All States' : state}
