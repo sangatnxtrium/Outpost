@@ -97,7 +97,6 @@ function categoryIconColor(cat: string) {
   return '#7C3AED'
 }
 
-// ── Sidebar nav for desktop ──────────────────────────────────────────────────
 function Sidebar({ tab, setTab, isSignedIn, profile, setModal }: any) {
   const items = [
     { id: 'discover', icon: Search, label: 'Discover' },
@@ -114,7 +113,7 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal }: any) {
           <Compass className="h-5 w-5 text-white" />
         </div>
         <div>
-          <h1 style={{ fontFamily: "Barlow, sans-serif", fontWeight: 900, letterSpacing: "-0.02em" }} className="text-base leading-none">OUTPOST</h1>
+          <h1 className="text-base font-black tracking-tight leading-none">OUTPOST</h1>
           <p className="text-[9px] font-mono opacity-40 mt-0.5">EVERY DROP. NEAR YOU.</p>
         </div>
       </div>
@@ -212,7 +211,8 @@ export default function App() {
   const sortedShops = [...shops]
     .map((s: any) => ({ ...s, distance: userLat && userLng ? getDistance(userLat, userLng, s.lat, s.lng) : null }))
     .sort((a: any, b: any) => a.distance !== null && b.distance !== null ? a.distance - b.distance : 0)
-    .slice(0, 20)
+    .filter((s: any) => s.distance === null || s.distance <= 10)
+    .slice(0, 10)
 
   const filteredShops = sortedShops.filter((s: any) =>
     (filter === 'all' || s.category === filter) &&
@@ -337,7 +337,6 @@ export default function App() {
     )
   }
 
-  // ── Shop card component ──────────────────────────────────────────────────
   const ShopCard = ({ s }: { s: any }) => (
     <button onClick={() => openShop(s)}
       className="w-full bg-white rounded-3xl p-4 text-left active:scale-[0.98] transition-all shadow-sm border border-zinc-100 hover:shadow-md hover:border-zinc-200">
@@ -371,24 +370,21 @@ export default function App() {
 
   return (
     <div className="min-h-screen text-[#18191B] font-sans" style={{ background: '#F0EFE9' }}>
-
-      {/* ── DESKTOP LAYOUT ── */}
       <div className="flex min-h-screen">
         <Sidebar tab={tab} setTab={setTab} isSignedIn={isSignedIn} profile={profile} setModal={setModal} />
 
         <div className="flex-1 flex flex-col min-h-screen max-w-2xl mx-auto w-full md:max-w-none">
 
-          {/* ── MOBILE/DESKTOP HEADER ── */}
+          {/* HEADER */}
           <header className="sticky top-0 z-20 px-4 pt-10 pb-3 md:pt-4 md:border-b md:border-zinc-200 md:bg-white"
             style={{ background: 'linear-gradient(135deg, #1a0a2e 0%, #16213e 100%)' }}>
-            {/* Mobile header */}
             <div className="flex items-center justify-between md:hidden">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
                   <Compass className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <h1 style={{ fontFamily: "Barlow, sans-serif", fontWeight: 900, letterSpacing: "-0.02em" }} className="text-2xl text-white leading-none">OUTPOST</h1>
+                  <h1 className="text-2xl font-black tracking-tight text-white leading-none">OUTPOST</h1>
                   <p className="text-xs font-mono mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>EVERY SHOP. EVERY DROP. NEAR YOU.</p>
                 </div>
               </div>
@@ -399,8 +395,6 @@ export default function App() {
                 </button>
               </div>
             </div>
-
-            {/* Desktop header */}
             <div className="hidden md:flex items-center justify-between">
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-zinc-400" />
@@ -415,8 +409,6 @@ export default function App() {
                 </button>
               </div>
             </div>
-
-            {/* Mobile search */}
             {(tab === 'discover' || tab === 'map') && (
               <div className="mt-3 relative md:hidden">
                 <Search className="absolute left-3.5 top-3 h-4 w-4" style={{ color: 'rgba(255,255,255,0.4)' }} />
@@ -428,13 +420,11 @@ export default function App() {
             )}
           </header>
 
-          {/* ── MAIN CONTENT ── */}
           <main className="flex-1 overflow-y-auto pb-28 md:pb-8">
 
             {/* DISCOVER */}
             {tab === 'discover' && (
               <div className="p-4 space-y-4">
-                {/* Filter pills */}
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {[
                     { id: 'all', label: 'All Shops', color: '#E0533C' },
@@ -449,22 +439,16 @@ export default function App() {
                     </button>
                   ))}
                 </div>
-
                 {userLat && (
                   <div className="flex items-center gap-2 px-1">
                     <MapPin className="h-3 w-3 text-emerald-500" />
-                    <p className="text-xs text-zinc-400 font-mono">Showing nearest shops first</p>
+                    <p className="text-xs text-zinc-400 font-mono">Showing Up To 10 Shops Within 10 Miles</p>
                   </div>
                 )}
-
                 <DropBanner shops={shops} />
-
-                {/* Desktop grid / mobile list */}
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                   {filteredShops.map((s: any) => <ShopCard key={s.id} s={s} />)}
                 </div>
-
-                {/* eBay results */}
                 {(ebaySearching || ebayResults.length > 0) && search.length >= 3 && (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 px-1">
@@ -486,9 +470,7 @@ export default function App() {
                               </span>
                               <p className="font-bold text-sm leading-tight">{item.title}</p>
                             </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className="font-black text-base" style={{ color: '#059669' }}>${item.price}</p>
-                            </div>
+                            <p className="font-black text-base flex-shrink-0" style={{ color: '#059669' }}>${item.price}</p>
                           </div>
                         </a>
                       ))}
@@ -503,7 +485,6 @@ export default function App() {
                     )}
                   </div>
                 )}
-
                 <button onClick={() => isSignedIn ? setModal('claim') : setModal('auth')}
                   className="w-full rounded-3xl p-4 border-2 border-dashed text-center"
                   style={{ borderColor: '#E0533C', background: 'rgba(224,83,60,0.04)' }}>
@@ -521,7 +502,7 @@ export default function App() {
                   <h2 className="font-black text-lg">Shop Radar</h2>
                   <p className="text-xs text-white/40 mt-0.5">Colorado · {shops.length} locations</p>
                 </div>
-                <LocalMap shops={shops} onSelect={s => openShop(s)} />
+                <LocalMap shops={sortedShops} onSelect={s => openShop(s)} />
                 <p className="text-center text-xs text-zinc-400 font-mono">Tap a dot to open shop details</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                   {sortedShops.map((s: any) => (
@@ -569,7 +550,7 @@ export default function App() {
                       </div>
                     </div>
                     <button type="submit" disabled={!isSignedIn}
-                      className="w-full md:w-auto md:px-8 text-white font-black py-3 rounded-2xl text-sm uppercase disabled:opacity-40"
+                      className="w-full text-white font-black py-3 rounded-2xl text-sm uppercase disabled:opacity-40"
                       style={{ background: isSignedIn ? 'linear-gradient(135deg, #E0533C, #ff6b4a)' : '#ccc' }}>
                       {isSignedIn ? 'Publish Trade' : 'Sign In to Post'}
                     </button>
@@ -590,7 +571,7 @@ export default function App() {
                         </div>
                       </div>
                       <button onClick={() => alert('Swap room coming soon')}
-                        className="w-full mt-3 py-2.5 rounded-2xl text-sm font-black uppercase border-2 border-zinc-100 text-zinc-400 hover:border-zinc-300 transition-all">
+                        className="w-full mt-3 py-2.5 rounded-2xl text-sm font-black uppercase border-2 border-zinc-100 text-zinc-400">
                         Connect Swap
                       </button>
                     </div>
@@ -614,7 +595,7 @@ export default function App() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                   {marketItems.map((item: any) => (
-                    <div key={item.id} className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100 hover:shadow-md transition-all">
+                    <div key={item.id} className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1">
                           <div className="flex gap-2 mb-2">
@@ -629,9 +610,7 @@ export default function App() {
                           <p className="font-black text-xl" style={{ color: '#059669' }}>${item.price}</p>
                           <button className="mt-2 px-4 py-2 rounded-2xl text-xs font-black text-white uppercase"
                             style={{ background: 'linear-gradient(135deg, #065F46, #047857)' }}
-                            onClick={() => alert('Checkout coming soon')}>
-                            Buy
-                          </button>
+                            onClick={() => alert('Checkout coming soon')}>Buy</button>
                         </div>
                       </div>
                     </div>
@@ -650,7 +629,7 @@ export default function App() {
                   <p className="text-xs opacity-40 mt-1">{vaultItems.length} items tracked</p>
                 </div>
                 <button onClick={() => isSignedIn ? setModal('additem') : setModal('auth')}
-                  className="w-full md:w-auto md:px-8 text-white font-black py-3.5 rounded-2xl text-sm uppercase flex items-center justify-center gap-2"
+                  className="w-full text-white font-black py-3.5 rounded-2xl text-sm uppercase flex items-center justify-center gap-2"
                   style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
                   <Plus className="h-4 w-4" /> Add Item to Vault
                 </button>
@@ -739,7 +718,7 @@ export default function App() {
             )}
           </main>
 
-          {/* ── MOBILE BOTTOM NAV ── */}
+          {/* MOBILE BOTTOM NAV */}
           <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t border-zinc-200 px-1 py-2 pb-6 flex items-center justify-around z-20"
             style={{ background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(20px)' }}>
             {[
@@ -763,9 +742,9 @@ export default function App() {
         </div>
       </div>
 
-      {/* ══ SHOP DETAIL ══ */}
+      {/* SHOP DETAIL */}
       {modal === 'shop' && selectedShop && (
-        <div className="fixed inset-0 z-30 flex flex-col overflow-hidden md:inset-y-0 md:right-0 md:left-56 md:w-auto" style={{ background: '#F0EFE9' }}>
+        <div className="fixed inset-0 z-30 flex flex-col overflow-hidden md:inset-y-0 md:right-0 md:left-56" style={{ background: '#F0EFE9' }}>
           <div className="px-4 pt-12 md:pt-4 pb-4 flex items-center gap-3 flex-shrink-0" style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
             <button onClick={() => setModal('none')} className="h-9 w-9 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.15)' }}>
               <X className="h-4 w-4 text-white" />
@@ -791,7 +770,6 @@ export default function App() {
             </div>
             <span className="text-amber-400 font-bold">{selectedShop.rating}★</span>
           </div>
-
           <div className="flex-1 overflow-y-auto p-4 space-y-4 md:max-w-2xl md:mx-auto md:w-full">
             <div className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
               <span className="text-xs font-black uppercase px-2.5 py-1 rounded-xl" style={categoryStyle((selectedShop as any).category)}>
@@ -817,7 +795,6 @@ export default function App() {
                 </div>
               </div>
             </div>
-
             {selectedShop.hot_find && (
               <div className="rounded-3xl p-4 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
                 <div className="flex items-center gap-2 mb-2">
@@ -838,7 +815,6 @@ export default function App() {
                 )}
               </div>
             )}
-
             {(selectedShop as any).events?.length > 0 && (
               <div className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
                 <div className="flex items-center gap-2 mb-3">
@@ -860,7 +836,6 @@ export default function App() {
                 ))}
               </div>
             )}
-
             <div className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-black uppercase text-zinc-400">Reviews</p>
@@ -885,7 +860,7 @@ export default function App() {
                 <input type="text" required value={inpRev} onChange={e => setInpRev(e.target.value)}
                   placeholder={isSignedIn ? 'Leave a review...' : 'Sign in to review'}
                   disabled={!isSignedIn}
-                  className="flex-1 bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm focus:outline-none disabled:opacity-50" />
+                  className="flex-1 bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none disabled:opacity-50" />
                 <button type="submit" disabled={!isSignedIn}
                   className="text-white font-black px-4 py-2 rounded-2xl text-sm disabled:opacity-30"
                   style={{ background: '#1a0a2e' }}>Post</button>
@@ -950,7 +925,7 @@ export default function App() {
         </div>
       )}
 
-      {/* CLAIM SHOP */}
+      {/* CLAIM */}
       {modal === 'claim' && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
           <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl p-5 pb-10 shadow-2xl" style={{ background: '#FAF9F5' }}>
@@ -1074,4 +1049,153 @@ export default function App() {
               )}
               {authStep === 'verify' && (
                 <>
-                  <button onClick={() => setAuthStep('gate')} className="text-xs font-mono font-bold text-zinc-400 mb-4 flex items-
+                  <button onClick={() => setAuthStep('gate')} className="text-xs font-mono font-bold text-zinc-400 mb-4 flex items-center gap-1">← Back</button>
+                  <div className="mb-5">
+                    <p className="font-black text-lg mb-1">Check your inbox</p>
+                    <p className="text-sm text-zinc-400">Code sent to <span className="text-zinc-700 font-bold">{email}</span></p>
+                  </div>
+                  <form onSubmit={handleAuthVerify} className="space-y-4">
+                    <div className="flex gap-2 justify-center">
+                      {authCode.map((digit, i) => (
+                        <input key={i} ref={codeRefs[i]} type="text" inputMode="numeric" maxLength={1} value={digit}
+                          onChange={e => handleCodeInput(i, e.target.value)}
+                          onKeyDown={e => handleCodeKey(i, e)}
+                          className="w-11 h-13 text-center text-xl font-black border-2 rounded-2xl outline-none transition-all bg-white"
+                          style={{ borderColor: digit ? '#1a0a2e' : '#e5e7eb', caretColor: 'transparent', height: '3.25rem' }} />
+                      ))}
+                    </div>
+                    {authError && <p className="text-sm text-red-500 text-center">{authError}</p>}
+                    <button type="submit" disabled={authCode.join('').length < 6 || authLoading2}
+                      className="w-full text-white font-black py-4 rounded-2xl text-sm uppercase disabled:opacity-25"
+                      style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
+                      {authLoading2 ? 'Verifying...' : 'Authorize'}
+                    </button>
+                    <p className="text-center text-xs text-zinc-400 font-mono">
+                      Didn't get it?{' '}
+                      <button type="button" onClick={() => setAuthStep('gate')} style={{ color: '#E0533C' }} className="underline">Resend</button>
+                    </p>
+                  </form>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SUBSCRIPTION */}
+      {modal === 'sub' && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
+          <div className="w-full max-w-lg md:rounded-3xl rounded-t-3xl p-5 pb-10 shadow-2xl overflow-y-auto max-h-[90vh]" style={{ background: '#FAF9F5' }}>
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="font-black text-xl">Membership</h3>
+              <button onClick={() => setModal('none')}><X className="h-5 w-5 text-zinc-400" /></button>
+            </div>
+            <p className="text-sm text-zinc-400 mb-5">Unlock the full Outpost experience</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="rounded-3xl p-4 border-2 border-zinc-200 bg-white">
+                <p className="font-black text-base">Hunter Base</p>
+                <p className="text-2xl font-black mt-0.5 mb-3">Free</p>
+                {['Browse all shops','View drops & events','Post trades','3 vault items'].map(f => (
+                  <div key={f} className="flex items-center gap-2 py-1"><Check className="h-3.5 w-3.5 text-zinc-400" /><p className="text-sm text-zinc-500">{f}</p></div>
+                ))}
+                <button onClick={() => setModal('none')} className="w-full mt-3 py-2.5 rounded-2xl text-xs font-black uppercase bg-zinc-100 text-zinc-500">Current</button>
+              </div>
+              <div className="rounded-3xl p-4 border-2 bg-white" style={{ borderColor: '#E0533C' }}>
+                <p className="font-black text-base" style={{ color: '#E0533C' }}>Elite Pass</p>
+                <p className="text-2xl font-black mt-0.5 mb-3">$1.99<span className="text-sm font-normal text-zinc-400">/mo</span></p>
+                {['Everything in Free','Unlimited vault','eBay price lookups','Drop notifications','Price charts'].map(f => (
+                  <div key={f} className="flex items-center gap-2 py-1"><Check className="h-3.5 w-3.5" style={{ color: '#E0533C' }} /><p className="text-sm text-zinc-600">{f}</p></div>
+                ))}
+                <button onClick={() => handleUpgrade('elite')} disabled={checkoutLoading || profile?.tier === 'elite'}
+                  className="w-full mt-3 py-2.5 rounded-2xl text-xs font-black uppercase text-white disabled:opacity-50"
+                  style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
+                  {profile?.tier === 'elite' ? 'Active' : 'Upgrade'}
+                </button>
+              </div>
+              <div className="rounded-3xl p-4 text-white" style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
+                <p className="font-black text-base text-amber-400">Verified Store</p>
+                <p className="text-2xl font-black mt-0.5 mb-3">$2.99<span className="text-sm font-normal text-white/40">/mo</span></p>
+                {['Everything in Elite','Verified badge','Broadcast drops','Manage events','Analytics','Featured placement'].map(f => (
+                  <div key={f} className="flex items-center gap-2 py-1"><Check className="h-3.5 w-3.5 text-amber-400" /><p className="text-sm text-white/70">{f}</p></div>
+                ))}
+                <button onClick={() => handleUpgrade('store')} disabled={checkoutLoading || profile?.tier === 'store'}
+                  className="w-full mt-3 py-2.5 rounded-2xl text-xs font-black uppercase text-black disabled:opacity-50"
+                  style={{ background: '#F59E0B' }}>
+                  {profile?.tier === 'store' ? 'Active' : 'Claim'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MENU */}
+      {modal === 'menu' && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end justify-center md:hidden">
+          <div className="w-full max-w-md rounded-t-3xl p-5 pb-10 shadow-2xl" style={{ background: '#FAF9F5' }}>
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="font-black text-lg">Menu</h3>
+              <button onClick={() => setModal('none')}><X className="h-5 w-5 text-zinc-400" /></button>
+            </div>
+            <div className="bg-white rounded-3xl overflow-hidden border border-zinc-100">
+              {[
+                { label: 'Subscription', sub: 'Manage your plan', action: () => setModal('sub') },
+                { label: 'Notifications', sub: 'Drops, events and alerts', action: () => setModal('notifications') },
+                { label: 'Claim a Shop', sub: 'Verify with EIN', action: () => setModal('claim') },
+                { label: isSignedIn ? `Sign Out (@${profile?.username})` : 'Sign In', sub: isSignedIn ? 'See you next time' : 'Access your account', action: () => { isSignedIn ? signOut() : setModal('auth') } },
+              ].map((item, i) => (
+                <button key={i} onClick={item.action}
+                  className="w-full px-5 py-4 flex items-center justify-between border-b border-zinc-50 last:border-0 text-left">
+                  <div><p className="font-black text-sm">{item.label}</p><p className="text-xs text-zinc-400 mt-0.5">{item.sub}</p></div>
+                  <ChevronRight className="h-4 w-4 text-zinc-300" />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NOTIFICATIONS */}
+      {modal === 'notifications' && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
+          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden" style={{ background: '#FAF9F5' }}>
+            <div className="px-5 py-4 flex items-center justify-between" style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
+              <div className="flex items-center gap-2.5">
+                <div className="h-7 w-7 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
+                  <Bell className="h-4 w-4 text-white" />
+                </div>
+                <span className="text-white font-black text-sm uppercase tracking-wider">Notifications</span>
+              </div>
+              <button onClick={() => setModal('none')} className="text-white/40 hover:text-white"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="divide-y divide-zinc-100 max-h-[70vh] overflow-y-auto">
+              {[
+                { icon: '🔥', title: 'New Drop Nearby', body: 'Mile High Comics just posted: Amazing Spider-Man #300 CGC 9.4', time: '2m ago', unread: true },
+                { icon: '📅', title: 'Event Reminder', body: 'Regional Pokemon Box Tournament starts tomorrow', time: '1h ago', unread: true },
+                { icon: '🏷️', title: 'New Marketplace Listing', body: 'Charizard Base Holo PSA 9 listed for $420', time: '3h ago', unread: false },
+                { icon: '🔥', title: 'New Drop Nearby', body: 'Denver Card Shop just posted: 1986 Fleer Michael Jordan Rookie PSA 8', time: '5h ago', unread: false },
+                { icon: '⭐', title: 'Welcome to Outpost', body: 'Your account is set up. Start exploring shops near you.', time: '10h ago', unread: false },
+              ].map((n, i) => (
+                <div key={i} className="flex items-start gap-3 px-5 py-4" style={{ background: n.unread ? 'rgba(224,83,60,0.04)' : 'white' }}>
+                  <div className="h-10 w-10 rounded-2xl flex items-center justify-center flex-shrink-0 text-lg"
+                    style={{ background: n.unread ? 'rgba(224,83,60,0.1)' : '#F3F4F6' }}>{n.icon}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-black text-sm">{n.title}</p>
+                      {n.unread && <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: '#E0533C' }} />}
+                    </div>
+                    <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed">{n.body}</p>
+                    <p className="text-xs text-zinc-300 font-mono mt-1">{n.time}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="px-5 py-4 border-t border-zinc-100">
+              <button onClick={() => setModal('none')} className="w-full py-3 rounded-2xl text-sm font-black text-zinc-400 border-2 border-zinc-100">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
