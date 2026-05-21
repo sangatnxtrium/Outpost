@@ -131,6 +131,7 @@ function StatCard({ label, value, icon: Icon, color }: any) {
 
 export default function Admin() {
   const [authed, setAuthed] = useState(false)
+  const [authChecking, setAuthChecking] = useState(true)
   const [authEmail, setAuthEmail] = useState('')
   const [authCode, setAuthCode] = useState('')
   const [authStep, setAuthStep] = useState<'email' | 'code'>('email')
@@ -163,6 +164,7 @@ export default function Admin() {
         setAuthed(true)
         setAuthEmail(session.user.email)
       }
+      setAuthChecking(false)
     })
   }, [])
 
@@ -302,6 +304,20 @@ export default function Admin() {
     setAuthed(false)
   }
 
+  // ── Loading screen ───────────────────────────────────────────────────────
+  if (authChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
+        <div className="text-center space-y-3">
+          <div className="h-12 w-12 rounded-2xl flex items-center justify-center mx-auto" style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
+            <Shield className="h-6 w-6 text-white animate-pulse" />
+          </div>
+          <p className="text-white/40 text-xs font-mono uppercase tracking-widest">Loading Admin...</p>
+        </div>
+      </div>
+    )
+  }
+
   // ── Login screen ─────────────────────────────────────────────────────────
   if (!authed) {
     return (
@@ -365,7 +381,7 @@ export default function Admin() {
   const pendingClaims = claims.filter(c => c.status === 'pending').length
 
   return (
-    <div className="min-h-screen font-sans" style={{ background: '#F0EFE9' }}>
+    <div className="min-h-screen font-sans" style={{ background: '#F0EFE9', WebkitOverflowScrolling: 'touch' }}>
       {/* Header */}
       <header className="sticky top-0 z-20 px-4 py-3 border-b border-zinc-200 bg-white shadow-sm">
         <div className="flex items-center justify-between">
@@ -393,7 +409,7 @@ export default function Admin() {
 
       <div className="flex flex-col">
         {/* Mobile tab bar */}
-        <div className="flex overflow-x-auto gap-2 px-4 py-3 bg-white border-b border-zinc-100 sticky top-[57px] z-10">
+        <div className="flex overflow-x-auto gap-2 px-4 py-3 bg-white border-b border-zinc-100 sticky top-14 z-10">
           {[
             { id: 'dashboard', icon: BarChart2, label: 'Dashboard' },
             { id: 'shops', icon: Store, label: `Shops (${shops.length})` },
