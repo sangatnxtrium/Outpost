@@ -127,6 +127,11 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal }: any) {
         </button>
       ))}
       <div className="mt-auto space-y-2">
+        <button onClick={() => setModal('notifications')}
+          className="w-full flex items-center gap-2 px-3 py-2.5 rounded-2xl text-sm font-bold text-zinc-500 hover:bg-zinc-50 transition-all border border-zinc-100">
+          <Bell className="h-4 w-4" />
+          Notifications
+        </button>
         {isSignedIn ? (
           <div className="px-3 py-2.5 rounded-2xl bg-zinc-50 border border-zinc-100">
             <p className="font-black text-sm">@{profile?.username}</p>
@@ -450,6 +455,9 @@ export default function App() {
                   className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl pl-10 pr-4 py-2.5 text-sm font-medium outline-none focus:border-zinc-400" />
               </div>
               <div className="flex items-center gap-2 ml-4">
+                <button onClick={() => setModal('notifications')} className="h-9 w-9 rounded-xl flex items-center justify-center border border-zinc-200 bg-white hover:bg-zinc-50 transition-all">
+                  <Bell className="h-4 w-4 text-zinc-500" />
+                </button>
                 <button onClick={() => setModal('sub')} className="px-4 py-2 rounded-xl text-xs font-black text-white" style={{ background: 'linear-gradient(135deg, #F59E0B, #D97706)' }}>Pro</button>
                 <button onClick={() => isSignedIn ? signOut() : setModal('auth')} className="px-4 py-2 rounded-xl text-xs font-black text-white" style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
                   {isSignedIn ? `@${profile?.username}` : 'Sign In'}
