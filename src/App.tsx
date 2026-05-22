@@ -1023,22 +1023,24 @@ export default function App() {
                 </div>
               </div>
             </div>
-            {selectedShop.hot_find && (
+            {(selectedShop.hot_find || (isMerchant && (selectedShop as any).owner_id === user?.id)) && (
               <div className="rounded-3xl p-4 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
                 <div className="flex items-center gap-2 mb-2">
                   <Flame className="h-4 w-4 text-orange-400" />
                   <span className="text-xs font-black uppercase tracking-widest text-orange-400">Live Floor Drop</span>
                 </div>
-                <p className="text-sm font-bold italic">"{selectedShop.hot_find}"</p>
+                {selectedShop.hot_find && (
+                  <p className="text-sm font-bold italic mb-2">"{selectedShop.hot_find}"</p>
+                )}
                 {isMerchant && (selectedShop as any).owner_id === user?.id && (
                   <form onSubmit={async e => { e.preventDefault(); if (!inpFind.trim()) return; await updateHotFind(selectedShop.id, inpFind); setInpFind('') }}
-                    className="mt-3 pt-3 border-t border-white/10 space-y-2">
+                    className="space-y-2">
                     <input type="text" value={inpFind} onChange={e => setInpFind(e.target.value)}
                       placeholder="Broadcast new drop..."
                       className="w-full rounded-2xl px-4 py-3 text-sm outline-none text-white placeholder:text-white/30"
                       style={{ background: 'rgba(255,255,255,0.1)' }} />
                     <button type="submit" className="w-full py-2.5 rounded-2xl text-sm font-black uppercase text-white"
-                      style={{ background: 'rgba(255,255,255,0.2)' }}>Publish</button>
+                      style={{ background: 'rgba(255,255,255,0.2)' }}>Publish Drop</button>
                   </form>
                 )}
               </div>
