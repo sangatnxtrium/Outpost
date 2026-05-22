@@ -923,13 +923,39 @@ export default function App() {
                       <p className="font-black text-xl">@{profile?.username}</p>
                       <p className="text-xs text-white/60 mt-1 font-mono uppercase">{profile?.role} · {profile?.tier} plan</p>
                     </div>
+                    {myShop && (
+                      <button onClick={() => openShop(myShop)}
+                        className="w-full bg-white rounded-3xl p-4 text-left shadow-sm border border-zinc-100 mb-3 hover:shadow-md transition-all">
+                        <p className="text-xs font-black uppercase text-zinc-400 mb-2">My Shop</p>
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: "#FEF3C7" }}>
+                            <Store className="h-5 w-5 text-amber-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-black text-sm">{myShop.name}</p>
+                            <p className="text-xs text-zinc-400 font-mono truncate">{myShop.address}</p>
+                          </div>
+                          <div className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background: "#F0FDF4" }}>
+                            <Check className="h-3 w-3 text-emerald-600" />
+                            <span className="text-xs font-black text-emerald-600">Verified</span>
+                          </div>
+                        </div>
+                        {myShop.hot_find && (
+                          <div className="mt-2 pt-2 border-t border-zinc-100 flex items-center gap-2">
+                            <Flame className="h-3 w-3 text-orange-400 flex-shrink-0" />
+                            <p className="text-xs text-zinc-500 italic truncate">"{myShop.hot_find}"</p>
+                          </div>
+                        )}
+                      </button>
+                    )}
+
                     <div className="bg-white rounded-3xl overflow-hidden shadow-sm border border-zinc-100">
                       {[
-                        { label: 'Subscription', sub: 'Manage your plan', action: () => setModal('sub') },
-                        { label: 'Notifications', sub: 'Drops, events and alerts', action: () => setModal('notifications') },
-                        { label: 'Claim a Shop', sub: 'Verify with EIN', action: () => openClaimModal() },
-                { label: 'Submit Shop or Event', sub: 'Suggest a listing for review', action: () => setModal('submit') },
-                        { label: 'Sign Out', sub: `Signed in as @${profile?.username}`, action: () => signOut() },
+                        { label: "Subscription", sub: "Manage your plan", action: () => setModal("sub") },
+                        { label: "Notifications", sub: "Drops, events and alerts", action: () => setModal("notifications") },
+                        { label: myShop ? "Manage Shop" : "Claim a Shop", sub: myShop ? "Edit your listing" : "Verify with EIN", action: () => myShop ? openShop(myShop) : openClaimModal() },
+                        { label: "Submit Shop or Event", sub: "Suggest a listing for review", action: () => setModal("submit") },
+                        { label: "Sign Out", sub: `Signed in as @${profile?.username}`, action: () => signOut() },
                       ].map((item, i) => (
                         <button key={i} onClick={item.action}
                           className="w-full px-5 py-4 flex items-center justify-between border-b border-zinc-50 last:border-0 text-left hover:bg-zinc-50 transition-all">
