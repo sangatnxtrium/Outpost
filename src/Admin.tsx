@@ -29,7 +29,7 @@ class AdminErrorBoundary extends React.Component<{children: any}, {error: string
 
 const ADMIN_EMAILS = ['sangtruong@gmail.com']
 
-type Tab = 'dashboard' | 'shops' | 'users' | 'reviews' | 'trades' | 'events' | 'claims'
+type Tab = 'dashboard' | 'shops' | 'users' | 'reviews' | 'trades' | 'events' | 'claims' | 'marketplace'
 
 export default function Admin() {
   const [checking, setChecking] = useState(true)
@@ -51,6 +51,7 @@ export default function Admin() {
   const [trades, setTrades] = useState<any[]>([])
   const [events, setEvents] = useState<any[]>([])
   const [claims, setClaims] = useState<any[]>([])
+  const [marketItems, setMarketItems] = useState<any[]>([])
   const [checkins, setCheckins] = useState(0)
 
   const [editShop, setEditShop] = useState<any>(null)
@@ -164,6 +165,12 @@ export default function Admin() {
     fetchAll()
   }
 
+  async function deleteUser(id: string) {
+    if (!confirm('Delete this user? This cannot be undone.')) return
+    await supabase.from('profiles').delete().eq('id', id)
+    setUsers(users.filter(u => u.id !== id))
+  }
+
   async function rejectClaim(id: string) {
     await supabase.from('shop_claims').update({ status: 'rejected' }).eq('id', id)
     setClaims(claims.map(c => c.id === id ? { ...c, status: 'rejected' } : c))
@@ -189,6 +196,7 @@ export default function Admin() {
     { id: 'trades', icon: ArrowLeftRight, label: `Trades (${trades.length})` },
     { id: 'events', icon: Calendar, label: `Events (${events.length})` },
     { id: 'claims', icon: Shield, label: `Claims (${pendingClaims})` },
+    { id: 'marketplace', icon: Package, label: `Market (${marketItems.length})` },
   ]
 
   function catStyle(cat: string) {
@@ -424,10 +432,15 @@ export default function Admin() {
                     <span className="text-xs text-zinc-400 font-mono">{new Date(u.created_at).toLocaleDateString()}</span>
                   </div>
                 </div>
-                <select value={u.tier} onChange={e => updateUserTier(u.id, e.target.value)}
-                  className="text-xs bg-zinc-50 border border-zinc-200 rounded-xl px-2 py-1.5 outline-none font-bold flex-shrink-0">
-                  {['free','elite','store'].map(t => <option key={t}>{t}</option>)}
-                </select>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <select value={u.tier} onChange={e => updateUserTier(u.id, e.target.value)}
+                    className="text-xs bg-zinc-50 border border-zinc-200 rounded-xl px-2 py-1.5 outline-none font-bold">
+                    {['free','elite','store'].map(t => <option key={t}>{t}</option>)}
+                  </select>
+                  <button onClick={() => deleteUser(u.id)} className="text-red-400 hover:text-red-600 transition-colors">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -491,10 +504,36 @@ export default function Admin() {
                     <span className="text-xs text-zinc-400">{ev.spots} spots</span>
                   </div>
                 </div>
-                <button onClick={() => deleteItem('events', ev.id, setEvents, events)} className="text-red-400 flex-shrink-0">
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                <div className="flex gap-2 flex-shrink-0">
+                  <button onClick={() => { setEditingEvent(ev); setEventFields({ title: ev.title, date: ev.date, location: ev.location, description: ev.description }) }}
+                    className="text-zinc-400 hover:text-zinc-700">
+                    <Edit2 className="h-4 w-4" />
+                  </button>
+                  <button onClick={() => deleteItem('events', ev.id, setEvents, events)} className="text-red-400 hover:text-red-600">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
+              {editingEvent?.id === ev.id && (
+                <div className="mt-3 pt-3 border-t border-zinc-100 space-y-2">
+                  <input value={eventFields.title || ''} onChange={e => setEventFields({...eventFields, title: e.target.value})}
+                    placeholder="Title" className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                  <input type="date" value={eventFields.date || ''} onChange={e => setEventFields({...eventFields, date: e.target.value})}
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                  <input value={eventFields.location || ''} onChange={e => setEventFields({...eventFields, location: e.target.value})}
+                    placeholder="Location" className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                  <textarea value={eventFields.description || ''} onChange={e => setEventFields({...eventFields, description: e.target.value})}
+                    placeholder="Description" rows={2}
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none resize-none" />
+                  <div className="flex gap-2">
+                    <button onClick={saveEvent} className="flex-1 py-2 rounded-xl text-xs font-black text-white flex items-center justify-center gap-1"
+                      style={{ background: '#059669' }}><Check className="h-3 w-3" /> Save</button>
+                    <button onClick={() => { setEditingEvent(null); setEventFields({}) }}
+                      className="flex-1 py-2 rounded-xl text-xs font-black bg-zinc-100 text-zinc-600">Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
             ))}
             {fEvents.length === 0 && <p className="text-center text-zinc-400 py-8 text-sm font-mono">No events yet</p>}
           </div>
@@ -557,7 +596,30 @@ export default function Admin() {
 
       </main>
 
-      {/* DROP MODAL */}
+            {/* MARKETPLACE */}
+          {tab === 'marketplace' && (
+            <div className="space-y-3">
+              <h2 className="font-black text-xl">Vault Items ({filteredMarket.length})</h2>
+              {filteredMarket.map((item: any) => (
+                <div key={item.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4 flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-black text-sm">{item.name}</p>
+                    {item.description && <p className="text-xs text-zinc-400 mt-0.5 truncate">{item.description}</p>}
+                    <div className="flex items-center gap-2 mt-1">
+                      {item.condition && <span className="text-xs font-bold px-2 py-0.5 rounded-lg" style={{ background: '#F0FDF4', color: '#166634' }}>{item.condition}</span>}
+                      <span className="text-xs font-mono text-zinc-400">${item.est_value}</span>
+                    </div>
+                  </div>
+                  <button onClick={() => deleteItem('vault_items', item.id, setMarketItems, marketItems)} className="text-red-400 flex-shrink-0">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+              {filteredMarket.length === 0 && <p className="text-center text-zinc-400 py-8 text-sm font-mono">No vault items yet</p>}
+            </div>
+          )}
+
+    {/* DROP MODAL */}
       {dropShop && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end justify-center">
           <div className="w-full max-w-md rounded-t-3xl p-5 pb-10 shadow-2xl" style={{ background: '#FAF9F5' }}>
