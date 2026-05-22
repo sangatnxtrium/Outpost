@@ -182,6 +182,8 @@ export default function App() {
   ])
   const [inpRev, setInpRev] = useState('')
   const [inpFind, setInpFind] = useState('')
+  const [editingCategories, setEditingCategories] = useState(false)
+  const [shopCategories, setShopCategories] = useState<string[]>([])
   const [inpOff, setInpOff] = useState('')
   const [inpWant, setInpWant] = useState('')
   const [vaultName, setVaultName] = useState('')
@@ -1089,6 +1091,61 @@ export default function App() {
                 )}
               </div>
             )}
+            {isMerchant && (selectedShop as any).owner_id === user?.id && (
+              <div className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-black uppercase text-zinc-400">Shop Categories</p>
+                  <button onClick={() => { setEditingCategories(!editingCategories); setShopCategories((selectedShop as any).categories || []) }}
+                    className="text-xs font-black px-3 py-1.5 rounded-xl"
+                    style={{ background: editingCategories ? '#E0533C' : '#f3f4f6', color: editingCategories ? 'white' : '#6b7280' }}>
+                    {editingCategories ? 'Cancel' : 'Edit'}
+                  </button>
+                </div>
+                {editingCategories ? (
+                  <div className="space-y-3">
+                    <div className="flex gap-2 flex-wrap">
+                      {['cards','comics','collectibles','toys'].map(cat => (
+                        <button key={cat} type="button"
+                          onClick={() => setShopCategories(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat])}
+                          className="px-3 py-2 rounded-xl text-xs font-black uppercase border-2 transition-all"
+                          style={shopCategories.includes(cat)
+                            ? cat === 'cards' ? { background: '#E0F2FE', borderColor: '#0284C7', color: '#0284C7' }
+                            : cat === 'comics' ? { background: '#FEF3C7', borderColor: '#D97706', color: '#D97706' }
+                            : cat === 'toys' ? { background: '#D1FAE5', borderColor: '#059669', color: '#059669' }
+                            : { background: '#EDE9FE', borderColor: '#7C3AED', color: '#7C3AED' }
+                            : { background: 'white', borderColor: '#e5e7eb', color: '#9ca3af' }}>
+                          {cat === 'cards' ? '🃏' : cat === 'comics' ? '📚' : cat === 'toys' ? '🧸' : '🏆'} {cat}
+                        </button>
+                      ))}
+                    </div>
+                    <button onClick={async () => {
+                      await supabase.from('shops').update({ categories: shopCategories }).eq('id', selectedShop.id)
+                      setEditingCategories(false)
+                    }}
+                      className="w-full py-2.5 rounded-2xl text-xs font-black uppercase text-white"
+                      style={{ background: 'linear-gradient(135deg, #059669, #047857)' }}>
+                      Save Categories
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2 flex-wrap">
+                    {((selectedShop as any).categories?.length > 0 ? (selectedShop as any).categories : [(selectedShop as any).category]).map((cat: string) => (
+                      <span key={cat} className="text-xs font-black px-2.5 py-1 rounded-xl uppercase"
+                        style={cat === 'comics' ? { background: '#FEF3C7', color: '#92400E' }
+                          : cat === 'cards' ? { background: '#E0F2FE', color: '#0369A1' }
+                          : cat === 'toys' ? { background: '#D1FAE5', color: '#065F46' }
+                          : { background: '#EDE9FE', color: '#5B21B6' }}>
+                        {cat}
+                      </span>
+                    ))}
+                    {!(selectedShop as any).categories?.length && (
+                      <p className="text-xs text-zinc-400">No categories set — tap Edit to add</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {(selectedShop as any).events?.length > 0 && (
               <div className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
                 <div className="flex items-center gap-2 mb-3">
