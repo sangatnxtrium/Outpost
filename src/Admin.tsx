@@ -495,25 +495,26 @@ export default function Admin() {
           <div className="space-y-3">
             <h2 className="font-black text-xl">Events ({fEvents.length})</h2>
             {fEvents.map(ev => (
-              <div key={ev.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4 flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="font-black text-sm">{ev.title}</p>
-                  <p className="text-xs text-zinc-400 mt-0.5">{ev.shops?.name}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs bg-zinc-100 px-2 py-0.5 rounded-lg font-mono font-bold">{ev.date}</span>
-                    <span className="text-xs text-zinc-400">{ev.spots} spots</span>
+              <div key={ev.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-black text-sm">{ev.title}</p>
+                    <p className="text-xs text-zinc-400 mt-0.5">{ev.shops?.name}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs bg-zinc-100 px-2 py-0.5 rounded-lg font-mono font-bold">{ev.date}</span>
+                      <span className="text-xs text-zinc-400">{ev.spots} spots</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <button onClick={() => { setEditingEvent(ev); setEventFields({ title: ev.title, date: ev.date, location: ev.location, description: ev.description }) }}
+                      className="text-zinc-400 hover:text-zinc-700">
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => deleteItem('events', ev.id, setEvents, events)} className="text-red-400 hover:text-red-600">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
-                <div className="flex gap-2 flex-shrink-0">
-                  <button onClick={() => { setEditingEvent(ev); setEventFields({ title: ev.title, date: ev.date, location: ev.location, description: ev.description }) }}
-                    className="text-zinc-400 hover:text-zinc-700">
-                    <Edit2 className="h-4 w-4" />
-                  </button>
-                  <button onClick={() => deleteItem('events', ev.id, setEvents, events)} className="text-red-400 hover:text-red-600">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
               {editingEvent?.id === ev.id && (
                 <div className="mt-3 pt-3 border-t border-zinc-100 space-y-2">
                   <input value={eventFields.title || ''} onChange={e => setEventFields({...eventFields, title: e.target.value})}
@@ -533,8 +534,8 @@ export default function Admin() {
                   </div>
                 </div>
               )}
-            </div>
-          ))}
+              </div>
+            ))}
           {fEvents.length === 0 && <p className="text-center text-zinc-400 py-8 text-sm font-mono">No events yet</p>}
           </div>
         )}
