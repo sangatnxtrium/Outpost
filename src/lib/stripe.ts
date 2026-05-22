@@ -3,15 +3,15 @@ import { supabase } from './supabase'
 export type PriceTier = 'elite' | 'store'
 
 const PAYMENT_LINKS: Record<PriceTier, string> = {
-  elite: 'https://buy.stripe.com/test_cNiaEZ8PZ84X1yidhx2go00',
-  store: 'https://buy.stripe.com/test_bJebJ3eaj1Gz2Cm5P52go01',
+  elite: 'https://buy.stripe.com/bJecN77LVbh93Gq1yP2go02',
+  store: 'https://buy.stripe.com/5kQ6oJ3vFcld7WGb9p2go03',
 }
 
 export async function startCheckout(
   tier: PriceTier,
   customerEmail: string,
   userId: string
-): Promise<{ error: string | null }> {
+): Promise<{ error: string | null, upgraded?: boolean }> {
 
   // Get the user's signup date
   const { data: profile } = await supabase
@@ -30,8 +30,7 @@ export async function startCheckout(
   }
 
   if (isFreeWindow) {
-    // Upgrade directly — no payment needed for first 6 months
-    await supabase
+    const { error } = await supabase
       .from('profiles')
       .update({
         tier: tier === 'store' ? 'store' : 'elite',
@@ -39,7 +38,8 @@ export async function startCheckout(
       })
       .eq('id', userId)
 
-    return { error: null }
+    if (error) return { error: error.message }
+    return { error: null, upgraded: true }
   }
 
   // After 6 months — redirect to Stripe

@@ -356,9 +356,14 @@ export default function App() {
   async function handleUpgrade(tier: 'elite' | 'store') {
     if (!user || !profile) { setModal('auth'); return }
     setCheckoutLoading(true)
-    const { error } = await startCheckout(tier, user.email || '', user.id)
+    const { error, upgraded } = await startCheckout(tier, user.email || '', user.id)
     setCheckoutLoading(false)
-    if (error) alert(error)
+    if (error) { alert(error); return }
+    if (upgraded) {
+      alert(`🎉 You're now on the ${tier === 'elite' ? 'Elite' : 'Verified Store'} plan — free for 6 months!`)
+      setModal('none')
+      window.location.reload()
+    }
   }
 
   async function handleReviewSubmit(e: React.FormEvent) {
