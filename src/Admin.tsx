@@ -187,6 +187,7 @@ export default function Admin() {
   }
 
   const pendingClaims = claims.filter(c => c.status === 'pending').length
+  const filteredMarket = (marketItems || []).filter((m: any) => m.name?.toLowerCase().includes(search.toLowerCase()))
   const eliteCount = users.filter(u => u.tier === 'elite').length
   const storeCount = users.filter(u => u.tier === 'store').length
   const mrr = ((eliteCount * 1.99) + (storeCount * 2.99)).toFixed(0)
