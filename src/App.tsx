@@ -548,7 +548,7 @@ export default function App() {
                 )}
                 {activeSection === 'shops' && <DropBanner shops={shops} />}
                 {activeSection === 'shops' && (
-                  {locationLoading ? (
+                  locationLoading ? (
                   <div className="text-center py-12">
                     <div className="h-8 w-8 rounded-full border-2 border-zinc-200 border-t-zinc-500 animate-spin mx-auto mb-3" />
                     <p className="text-sm text-zinc-400 font-mono">Finding shops near you...</p>
