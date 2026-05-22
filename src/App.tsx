@@ -1346,6 +1346,8 @@ export default function App() {
                 { label: 'Claim a Shop', sub: 'Verify with EIN', action: () => setModal('claim') },
                 { label: 'Submit Shop or Event', sub: 'Suggest a listing for review', action: () => setModal('submit') },
                 { label: isSignedIn ? `Sign Out (@${profile?.username})` : 'Sign In', sub: isSignedIn ? 'See you next time' : 'Access your account', action: () => { isSignedIn ? signOut() : setModal('auth') } },
+                { label: 'Privacy Policy', sub: 'How we handle your data', action: () => window.open('/privacy', '_blank') },
+                { label: 'Terms of Service', sub: 'Rules and guidelines', action: () => window.open('/terms', '_blank') },
               ].map((item, i) => (
                 <button key={i} onClick={item.action}
                   className="w-full px-5 py-4 flex items-center justify-between border-b border-zinc-50 last:border-0 text-left">
