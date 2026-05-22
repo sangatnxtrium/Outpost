@@ -174,6 +174,8 @@ export default function App() {
   const [eventState, setEventState] = useState('all')
   const [userLat, setUserLat] = useState<number | null>(null)
   const [userLng, setUserLng] = useState<number | null>(null)
+  const [locationLoading, setLocationLoading] = useState(true)
+  const [locationDenied, setLocationDenied] = useState(false)
   const [marketItems, setMarketItems] = useState<any[]>([
     { id: 1, user: 'SlabHunter', title: 'Charizard Base Holo PSA 9', price: 420, condition: 'PSA 9', category: 'cards', desc: 'Clean corners, no scratches.' },
     { id: 2, user: 'KeyCollector', title: 'Amazing Spider-Man #129 CGC 8.0', price: 580, condition: 'CGC 8.0', category: 'comics', desc: 'First appearance of Punisher.' },
@@ -219,13 +221,26 @@ export default function App() {
   const codeRefs = Array.from({length: 6}, () => useRef<HTMLInputElement>(null))
 
   useEffect(() => {
-    navigator.geolocation?.getCurrentPosition(
-      pos => { setUserLat(pos.coords.latitude); setUserLng(pos.coords.longitude) },
-      () => {}
+    if (!navigator.geolocation) {
+      setLocationLoading(false)
+      setLocationDenied(true)
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        setUserLat(pos.coords.latitude)
+        setUserLng(pos.coords.longitude)
+        setLocationLoading(false)
+      },
+      () => {
+        setLocationLoading(false)
+        setLocationDenied(true)
+      },
+      { timeout: 8000, maximumAge: 60000 }
     )
   }, [])
 
-  const sortedShops = [...shops]
+  const sortedShops = locationLoading ? [] : [...shops]
     .map((s: any) => ({ ...s, distance: userLat && userLng ? getDistance(userLat, userLng, s.lat, s.lng) : null }))
     .sort((a: any, b: any) => {
       if (a.distance !== null && b.distance !== null) return a.distance - b.distance
@@ -233,7 +248,11 @@ export default function App() {
       if (b.distance !== null) return 1
       return 0
     })
-    .filter((s: any) => userLat && userLng ? s.distance !== null && s.distance <= radius : true)
+    .filter((s: any) => {
+      if (userLat && userLng) return s.distance !== null && s.distance <= radius
+      if (locationDenied) return true // show all if denied
+      return false // hide while loading
+    })
     .slice(0, 50)
 
   const filteredShops = sortedShops.filter((s: any) =>
@@ -529,9 +548,22 @@ export default function App() {
                 )}
                 {activeSection === 'shops' && <DropBanner shops={shops} />}
                 {activeSection === 'shops' && (
+                  {locationLoading ? (
+                  <div className="text-center py-12">
+                    <div className="h-8 w-8 rounded-full border-2 border-zinc-200 border-t-zinc-500 animate-spin mx-auto mb-3" />
+                    <p className="text-sm text-zinc-400 font-mono">Finding shops near you...</p>
+                  </div>
+                ) : filteredShops.length === 0 && !locationDenied ? (
+                  <div className="text-center py-12 text-zinc-400">
+                    <MapPin className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                    <p className="text-sm font-mono">No shops found within {radius} miles</p>
+                    <p className="text-xs mt-1">Try increasing your radius</p>
+                  </div>
+                ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                     {filteredShops.map((s: any) => <ShopCard key={s.id} s={s} />)}
                   </div>
+                )}
                 )}
                 {activeSection === 'shops' && (ebaySearching || ebayResults.length > 0) && search.length >= 3 && (
                   <div className="space-y-3">
