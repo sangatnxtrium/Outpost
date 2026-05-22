@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
-import { Shield, Store, Users, Star, Trash2, Edit2, Check, X, LogOut, RefreshCw, Search, Flame, BarChart2, MessageSquare, ArrowLeftRight, Calendar, Plus } from 'lucide-react'
+import { Shield, Store, Users, Star, Trash2, Edit2, Check, X, LogOut, RefreshCw, Search, Flame, BarChart2, MessageSquare, ArrowLeftRight, Calendar, Plus, Package } from 'lucide-react'
 
 
 class AdminErrorBoundary extends React.Component<{children: any}, {error: string}> {
