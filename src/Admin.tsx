@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
 import { Shield, Store, Users, Star, Trash2, Edit2, Check, X, LogOut, RefreshCw, Search, Flame, BarChart2, MessageSquare, ArrowLeftRight, Calendar, Plus } from 'lucide-react'
@@ -602,7 +603,8 @@ export default function Admin() {
             <div className="space-y-3">
               <h2 className="font-black text-xl">Vault Items ({filteredMarket.length})</h2>
               {filteredMarket.map((item: any) => (
-                <div key={item.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4 flex items-start justify-between gap-3">
+                <div key={item.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4">
+                  <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="font-black text-sm">{item.name}</p>
                     {item.description && <p className="text-xs text-zinc-400 mt-0.5 truncate">{item.description}</p>}
@@ -620,7 +622,7 @@ export default function Admin() {
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
-                </div>
+                  </div>
                 {editingMarket?.id === item.id && (
                   <div className="mt-3 pt-3 border-t border-zinc-100 space-y-2">
                     <input value={marketFields.name || ''} onChange={e => setMarketFields({...marketFields, name: e.target.value})}
