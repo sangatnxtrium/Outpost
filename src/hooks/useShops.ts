@@ -15,6 +15,7 @@ export function useShops() {
       .select('*, events(*)')
       .order('rating', { ascending: false })
       .limit(10000)
+      .limit(10000)
     if (error) setError(error.message)
     else setShops(data || [])
     setLoading(false)
