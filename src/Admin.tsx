@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
-import { Shield, Store, Users, Star, Trash2, Edit2, Check, X, LogOut, RefreshCw, Search, Flame, BarChart2, MessageSquare, ArrowLeftRight, Calendar, Plus, Package } from 'lucide-react'
+import { Shield, Store, Users, Star, Trash2, Edit2, Check, X, LogOut, RefreshCw, Search, Flame, BarChart2, MessageSquare, ArrowLeftRight, Calendar, Plus } from 'lucide-react'
 
 
 class AdminErrorBoundary extends React.Component<{children: any}, {error: string}> {
@@ -611,10 +611,33 @@ export default function Admin() {
                       <span className="text-xs font-mono text-zinc-400">${item.est_value}</span>
                     </div>
                   </div>
-                  <button onClick={() => deleteItem('vault_items', item.id, setMarketItems, marketItems)} className="text-red-400 flex-shrink-0">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <button onClick={() => { setEditingMarket(item); setMarketFields({ name: item.name, est_value: item.est_value, condition: item.condition }) }}
+                      className="text-zinc-400 hover:text-zinc-700">
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => deleteItem('vault_items', item.id, setMarketItems, marketItems)} className="text-red-400 hover:text-red-600">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
+                {editingMarket?.id === item.id && (
+                  <div className="mt-3 pt-3 border-t border-zinc-100 space-y-2">
+                    <input value={marketFields.name || ''} onChange={e => setMarketFields({...marketFields, name: e.target.value})}
+                      placeholder="Item name" className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                    <input type="number" value={marketFields.est_value || ''} onChange={e => setMarketFields({...marketFields, est_value: parseFloat(e.target.value)})}
+                      placeholder="Value" className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                    <input value={marketFields.condition || ''} onChange={e => setMarketFields({...marketFields, condition: e.target.value})}
+                      placeholder="Condition" className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                    <div className="flex gap-2">
+                      <button onClick={saveMarketItem} className="flex-1 py-2 rounded-xl text-xs font-black text-white flex items-center justify-center gap-1"
+                        style={{ background: '#059669' }}><Check className="h-3 w-3" /> Save</button>
+                      <button onClick={() => { setEditingMarket(null); setMarketFields({}) }}
+                        className="flex-1 py-2 rounded-xl text-xs font-black bg-zinc-100 text-zinc-600">Cancel</button>
+                    </div>
+                  </div>
+                )}
+              </div>
               ))}
               {filteredMarket.length === 0 && <p className="text-center text-zinc-400 py-8 text-sm font-mono">No vault items yet</p>}
             </div>
