@@ -10,14 +10,23 @@ export function useShops() {
 
   async function fetchShops() {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('shops')
-      .select('*, events(*)')
-      .order('rating', { ascending: false })
-      .limit(10000)
-      .limit(10000)
-    if (error) setError(error.message)
-    else setShops(data || [])
+    // Fetch all shops in batches of 1000
+    let allShops: any[] = []
+    let from = 0
+    const batchSize = 1000
+    while (true) {
+      const { data, error } = await supabase
+        .from('shops')
+        .select('id, name, address, category, categories, hot_find, rating, tags, lat, lng, hours, description, phone, owner_id')
+        .order('rating', { ascending: false })
+        .range(from, from + batchSize - 1)
+      if (error) { setError(error.message); break }
+      if (!data || data.length === 0) break
+      allShops = [...allShops, ...data]
+      if (data.length < batchSize) break
+      from += batchSize
+    }
+    setShops(allShops)
     setLoading(false)
   }
 
