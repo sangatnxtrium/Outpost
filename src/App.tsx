@@ -1148,6 +1148,21 @@ export default function App() {
                 </div>
               </div>
             </div>
+            {isMerchant && !(selectedShop as any).owner_id && (
+              <button onClick={async () => {
+                if (!confirm(`Claim ${selectedShop.name} as your shop?`)) return
+                await supabase.from('shops').update({ owner_id: user?.id }).eq('id', selectedShop.id)
+                alert('Shop claimed! You can now post drops and manage your listing.')
+                window.location.reload()
+              }}
+                className="w-full rounded-3xl p-4 border-2 border-dashed text-center"
+                style={{ borderColor: '#059669', background: 'rgba(5,150,105,0.04)' }}>
+                <Store className="h-5 w-5 mx-auto mb-1 text-emerald-600" />
+                <p className="font-black text-sm text-emerald-600">This is my shop — Claim it</p>
+                <p className="text-xs text-zinc-400 mt-0.5">Tap to link this listing to your account</p>
+              </button>
+            )}
+
             {(selectedShop.hot_find || (isMerchant && (selectedShop as any).owner_id === user?.id)) && (
               <div className="rounded-3xl p-4 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
                 <div className="flex items-center gap-2 mb-2">
