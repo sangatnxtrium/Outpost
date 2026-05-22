@@ -564,7 +564,6 @@ export default function App() {
                     {filteredShops.map((s: any) => <ShopCard key={s.id} s={s} />)}
                   </div>
                 )}
-                )}
                 {activeSection === 'shops' && (ebaySearching || ebayResults.length > 0) && search.length >= 3 && (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 px-1">
