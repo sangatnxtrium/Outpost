@@ -274,6 +274,7 @@ export default function App() {
   const vaultTotal = vaultItems.reduce((a: number, c: any) => a + (c.est_value || 0), 0)
   const isSignedIn = !!user
   const isMerchant = profile?.role === 'merchant'
+  const myShop = shops.find((s: any) => s.owner_id === user?.id) || null
 
   function openShop(s: any) { setSelectedShopId(s.id); setModal('shop') }
 
@@ -1207,6 +1208,7 @@ export default function App() {
             ) : null}
 
             {!existingClaim && !claimCheckLoading && (
+            <div>
             <div className="flex items-center gap-2 mb-5">
               {[1,2,3].map(s => (
                 <React.Fragment key={s}>
@@ -1283,6 +1285,7 @@ export default function App() {
                   style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>Done</button>
               </div>
             )}
+            </div>
             )}
           </div>
         </div>
