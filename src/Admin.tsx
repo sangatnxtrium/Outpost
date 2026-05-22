@@ -534,8 +534,8 @@ export default function Admin() {
                 </div>
               )}
             </div>
-            ))}
-            {fEvents.length === 0 && <p className="text-center text-zinc-400 py-8 text-sm font-mono">No events yet</p>}
+          ))}
+          {fEvents.length === 0 && <p className="text-center text-zinc-400 py-8 text-sm font-mono">No events yet</p>}
           </div>
         )}
 
