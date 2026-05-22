@@ -253,7 +253,7 @@ export default function App() {
       if (locationDenied) return true // show all if denied
       return false // hide while loading
     })
-    .slice(0, 50)
+    .slice(0, 100)
 
   const filteredShops = sortedShops.filter((s: any) =>
     (filter === 'all' || s.category === filter || (s.categories && s.categories.includes(filter))) &&
