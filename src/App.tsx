@@ -513,22 +513,24 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Category filter pills */}
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {[
-                    { id: 'all', label: 'All', color: '#E0533C' },
-                    { id: 'comics', label: 'Comics', color: '#F59E0B' },
-                    { id: 'cards', label: 'Cards', color: '#38BDF8' },
-                    { id: 'collectibles', label: 'Collectibles', color: '#A78BFA' },
-                    { id: 'toys', label: 'Toys', color: '#10B981' },
-                  ].map(f => (
-                    <button key={f.id} onClick={() => setFilter(f.id)}
-                      className="px-4 py-2 rounded-2xl text-xs font-black uppercase border-2 transition-all whitespace-nowrap flex-shrink-0"
-                      style={filter === f.id ? { background: f.color, borderColor: f.color, color: 'white' } : { background: 'white', borderColor: '#e5e7eb', color: '#9ca3af' }}>
-                      {f.label}
-                    </button>
-                  ))}
-                </div>
+                {/* Category filter pills - shops only */}
+                {activeSection === 'shops' && (
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {[
+                      { id: 'all', label: 'All', color: '#E0533C' },
+                      { id: 'comics', label: 'Comics', color: '#F59E0B' },
+                      { id: 'cards', label: 'Cards', color: '#38BDF8' },
+                      { id: 'collectibles', label: 'Collectibles', color: '#A78BFA' },
+                      { id: 'toys', label: 'Toys', color: '#10B981' },
+                    ].map(f => (
+                      <button key={f.id} onClick={() => setFilter(f.id)}
+                        className="px-4 py-2 rounded-2xl text-xs font-black uppercase border-2 transition-all whitespace-nowrap flex-shrink-0"
+                        style={filter === f.id ? { background: f.color, borderColor: f.color, color: 'white' } : { background: 'white', borderColor: '#e5e7eb', color: '#9ca3af' }}>
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 {/* Radius selector - only for shops */}
                 {activeSection === 'shops' && userLat && (
@@ -547,19 +549,20 @@ export default function App() {
                   </div>
                 )}
                 {activeSection === 'shops' && <DropBanner shops={shops} />}
-                {activeSection === 'shops' && (
-                  locationLoading ? (
+                {activeSection === 'shops' && locationLoading && (
                   <div className="text-center py-12">
                     <div className="h-8 w-8 rounded-full border-2 border-zinc-200 border-t-zinc-500 animate-spin mx-auto mb-3" />
                     <p className="text-sm text-zinc-400 font-mono">Finding shops near you...</p>
                   </div>
-                ) : filteredShops.length === 0 && !locationDenied ? (
+                )}
+                {activeSection === 'shops' && !locationLoading && filteredShops.length === 0 && !locationDenied && (
                   <div className="text-center py-12 text-zinc-400">
                     <MapPin className="h-10 w-10 mx-auto mb-2 opacity-20" />
                     <p className="text-sm font-mono">No shops found within {radius} miles</p>
                     <p className="text-xs mt-1">Try increasing your radius</p>
                   </div>
-                ) : (
+                )}
+                {activeSection === 'shops' && !locationLoading && filteredShops.length > 0 && (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                     {filteredShops.map((s: any) => <ShopCard key={s.id} s={s} />)}
                   </div>
@@ -691,20 +694,21 @@ export default function App() {
                   </div>
                 )}
 
-                <button onClick={() => isSignedIn ? setModal('claim') : setModal('auth')}
-                  className="w-full rounded-3xl p-4 border-2 border-dashed text-center"
-                  style={{ borderColor: '#E0533C', background: 'rgba(224,83,60,0.04)' }}>
-                  <Store className="h-5 w-5 mx-auto mb-1" style={{ color: '#E0533C' }} />
-                  <p className="font-black text-sm" style={{ color: '#E0533C' }}>Own a shop? Claim your listing</p>
-                  <p className="text-xs text-zinc-400 mt-0.5">Verified with EIN · Free to claim</p>
-                </button>
+                {activeSection === 'shops' && (
+                  <button onClick={() => isSignedIn ? setModal('claim') : setModal('auth')}
+                    className="w-full rounded-3xl p-4 border-2 border-dashed text-center"
+                    style={{ borderColor: '#E0533C', background: 'rgba(224,83,60,0.04)' }}>
+                    <Store className="h-5 w-5 mx-auto mb-1" style={{ color: '#E0533C' }} />
+                    <p className="font-black text-sm" style={{ color: '#E0533C' }}>Own a shop? Claim your listing</p>
+                    <p className="text-xs text-zinc-400 mt-0.5">Verified with EIN · Free to claim</p>
+                  </button>
+                )}
 
-                {/* Submit shop/event button */}
                 <button onClick={() => setModal('submit')}
                   className="w-full rounded-3xl p-4 border-2 border-dashed text-center"
                   style={{ borderColor: '#7C3AED', background: 'rgba(124,58,237,0.04)' }}>
                   <Plus className="h-5 w-5 mx-auto mb-1" style={{ color: '#7C3AED' }} />
-                  <p className="font-black text-sm" style={{ color: '#7C3AED' }}>Submit a Shop or Event</p>
+                  <p className="font-black text-sm" style={{ color: '#7C3AED' }}>{activeSection === 'shops' ? 'Submit a Shop or Event' : 'Submit an Event'}</p>
                   <p className="text-xs text-zinc-400 mt-0.5">We'll review and add it to Outpost</p>
                 </button>
               </div>
