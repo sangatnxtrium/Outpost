@@ -1369,7 +1369,7 @@ export default function App() {
                 {['Everything in Elite','Verified badge','Broadcast drops','Manage events','Analytics','Featured placement'].map(f => (
                   <div key={f} className="flex items-center gap-2 py-1"><Check className="h-3.5 w-3.5 text-amber-400" /><p className="text-sm text-white/70">{f}</p></div>
                 ))}
-                <button onClick={() => handleUpgrade('store')} disabled={checkoutLoading || profile?.tier === 'store'}
+                <button onClick={() => { setModal('claim') }} disabled={profile?.tier === 'store'}
                   className="w-full mt-3 py-2.5 rounded-2xl text-xs font-black uppercase text-black disabled:opacity-50"
                   style={{ background: '#F59E0B' }}>
                   {profile?.tier === 'store' ? 'Active' : 'Claim Free'}
