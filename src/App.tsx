@@ -232,11 +232,12 @@ export default function App() {
         setUserLng(pos.coords.longitude)
         setLocationLoading(false)
       },
-      () => {
+      (err) => {
+        console.log('Geolocation error:', err.code, err.message)
         setLocationLoading(false)
         setLocationDenied(true)
       },
-      { timeout: 8000, maximumAge: 60000 }
+      { timeout: 10000, maximumAge: 0, enableHighAccuracy: false }
     )
   }, [])
 
@@ -250,10 +251,10 @@ export default function App() {
     })
     .filter((s: any) => {
       if (userLat && userLng) return s.distance !== null && s.distance <= radius
-      if (locationDenied) return true // show all if denied
+      if (locationDenied) return s.address?.includes(', CO') // show Colorado shops if denied
       return false // hide while loading
     })
-    .slice(0, 100)
+    .slice(0, 50)
 
   const filteredShops = sortedShops.filter((s: any) =>
     (filter === 'all' || s.category === filter || (s.categories && s.categories.includes(filter))) &&
