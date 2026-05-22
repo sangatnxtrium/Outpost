@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
-import { Shield, Store, Users, Star, Trash2, Edit2, Check, X, LogOut, RefreshCw, Search, Flame, BarChart2, MessageSquare, ArrowLeftRight, Calendar, Plus, Package } from 'lucide-react'
+import { Shield, Store, Users, Star, Trash2, Edit2, Check, X, LogOut, RefreshCw, Search, Flame, BarChart2, MessageSquare, ArrowLeftRight, Calendar, Plus } from 'lucide-react'
 
 
 class AdminErrorBoundary extends React.Component<{children: any}, {error: string}> {
@@ -170,6 +169,16 @@ export default function Admin() {
     if (!confirm('Delete this user? This cannot be undone.')) return
     await supabase.from('profiles').delete().eq('id', id)
     setUsers(users.filter(u => u.id !== id))
+  }
+
+  async function banUser(id: string, banned: boolean) {
+    await supabase.from('profiles').update({ banned: !banned }).eq('id', id)
+    setUsers(users.map(u => u.id === id ? { ...u, banned: !banned } : u))
+  }
+
+  async function updateUserRole(id: string, role: string) {
+    await supabase.from('profiles').update({ role }).eq('id', id)
+    setUsers(users.map(u => u.id === id ? { ...u, role } : u))
   }
 
   async function rejectClaim(id: string) {
@@ -433,12 +442,21 @@ export default function Admin() {
                     <span className="text-xs text-zinc-400 font-mono">{new Date(u.created_at).toLocaleDateString()}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <select value={u.role || 'hunter'} onChange={e => updateUserRole(u.id, e.target.value)}
+                    className="text-xs bg-zinc-50 border border-zinc-200 rounded-xl px-2 py-1.5 outline-none font-bold">
+                    {['hunter','merchant'].map(r => <option key={r}>{r}</option>)}
+                  </select>
                   <select value={u.tier} onChange={e => updateUserTier(u.id, e.target.value)}
                     className="text-xs bg-zinc-50 border border-zinc-200 rounded-xl px-2 py-1.5 outline-none font-bold">
                     {['free','elite','store'].map(t => <option key={t}>{t}</option>)}
                   </select>
-                  <button onClick={() => deleteUser(u.id)} className="text-red-400 hover:text-red-600 transition-colors">
+                  <button onClick={() => banUser(u.id, u.banned)}
+                    className="text-xs font-black px-2 py-1.5 rounded-xl transition-all"
+                    style={u.banned ? { background: '#FEF2F2', color: '#991B1B' } : { background: '#F3F4F6', color: '#6B7280' }}>
+                    {u.banned ? 'Banned' : 'Ban'}
+                  </button>
+                  <button onClick={() => deleteUser(u.id)} className="text-red-400 hover:text-red-600">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
