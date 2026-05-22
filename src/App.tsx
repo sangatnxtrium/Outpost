@@ -1194,7 +1194,7 @@ export default function App() {
                   <p className="text-xs text-zinc-400 mt-1">
                     {existingClaim.status === 'approved'
                       ? 'Your shop is verified and live on Outpost.'
-                      : 'Your claim is being reviewed. We'll email you within 24 hours.'}
+                      : 'Your claim is being reviewed. We will email you within 24 hours.'}
                   </p>
                 </div>
                 <button onClick={closeModal} className="w-full text-white font-black py-3.5 rounded-2xl text-sm uppercase"
