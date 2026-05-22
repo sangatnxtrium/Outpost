@@ -206,6 +206,8 @@ export default function App() {
   const [claimCategories, setClaimCategories] = useState<string[]>(['cards'])
   const [claimHours, setClaimHours] = useState('')
   const [claimStep, setClaimStep] = useState(1)
+  const [existingClaim, setExistingClaim] = useState<any>(null)
+  const [claimCheckLoading, setClaimCheckLoading] = useState(false)
   const [mktTitle, setMktTitle] = useState('')
   const [mktPrice, setMktPrice] = useState('')
   const [mktDesc, setMktDesc] = useState('')
@@ -347,10 +349,25 @@ export default function App() {
     closeModal()
   }
 
+  async function openClaimModal() {
+    if (!user) { setModal('auth'); return }
+    setClaimCheckLoading(true)
+    const { data } = await supabase
+      .from('shop_claims')
+      .select('*')
+      .eq('user_id', user.id)
+      .in('status', ['pending', 'approved'])
+      .single()
+    setExistingClaim(data || null)
+    setClaimCheckLoading(false)
+    setModal('claim')
+  }
+
   function closeModal() {
     setModal('none'); setAuthStep('gate')
     setAuthCode(['','','','','','']); setAuthError(null)
     setClaimStep(1)
+    setExistingClaim(null)
   }
 
   async function handleUpgrade(tier: 'elite' | 'store') {
@@ -701,7 +718,7 @@ export default function App() {
                 )}
 
                 {activeSection === 'shops' && (
-                  <button onClick={() => isSignedIn ? setModal('claim') : setModal('auth')}
+                  <button onClick={() => isSignedIn ? openClaimModal() : setModal('auth')}
                     className="w-full rounded-3xl p-4 border-2 border-dashed text-center"
                     style={{ borderColor: '#E0533C', background: 'rgba(224,83,60,0.04)' }}>
                     <Store className="h-5 w-5 mx-auto mb-1" style={{ color: '#E0533C' }} />
@@ -909,7 +926,7 @@ export default function App() {
                       {[
                         { label: 'Subscription', sub: 'Manage your plan', action: () => setModal('sub') },
                         { label: 'Notifications', sub: 'Drops, events and alerts', action: () => setModal('notifications') },
-                        { label: 'Claim a Shop', sub: 'Verify with EIN', action: () => setModal('claim') },
+                        { label: 'Claim a Shop', sub: 'Verify with EIN', action: () => openClaimModal() },
                 { label: 'Submit Shop or Event', sub: 'Suggest a listing for review', action: () => setModal('submit') },
                         { label: 'Sign Out', sub: `Signed in as @${profile?.username}`, action: () => signOut() },
                       ].map((item, i) => (
@@ -1164,6 +1181,32 @@ export default function App() {
               <button onClick={closeModal}><X className="h-5 w-5 text-zinc-400" /></button>
             </div>
             <p className="text-xs text-zinc-400 mb-5">Verified listings get a badge, drop broadcasting, and event management</p>
+
+            {existingClaim ? (
+              <div className="text-center py-6 space-y-4">
+                <div className="h-14 w-14 rounded-3xl flex items-center justify-center mx-auto"
+                  style={{ background: existingClaim.status === 'approved' ? '#F0FDF4' : '#FEF3C7' }}>
+                  <Check className="h-7 w-7" style={{ color: existingClaim.status === 'approved' ? '#16a34a' : '#d97706' }} />
+                </div>
+                <div>
+                  <p className="font-black text-lg">{existingClaim.status === 'approved' ? 'Shop Claimed!' : 'Claim Pending'}</p>
+                  <p className="font-bold text-sm text-zinc-600 mt-1">{existingClaim.shop_name}</p>
+                  <p className="text-xs text-zinc-400 mt-1">
+                    {existingClaim.status === 'approved'
+                      ? 'Your shop is verified and live on Outpost.'
+                      : 'Your claim is being reviewed. We'll email you within 24 hours.'}
+                  </p>
+                </div>
+                <button onClick={closeModal} className="w-full text-white font-black py-3.5 rounded-2xl text-sm uppercase"
+                  style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>Close</button>
+              </div>
+            ) : claimCheckLoading ? (
+              <div className="text-center py-8">
+                <div className="h-8 w-8 rounded-full border-2 border-zinc-200 border-t-zinc-500 animate-spin mx-auto" />
+              </div>
+            ) : null}
+
+            {!existingClaim && !claimCheckLoading && (
             <div className="flex items-center gap-2 mb-5">
               {[1,2,3].map(s => (
                 <React.Fragment key={s}>
@@ -1239,6 +1282,7 @@ export default function App() {
                 <button onClick={closeModal} className="w-full text-white font-black py-4 rounded-2xl text-sm uppercase"
                   style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>Done</button>
               </div>
+            )}
             )}
           </div>
         </div>
@@ -1371,7 +1415,7 @@ export default function App() {
                 {['Everything in Elite','Verified badge','Broadcast drops','Manage events','Analytics','Featured placement'].map(f => (
                   <div key={f} className="flex items-center gap-2 py-1"><Check className="h-3.5 w-3.5 text-amber-400" /><p className="text-sm text-white/70">{f}</p></div>
                 ))}
-                <button onClick={() => { setModal('claim') }} disabled={profile?.tier === 'store'}
+                <button onClick={() => { openClaimModal() }} disabled={profile?.tier === 'store'}
                   className="w-full mt-3 py-2.5 rounded-2xl text-xs font-black uppercase text-black disabled:opacity-50"
                   style={{ background: '#F59E0B' }}>
                   {profile?.tier === 'store' ? 'Active' : 'Claim Free'}
@@ -1394,7 +1438,7 @@ export default function App() {
               {[
                 { label: 'Subscription', sub: 'Manage your plan', action: () => setModal('sub') },
                 { label: 'Notifications', sub: 'Drops, events and alerts', action: () => setModal('notifications') },
-                { label: 'Claim a Shop', sub: 'Verify with EIN', action: () => setModal('claim') },
+                { label: 'Claim a Shop', sub: 'Verify with EIN', action: () => openClaimModal() },
                 { label: 'Submit Shop or Event', sub: 'Suggest a listing for review', action: () => setModal('submit') },
                 { label: isSignedIn ? `Sign Out (@${profile?.username})` : 'Sign In', sub: isSignedIn ? 'See you next time' : 'Access your account', action: () => { isSignedIn ? signOut() : setModal('auth') } },
                 { label: 'Privacy Policy', sub: 'How we handle your data', action: () => window.open('/privacy', '_blank') },
