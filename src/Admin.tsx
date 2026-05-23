@@ -53,6 +53,10 @@ export default function Admin() {
   const [claims, setClaims] = useState<any[]>([])
   const [marketItems, setMarketItems] = useState<any[]>([])
   const [checkins, setCheckins] = useState(0)
+  const [editingEvent, setEditingEvent] = useState<any>(null)
+  const [eventFields, setEventFields] = useState<any>({})
+  const [addingEvent, setAddingEvent] = useState(false)
+  const [newEvent, setNewEvent] = useState({ title: "", date: "", location: "", city: "", state: "", description: "", categories: ["cards"] })
 
   const [editShop, setEditShop] = useState<any>(null)
   const [editFields, setEditFields] = useState<any>({})
