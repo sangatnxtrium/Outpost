@@ -77,7 +77,14 @@ export default function Admin() {
     if (authed) fetchAll()
   }, [authed])
 
-  async function fetchAll() {
+  async function saveEvent() {
+    await supabase.from('events').update(eventFields).eq('id', editingEvent.id)
+    setEvents(events.map(e => e.id === editingEvent.id ? { ...e, ...eventFields } : e))
+    setEditingEvent(null)
+    setEventFields({})
+  }
+
+    async function fetchAll() {
     setLoading(true)
     try {
       const [s, u, r, t, e, c, ci] = await Promise.all([
