@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Compass, MapPin, Search, Flame, X, Store, User, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, DollarSign, Plus, Check, Phone, Bell } from 'lucide-react'
+import * as L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
+import { Compass, MapPin, Search, Flame, X, Store, User, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, DollarSign, Plus, Check, Phone, Bell, Heart, Star } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
 import { useShops, useReviews, useTradePosts, useVault, useCheckins, useEvents } from './hooks/useShops'
 import { startCheckout } from './lib/stripe'
@@ -42,40 +44,73 @@ function DropBanner({ shops }: { shops: any[] }) {
   )
 }
 
-function LocalMap({ shops, onSelect }: { shops: any[], onSelect: (s: any) => void }) {
-  const latMin = 39.4, latMax = 40.1, lngMin = -105.4, lngMax = -104.5
-  const W = 500, H = 340
-  const toX = (lng: number) => ((lng - lngMin) / (lngMax - lngMin)) * W
-  const toY = (lat: number) => (1 - (lat - latMin) / (latMax - latMin)) * H
-  return (
-    <div className="relative w-full rounded-3xl overflow-hidden border border-white/10 shadow-xl" style={{ background: '#1a1f2e' }}>
-      <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="block">
-        {[0.25, 0.5, 0.75].map(f => (
-          <React.Fragment key={f}>
-            <line x1={W*f} y1={0} x2={W*f} y2={H} stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
-            <line x1={0} y1={H*f} x2={W} y2={H*f} stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
-          </React.Fragment>
-        ))}
-        {shops.map((s: any) => {
-          const x = toX(s.lng), y = toY(s.lat)
-          const color = s.category === 'comics' ? '#F59E0B' : s.category === 'cards' ? '#38BDF8' : '#A78BFA'
-          return (
-            <g key={s.id} onClick={() => onSelect(s)} style={{ cursor: 'pointer' }}>
-              <circle cx={x} cy={y} r={10} fill={color} opacity={0.15} />
-              <circle cx={x} cy={y} r={6} fill={color} opacity={0.9} />
-              <circle cx={x} cy={y} r={2.5} fill="white" />
-            </g>
-          )
-        })}
-      </svg>
-      <div className="absolute bottom-3 left-3 flex gap-3 text-xs font-bold">
-        <span className="flex items-center gap-1 text-amber-400"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />Comics</span>
-        <span className="flex items-center gap-1 text-sky-400"><span className="w-2 h-2 rounded-full bg-sky-400 inline-block" />Cards</span>
-        <span className="flex items-center gap-1 text-violet-400"><span className="w-2 h-2 rounded-full bg-violet-400 inline-block" />Collectibles</span>
-      </div>
-      <div className="absolute top-3 right-3 text-xs font-mono text-white/30 font-bold">COLORADO</div>
-    </div>
-  )
+function LocalMap({ shops, onSelect, activeId, userLat, userLng }: { shops: any[], onSelect: (s: any) => void, activeId?: string | null, userLat?: number | null, userLng?: number | null }) {
+  const elRef = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<any>(null)
+  const markersRef = useRef<Record<string, any>>({})
+
+  useEffect(() => {
+    if (!elRef.current || mapRef.current) return
+    const map = L.map(elRef.current, { zoomControl: true }).setView([userLat || 39.7392, userLng || -104.9903], 11)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors',
+    }).addTo(map)
+    mapRef.current = map
+    setTimeout(() => map.invalidateSize(), 200)
+    return () => { map.remove(); mapRef.current = null }
+  }, [])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    Object.values(markersRef.current).forEach((m: any) => map.removeLayer(m))
+    markersRef.current = {}
+    const pts: [number, number][] = []
+    shops.forEach((s: any) => {
+      if (typeof s.lat !== 'number' || typeof s.lng !== 'number') return
+      const icon = L.divIcon({ className: '', html: '<div class="op-pin"></div>', iconSize: [20, 20], iconAnchor: [10, 18], popupAnchor: [0, -16] })
+      const m = L.marker([s.lat, s.lng], { icon }).addTo(map)
+      m.bindPopup(`<strong>${s.name || ''}</strong><br>${s.address || ''}`)
+      m.on('click', () => onSelect(s))
+      markersRef.current[s.id] = m
+      pts.push([s.lat, s.lng])
+    })
+    if (userLat && userLng) {
+      L.circleMarker([userLat, userLng], { radius: 7, color: '#fff', weight: 2, fillColor: '#2563eb', fillOpacity: 1 }).addTo(map)
+    }
+    if (pts.length) {
+      try { map.fitBounds(pts, { padding: [50, 50], maxZoom: 13 }) } catch { /* noop */ }
+    }
+  }, [shops])
+
+  useEffect(() => {
+    const m = activeId ? markersRef.current[activeId] : null
+    if (m) { m.openPopup(); const el = m._icon?.querySelector('.op-pin'); if (el) el.classList.add('on') }
+    return () => {
+      if (m) { m.closePopup(); const el = m._icon?.querySelector('.op-pin'); if (el) el.classList.remove('on') }
+    }
+  }, [activeId])
+
+  return <div ref={elRef} className="w-full h-full" style={{ minHeight: 280, position: 'relative', zIndex: 0, isolation: 'isolate' }} />
+}
+
+function streetViewUrl(s: any, size = '320x320'): string | null {
+  if (s?.image_url) return s.image_url
+  const key = import.meta.env.VITE_GOOGLE_MAPS_KEY
+  if (key && typeof s?.lat === 'number' && typeof s?.lng === 'number') {
+    return `https://maps.googleapis.com/maps/api/streetview?size=${size}&location=${s.lat},${s.lng}&fov=80&source=outdoor&key=${key}`
+  }
+  return null
+}
+
+function ShopThumb({ s, className = '' }: { s: any, className?: string }) {
+  const [err, setErr] = useState(false)
+  const url = err ? null : streetViewUrl(s)
+  if (url) {
+    return <img src={url} alt={s?.name || 'Shop'} loading="lazy" onError={() => setErr(true)} className={`${className} object-cover bg-zinc-100`} />
+  }
+  return <div className={`${className} bg-zinc-100 flex items-center justify-center text-zinc-400`}><Store className="h-6 w-6" /></div>
 }
 
 function getDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -165,6 +200,9 @@ export default function App() {
   const { vaultItems, addVaultItem } = useVault(user?.id || null)
   const [rsvps, setRsvps] = useState<string[]>([])
   const [tab, setTab] = useState<TabType>('discover')
+  const [hoverShopId, setHoverShopId] = useState<string | null>(null)
+  const [savedShops, setSavedShops] = useState<string[]>([])
+  const [mobileMapOpen, setMobileMapOpen] = useState(false)
   const [modal, setModal] = useState<ModalType>('none')
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
@@ -507,94 +545,105 @@ export default function App() {
     )
   }
 
-  const ShopCard = ({ s }: { s: any }) => (
-    <button onClick={() => openShop(s)}
-      className="w-full bg-white rounded-3xl p-4 text-left active:scale-[0.98] transition-all shadow-sm border border-zinc-100 hover:shadow-md hover:border-zinc-200">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-2 flex-wrap">
-            {(s.categories?.length > 0 ? s.categories : [s.category]).map((cat: string) => (
-              <span key={cat} className="text-xs font-black uppercase px-2.5 py-1 rounded-xl" style={categoryStyle(cat)}>{cat}</span>
-            ))}
-            <span className="text-sm text-amber-500 font-bold">{s.rating}★</span>
-            {s.distance !== null && <span className="text-xs text-zinc-400 font-mono ml-auto">{s.distance.toFixed(1)} mi</span>}
-          </div>
-          <h3 className="font-black text-base leading-tight">{s.name}</h3>
-          <p className="text-xs text-zinc-400 mt-1 font-mono">{s.address}</p>
-          <div className="flex gap-1.5 mt-2.5 flex-wrap">
-            {s.tags?.map((t: string, i: number) => (
-              <span key={i} className="text-xs bg-zinc-100 text-zinc-600 px-2 py-1 rounded-lg font-bold">{t}</span>
-            ))}
+  const ShopCard = ({ s }: { s: any }) => {
+    const cats = s.categories?.length > 0 ? s.categories : (s.category ? [s.category] : [])
+    const isSaved = savedShops.includes(s.id)
+    return (
+      <div
+        onMouseEnter={() => setHoverShopId(s.id)}
+        onMouseLeave={() => setHoverShopId(null)}
+        onClick={() => openShop(s)}
+        className="relative bg-white rounded-xl border border-zinc-200 p-3.5 text-left cursor-pointer transition-all hover:border-zinc-300 hover:shadow-sm">
+        <button
+          onClick={(e) => { e.stopPropagation(); setSavedShops(isSaved ? savedShops.filter((id: string) => id !== s.id) : [...savedShops, s.id]) }}
+          aria-label={isSaved ? 'Saved' : 'Save shop'}
+          className="absolute top-3 right-3 z-10">
+          <Heart className="h-[18px] w-[18px] transition-colors" style={isSaved ? { color: '#E0533C', fill: '#E0533C' } : { color: '#c7c7c7' }} />
+        </button>
+        <div className="flex gap-3">
+          <ShopThumb s={s} className="h-16 w-16 rounded-xl flex-shrink-0" />
+          <div className="min-w-0 flex-1 pr-5">
+            <h3 className="font-semibold text-[15px] leading-snug text-zinc-900 truncate">{s.name}</h3>
+            <div className="flex items-center gap-1.5 text-[13px] text-zinc-500 mt-0.5">
+              {s.rating != null && <span className="flex items-center gap-0.5"><Star className="h-3.5 w-3.5 text-amber-500" fill="currentColor" />{s.rating}</span>}
+              {s.distance !== null && s.distance !== undefined && <span>· {s.distance.toFixed(1)} mi</span>}
+            </div>
+            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+              {cats.slice(0, 2).map((cat: string) => (
+                <span key={cat} className="text-[11px] text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded-full capitalize">{cat}</span>
+              ))}
+              {s.hot_find && (
+                <span className="text-[11px] text-white px-2 py-0.5 rounded-full inline-flex items-center gap-1" style={{ background: '#E0533C' }}>
+                  <Flame className="h-3 w-3" /> Hot find
+                </span>
+              )}
+            </div>
           </div>
         </div>
-        <div className="h-10 w-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: categoryStyle(s.category).background }}>
-          <MapPin className="h-5 w-5" style={{ color: categoryIconColor(s.category) }} />
-        </div>
+        {s.hot_find && <p className="text-[12px] text-zinc-500 italic mt-2.5 truncate">"{s.hot_find}"</p>}
       </div>
-      {s.hot_find && (
-        <div className="mt-3 pt-3 border-t border-zinc-100 flex items-center gap-2">
-          <Flame className="h-3.5 w-3.5 text-orange-400 flex-shrink-0" />
-          <p className="text-xs text-zinc-500 italic truncate">"{s.hot_find}"</p>
-        </div>
-      )}
-    </button>
-  )
+    )
+  }
 
   return (
-    <div className="min-h-screen text-[#18191B] font-sans" style={{ background: '#F0EFE9' }}>
+    <div className="min-h-screen text-[#18191B] font-sans" style={{ background: '#FAFAF9' }}>
       <div className="flex min-h-screen">
         <Sidebar tab={tab} setTab={setTab} isSignedIn={isSignedIn} profile={profile} setModal={setModal} />
 
         <div className="flex-1 flex flex-col min-h-screen max-w-2xl mx-auto w-full md:max-w-none">
 
           {/* HEADER */}
-          <header className="sticky top-0 z-20 px-4 pt-10 pb-3 md:pt-4 md:border-b md:border-zinc-200 md:bg-white"
-            style={{ background: 'linear-gradient(135deg, #1a0a2e 0%, #16213e 100%)' }}>
+          <header className="sticky top-0 z-20 px-4 pt-10 pb-3 md:pt-3 md:pb-3 border-b border-zinc-200 bg-white/95 backdrop-blur">
             <div className="flex items-center justify-between gap-2 md:hidden">
               <div className="flex items-center gap-2 min-w-0 flex-1">
-                <div className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
-                  <Compass className="h-4 w-4 text-white" />
+                <div className="h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#E0533C' }}>
+                  <Compass className="h-[18px] w-[18px] text-white" />
                 </div>
                 <div className="min-w-0">
-                  <h1 className="text-lg font-black tracking-tight text-white leading-none">OUTPOST</h1>
-                  <p className="text-[10px] font-mono mt-0.5 whitespace-nowrap" style={{ color: 'rgba(255,255,255,0.5)' }}>EVERY SHOP. EVERY DROP. NEAR YOU.</p>
+                  <h1 className="text-lg font-semibold tracking-tight text-zinc-900 leading-none">Outpost</h1>
+                  <p className="text-[10px] mt-0.5 whitespace-nowrap text-zinc-400">Every shop. Every drop. Near you.</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 {isSignedIn && (
-                  <div className="px-3 py-1.5 rounded-xl font-black text-xs text-white" style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
+                  <div className="px-3 py-1.5 rounded-lg font-medium text-xs text-white" style={{ background: '#E0533C' }}>
                     @{profile?.username}
                   </div>
                 )}
-                <button onClick={() => setModal('menu')} className="h-8 w-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.15)' }}>
-                  <Menu className="h-4 w-4 text-white" />
+                <button onClick={() => setModal('menu')} aria-label="Menu" className="h-8 w-8 rounded-lg flex items-center justify-center border border-zinc-200 bg-white">
+                  <Menu className="h-4 w-4 text-zinc-600" />
                 </button>
               </div>
             </div>
-            <div className="hidden md:flex items-center justify-between">
+            <div className="hidden md:flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="h-8 w-8 rounded-lg flex items-center justify-center" style={{ background: '#E0533C' }}>
+                  <Compass className="h-[18px] w-[18px] text-white" />
+                </div>
+                <span className="text-lg font-semibold tracking-tight text-zinc-900">Outpost</span>
+              </div>
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-zinc-400" />
-                <input type="text" placeholder="Search shops, tags, keys..."
+                <input type="text" placeholder="Search shops, cities, tags"
                   value={search} onChange={e => { setSearch(e.target.value); searchEbay(e.target.value) }}
-                  className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl pl-10 pr-4 py-2.5 text-sm font-medium outline-none focus:border-zinc-400" />
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-full pl-10 pr-4 py-2.5 text-sm outline-none focus:border-zinc-400 focus:bg-white transition-colors" />
               </div>
-              <div className="flex items-center gap-2 ml-4">
-                <button onClick={() => setModal('notifications')} className="h-9 w-9 rounded-xl flex items-center justify-center border border-zinc-200 bg-white hover:bg-zinc-50 transition-all">
+              <div className="flex items-center gap-2">
+                <button onClick={() => setModal('notifications')} aria-label="Notifications" className="h-9 w-9 rounded-full flex items-center justify-center border border-zinc-200 bg-white hover:bg-zinc-50 transition-all">
                   <Bell className="h-4 w-4 text-zinc-500" />
                 </button>
-                <button onClick={() => setModal('sub')} className="px-4 py-2 rounded-xl text-xs font-black text-white" style={{ background: 'linear-gradient(135deg, #F59E0B, #D97706)' }}>Pro</button>
-                <button onClick={() => isSignedIn ? signOut() : setModal('auth')} className="px-4 py-2 rounded-xl text-xs font-black text-white" style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
-                  {isSignedIn ? `@${profile?.username}` : 'Sign In'}
+                <button onClick={() => setModal('sub')} className="px-4 py-2 rounded-full text-xs font-medium border border-zinc-200 text-zinc-700 hover:bg-zinc-50 transition-all">Pro</button>
+                <button onClick={() => isSignedIn ? signOut() : setModal('auth')} className="px-4 py-2 rounded-full text-xs font-medium text-white transition-all" style={{ background: '#E0533C' }}>
+                  {isSignedIn ? `@${profile?.username}` : 'Sign in'}
                 </button>
               </div>
             </div>
             {(tab === 'discover' || tab === 'map') && (
               <div className="mt-3 relative md:hidden">
-                <Search className="absolute left-3.5 top-3 h-4 w-4" style={{ color: 'rgba(255,255,255,0.4)' }} />
-                <input type="text" placeholder="Search shops, tags, keys..."
+                <Search className="absolute left-3.5 top-3 h-4 w-4 text-zinc-400" />
+                <input type="text" placeholder="Search shops, cities, tags"
                   value={search} onChange={e => { setSearch(e.target.value); searchEbay(e.target.value) }}
-                  className="w-full rounded-2xl pl-10 pr-4 py-3 text-sm font-medium outline-none text-white placeholder:text-white/30"
-                  style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)' }} />
+                  className="w-full rounded-full pl-10 pr-4 py-3 text-sm outline-none bg-zinc-50 border border-zinc-200 focus:border-zinc-400 focus:bg-white transition-colors" />
               </div>
             )}
           </header>
@@ -607,14 +656,14 @@ export default function App() {
                 {/* Section toggle */}
                 <div className="flex gap-2">
                   <button onClick={() => setActiveSection('shops')}
-                    className="flex-1 py-2.5 rounded-2xl text-xs font-black uppercase transition-all"
-                    style={activeSection === 'shops' ? { background: '#E0533C', color: 'white' } : { background: 'white', color: '#9ca3af', border: '2px solid #e5e7eb' }}>
-                    All Shops
+                    className="flex-1 py-2 rounded-full text-sm font-medium transition-all"
+                    style={activeSection === 'shops' ? { background: '#E0533C', color: 'white' } : { background: 'white', color: '#71717a', border: '1px solid #e4e4e7' }}>
+                    Shops
                   </button>
                   <button onClick={() => setActiveSection('events')}
-                    className="flex-1 py-2.5 rounded-2xl text-xs font-black uppercase transition-all"
-                    style={activeSection === 'events' ? { background: '#7C3AED', color: 'white' } : { background: 'white', color: '#9ca3af', border: '2px solid #e5e7eb' }}>
-                    All Events
+                    className="flex-1 py-2 rounded-full text-sm font-medium transition-all"
+                    style={activeSection === 'events' ? { background: '#E0533C', color: 'white' } : { background: 'white', color: '#71717a', border: '1px solid #e4e4e7' }}>
+                    Events
                   </button>
                 </div>
 
@@ -622,35 +671,39 @@ export default function App() {
                 {activeSection === 'shops' && (
                   <div className="flex gap-2 overflow-x-auto pb-1">
                     {[
-                      { id: 'all', label: 'All', color: '#E0533C' },
-                      { id: 'comics', label: 'Comics', color: '#F59E0B' },
-                      { id: 'cards', label: 'Cards', color: '#38BDF8' },
-                      { id: 'collectibles', label: 'Collectibles', color: '#A78BFA' },
-                      { id: 'toys', label: 'Toys', color: '#10B981' },
+                      { id: 'all', label: 'All' },
+                      { id: 'comics', label: 'Comics' },
+                      { id: 'cards', label: 'Cards' },
+                      { id: 'collectibles', label: 'Collectibles' },
+                      { id: 'toys', label: 'Toys' },
                     ].map(f => (
                       <button key={f.id} onClick={() => setFilter(f.id)}
-                        className="px-4 py-2 rounded-2xl text-xs font-black uppercase border-2 transition-all whitespace-nowrap flex-shrink-0"
-                        style={filter === f.id ? { background: f.color, borderColor: f.color, color: 'white' } : { background: 'white', borderColor: '#e5e7eb', color: '#9ca3af' }}>
+                        className="px-4 py-1.5 rounded-full text-[13px] font-medium border transition-all whitespace-nowrap flex-shrink-0"
+                        style={filter === f.id ? { background: '#E0533C', borderColor: '#E0533C', color: 'white' } : { background: 'white', borderColor: '#e4e4e7', color: '#52525b' }}>
                         {f.label}
                       </button>
                     ))}
                   </div>
                 )}
 
-                {/* Radius selector - only for shops */}
+                {/* Radius selector + view map - only for shops */}
                 {activeSection === 'shops' && userLat && (
-                  <div className="flex items-center gap-3 px-1">
-                    <MapPin className="h-3 w-3 text-emerald-500 flex-shrink-0" />
-                    <p className="text-xs text-zinc-400 font-mono flex-1">Within {radius} miles</p>
+                  <div className="flex items-center gap-2 px-0.5">
+                    <span className="text-xs text-zinc-400 flex-shrink-0">Within</span>
                     <div className="flex gap-1">
                       {[10, 25, 50, 100].map(r => (
                         <button key={r} onClick={() => setRadius(r)}
-                          className="px-2 py-1 rounded-lg text-xs font-black transition-all"
-                          style={radius === r ? { background: '#E0533C', color: 'white' } : { background: '#f3f4f6', color: '#9ca3af' }}>
+                          className="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
+                          style={radius === r ? { background: '#27272a', color: 'white' } : { background: '#f4f4f5', color: '#71717a' }}>
                           {r}mi
                         </button>
                       ))}
                     </div>
+                    <button onClick={() => setTab('map')}
+                      className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-white flex-shrink-0"
+                      style={{ background: '#E0533C' }}>
+                      <Navigation className="h-3.5 w-3.5" /> Map
+                    </button>
                   </div>
                 )}
                 {activeSection === 'shops' && <DropBanner shops={shops} />}
@@ -821,30 +874,62 @@ export default function App() {
 
             {/* MAP */}
             {tab === 'map' && (
-              <div className="p-4 space-y-4">
-                <div className="rounded-3xl p-4 text-white" style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
-                  <h2 className="font-black text-lg">Shop Radar</h2>
-                  <p className="text-xs text-white/40 mt-0.5">Colorado · {shops.length} locations</p>
+              <div className="md:flex md:h-[calc(100vh-57px)]">
+                <div className="md:w-[400px] md:flex-shrink-0 md:overflow-y-auto md:border-r md:border-zinc-200 p-4 space-y-3">
+                  <div>
+                    <h2 className="text-lg font-semibold text-zinc-900">Shops near you</h2>
+                    <p className="text-xs text-zinc-400 mt-0.5">{filteredShops.length} {filteredShops.length === 1 ? 'shop' : 'shops'}{userLat ? ` · within ${radius} mi` : ''}</p>
+                  </div>
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {[
+                      { id: 'all', label: 'All' },
+                      { id: 'comics', label: 'Comics' },
+                      { id: 'cards', label: 'Cards' },
+                      { id: 'collectibles', label: 'Collectibles' },
+                      { id: 'toys', label: 'Toys' },
+                    ].map(f => (
+                      <button key={f.id} onClick={() => setFilter(f.id)}
+                        className="px-4 py-1.5 rounded-full text-[13px] font-medium border transition-all whitespace-nowrap flex-shrink-0"
+                        style={filter === f.id ? { background: '#E0533C', borderColor: '#E0533C', color: 'white' } : { background: 'white', borderColor: '#e4e4e7', color: '#52525b' }}>
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                  {filteredShops.length === 0 ? (
+                    <div className="text-center py-12 text-zinc-400">
+                      <MapPin className="h-9 w-9 mx-auto mb-2 opacity-20" />
+                      <p className="text-sm">No shops in range. Try a wider radius.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {filteredShops.map((s: any) => <ShopCard key={s.id} s={s} />)}
+                    </div>
+                  )}
                 </div>
-                <LocalMap shops={sortedShops} onSelect={s => openShop(s)} />
-                <p className="text-center text-xs text-zinc-400 font-mono">Tap a dot to open shop details</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                  {sortedShops.map((s: any) => (
-                    <button key={s.id} onClick={() => openShop(s)}
-                      className="w-full bg-white rounded-2xl p-3.5 flex items-center gap-3 text-left shadow-sm border border-zinc-100 hover:shadow-md transition-all">
-                      <div className="h-10 w-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: categoryStyle(s.category).background }}>
-                        <MapPin className="h-5 w-5" style={{ color: categoryIconColor(s.category) }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-black text-sm">{s.name}</p>
-                        <p className="text-xs text-zinc-400 font-mono truncate">{s.address}</p>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        {s.distance !== null && <p className="text-xs font-bold text-zinc-500">{s.distance.toFixed(1)} mi</p>}
-                        <ChevronRight className="h-4 w-4 text-zinc-300 ml-auto mt-1" />
-                      </div>
-                    </button>
-                  ))}
+
+                <div className="hidden md:block md:flex-1 md:h-full">
+                  <LocalMap shops={filteredShops} onSelect={s => openShop(s)} activeId={hoverShopId} userLat={userLat} userLng={userLng} />
+                </div>
+
+                <button onClick={() => setMobileMapOpen(true)}
+                  className="md:hidden fixed bottom-24 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-5 py-3 rounded-full text-white shadow-lg"
+                  style={{ background: '#27272a' }}>
+                  <Navigation className="h-4 w-4" /> Map
+                </button>
+              </div>
+            )}
+
+            {/* MOBILE FULLSCREEN MAP */}
+            {mobileMapOpen && (
+              <div className="md:hidden fixed inset-0 z-50 bg-white flex flex-col">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200">
+                  <span className="font-semibold text-zinc-900">{filteredShops.length} shops on map</span>
+                  <button onClick={() => setMobileMapOpen(false)} aria-label="Close map" className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border border-zinc-200">
+                    <X className="h-4 w-4" /> List
+                  </button>
+                </div>
+                <div className="flex-1">
+                  <LocalMap shops={filteredShops} onSelect={s => { setMobileMapOpen(false); openShop(s) }} userLat={userLat} userLng={userLng} />
                 </div>
               </div>
             )}
@@ -1095,7 +1180,7 @@ export default function App() {
 
       {/* SHOP DETAIL */}
       {modal === 'shop' && selectedShop && (
-        <div className="fixed inset-0 z-30 flex flex-col overflow-hidden md:inset-y-0 md:right-0 md:left-56" style={{ background: '#F0EFE9' }}>
+        <div className="fixed inset-0 z-50 flex flex-col overflow-hidden md:inset-y-0 md:right-0 md:left-56" style={{ background: '#F0EFE9' }}>
           <div className="px-4 pt-12 md:pt-4 pb-4 flex items-center gap-3 flex-shrink-0" style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
             <button onClick={() => setModal('none')} className="h-9 w-9 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.15)' }}>
               <X className="h-4 w-4 text-white" />
@@ -1122,6 +1207,12 @@ export default function App() {
             <span className="text-amber-400 font-bold">{selectedShop.rating}★</span>
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-4 md:max-w-2xl md:mx-auto md:w-full">
+            <ShopThumb s={selectedShop} className="h-44 w-full rounded-3xl border border-zinc-200" />
+            {typeof (selectedShop as any).lat === 'number' && typeof (selectedShop as any).lng === 'number' && (
+              <div className="rounded-3xl overflow-hidden border border-zinc-200">
+                <LocalMap shops={[selectedShop]} onSelect={() => {}} />
+              </div>
+            )}
             <div className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
               <div className="flex gap-2 flex-wrap">
                 {((selectedShop as any).categories?.length > 0 ? (selectedShop as any).categories : [(selectedShop as any).category]).map((cat: string) => (
