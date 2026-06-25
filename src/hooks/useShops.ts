@@ -150,9 +150,12 @@ export function useEvents() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    const today = new Date().toISOString().slice(0, 10)
     supabase
       .from('events')
       .select('*')
+      .eq('is_active', true)
+      .gte('date', today)
       .order('date', { ascending: true })
       .then(({ data }) => {
         setEvents(data || [])
