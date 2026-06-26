@@ -146,14 +146,9 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal }: any) {
   ]
   return (
     <aside className="hidden md:flex flex-col w-56 border-r border-zinc-200 bg-white h-screen sticky top-0 p-4 gap-1 flex-shrink-0">
-      <div className="flex items-center gap-2.5 px-2 py-4 mb-2">
-        <div className="h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#E0533C' }}>
-          <Compass className="h-5 w-5 text-white" />
-        </div>
-        <div>
-          <h1 className="text-base font-semibold tracking-tight leading-none text-zinc-900">Outpost</h1>
-          <p className="text-[11px] text-zinc-400 mt-1">Every Shop. Every Drop. Near You.</p>
-        </div>
+      <div className="px-2 py-4 mb-2">
+        <img src="/logo.png" alt="getOutpost.net" className="w-40 h-auto" />
+        <p className="text-[11px] text-zinc-400 mt-2 px-1">Every Shop. Every Drop. Near You.</p>
       </div>
       {items.map(({ id, icon: Icon, label }) => (
         <button key={id} onClick={() => setTab(id as TabType)}
@@ -599,14 +594,8 @@ export default function App() {
           {/* HEADER */}
           <header className="sticky top-0 z-20 px-4 pt-10 pb-3 md:pt-3 md:pb-3 border-b border-zinc-200 bg-white/95 backdrop-blur">
             <div className="flex items-center justify-between gap-2 md:hidden">
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                <div className="h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#E0533C' }}>
-                  <Compass className="h-[18px] w-[18px] text-white" />
-                </div>
-                <div className="min-w-0">
-                  <h1 className="text-lg font-semibold tracking-tight text-zinc-900 leading-none">Outpost</h1>
-                  <p className="text-[10px] mt-0.5 whitespace-nowrap text-zinc-400">Every shop. Every drop. Near you.</p>
-                </div>
+              <div className="flex items-center min-w-0 flex-1">
+                <img src="/logo.png" alt="getOutpost.net" className="h-10 w-auto" />
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 {isSignedIn && (
@@ -719,7 +708,7 @@ export default function App() {
                   </div>
                 )}
                 {activeSection === 'shops' && !locationLoading && filteredShops.length > 0 && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                     {filteredShops.map((s: any) => <ShopCard key={s.id} s={s} />)}
                   </div>
                 )}
