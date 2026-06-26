@@ -17,7 +17,7 @@ export function useShops() {
     while (true) {
       const { data, error } = await supabase
         .from('shops')
-        .select('id, name, address, category, categories, hot_find, rating, tags, lat, lng, hours, description, phone, owner_id')
+        .select('id, name, address, category, categories, hot_find, rating, tags, lat, lng, hours, description, phone, owner_id, image_url')
         .order('rating', { ascending: false })
         .range(from, from + batchSize - 1)
       if (error) { setError(error.message); break }
