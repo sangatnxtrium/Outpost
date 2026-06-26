@@ -595,8 +595,8 @@ export default function App() {
           <header className="sticky top-0 z-20 px-4 pt-10 pb-3 md:pt-3 md:pb-3 border-b border-zinc-200 bg-white/95 backdrop-blur">
             <div className="flex items-center justify-between gap-2 md:hidden">
               <div className="min-w-0 flex-1">
-                <img src="/logo.png" alt="getOutpost.net" className="h-[60px] w-auto" />
-                <p className="text-[10px] mt-0.5 whitespace-nowrap text-zinc-400">Every Shop. Every Drop. Near You.</p>
+                <img src="/logo.png" alt="getOutpost.net" className="h-[75px] w-auto" />
+                <p className="text-[15px] mt-0.5 whitespace-nowrap text-zinc-400">Every Shop. Every Drop. Near You.</p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 {isSignedIn && (
