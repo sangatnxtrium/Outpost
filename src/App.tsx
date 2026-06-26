@@ -95,7 +95,7 @@ function LocalMap({ shops, onSelect, activeId, userLat, userLng }: { shops: any[
   return <div ref={elRef} className="w-full h-full" style={{ minHeight: 280, position: 'relative', zIndex: 0, isolation: 'isolate' }} />
 }
 
-function streetViewUrl(s: any, size = '320x320'): string | null {
+function streetViewUrl(s: any, size = '480x360'): string | null {
   if (s?.image_url) return s.image_url
   const key = import.meta.env.VITE_GOOGLE_MAPS_KEY
   if (key && typeof s?.lat === 'number' && typeof s?.lng === 'number') {
@@ -183,7 +183,7 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal }: any) {
           className="w-full py-2.5 rounded-xl text-sm font-medium border border-zinc-200 text-zinc-600 hover:bg-zinc-50 transition-all">
           Subscription
         </button>
-        <a href="https://getoutpost.net" target="_blank" rel="noopener noreferrer"
+        <a href="https://www.getoutpost.net" target="_blank" rel="noopener noreferrer"
           className="block text-center text-[11px] text-zinc-400 hover:text-zinc-600 pt-1 transition-colors">
           getoutpost.net
         </a>
@@ -557,34 +557,33 @@ export default function App() {
         onMouseEnter={() => setHoverShopId(s.id)}
         onMouseLeave={() => setHoverShopId(null)}
         onClick={() => openShop(s)}
-        className="relative bg-white rounded-xl border border-zinc-200 p-3.5 text-left cursor-pointer transition-all hover:border-zinc-300 hover:shadow-sm">
-        <button
-          onClick={(e) => { e.stopPropagation(); setSavedShops(isSaved ? savedShops.filter((id: string) => id !== s.id) : [...savedShops, s.id]) }}
-          aria-label={isSaved ? 'Saved' : 'Save shop'}
-          className="absolute top-3 right-3 z-10">
-          <Heart className="h-[18px] w-[18px] transition-colors" style={isSaved ? { color: '#E0533C', fill: '#E0533C' } : { color: '#c7c7c7' }} />
-        </button>
-        <div className="flex gap-3">
-          <ShopThumb s={s} className="h-16 w-16 rounded-xl flex-shrink-0" />
-          <div className="min-w-0 flex-1 pr-5">
-            <h3 className="font-semibold text-[15px] leading-snug text-zinc-900 truncate">{s.name}</h3>
-            <div className="flex items-center gap-1.5 text-[13px] text-zinc-500 mt-0.5">
-              {s.rating != null && <span className="flex items-center gap-0.5"><Star className="h-3.5 w-3.5 text-amber-500" fill="currentColor" />{s.rating}</span>}
-              {s.distance !== null && s.distance !== undefined && <span>· {s.distance.toFixed(1)} mi</span>}
-            </div>
-            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-              {cats.slice(0, 2).map((cat: string) => (
-                <span key={cat} className="text-[11px] text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded-full capitalize">{cat}</span>
-              ))}
-              {s.hot_find && (
-                <span className="text-[11px] text-white px-2 py-0.5 rounded-full inline-flex items-center gap-1" style={{ background: '#E0533C' }}>
-                  <Flame className="h-3 w-3" /> Hot find
-                </span>
-              )}
-            </div>
+        className="relative bg-white rounded-2xl border border-zinc-200 overflow-hidden text-left cursor-pointer transition-all hover:shadow-md">
+        <div className="relative">
+          <ShopThumb s={s} className="w-full aspect-[4/3]" />
+          <button
+            onClick={(e) => { e.stopPropagation(); setSavedShops(isSaved ? savedShops.filter((id: string) => id !== s.id) : [...savedShops, s.id]) }}
+            aria-label={isSaved ? 'Saved' : 'Save shop'}
+            className="absolute top-2.5 right-2.5 h-8 w-8 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm">
+            <Heart className="h-[18px] w-[18px] transition-colors" style={isSaved ? { color: '#E0533C', fill: '#E0533C' } : { color: '#52525b' }} />
+          </button>
+          {s.hot_find && (
+            <span className="absolute top-2.5 left-2.5 text-[11px] text-white px-2 py-1 rounded-full inline-flex items-center gap-1 shadow-sm" style={{ background: '#E0533C' }}>
+              <Flame className="h-3 w-3" /> Hot find
+            </span>
+          )}
+        </div>
+        <div className="p-3">
+          <h3 className="font-semibold text-[15px] leading-snug text-zinc-900 truncate">{s.name}</h3>
+          <div className="flex items-center gap-1.5 text-[13px] text-zinc-500 mt-0.5">
+            {s.rating != null && <span className="flex items-center gap-0.5"><Star className="h-3.5 w-3.5 text-amber-500" fill="currentColor" />{s.rating}</span>}
+            {s.distance !== null && s.distance !== undefined && <span>· {s.distance.toFixed(1)} mi</span>}
+          </div>
+          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+            {cats.slice(0, 3).map((cat: string) => (
+              <span key={cat} className="text-[11px] text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded-full capitalize">{cat}</span>
+            ))}
           </div>
         </div>
-        {s.hot_find && <p className="text-[12px] text-zinc-500 italic mt-2.5 truncate">"{s.hot_find}"</p>}
       </div>
     )
   }
