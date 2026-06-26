@@ -144,19 +144,19 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal }: any) {
   ]
   return (
     <aside className="hidden md:flex flex-col w-56 border-r border-zinc-200 bg-white h-screen sticky top-0 p-4 gap-1 flex-shrink-0">
-      <div className="flex items-center gap-3 px-2 py-4 mb-2">
-        <div className="h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
+      <div className="flex items-center gap-2.5 px-2 py-4 mb-2">
+        <div className="h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#E0533C' }}>
           <Compass className="h-5 w-5 text-white" />
         </div>
         <div>
-          <h1 className="text-base font-black tracking-tight leading-none">OUTPOST</h1>
-          <p className="text-[9px] font-mono opacity-40 mt-0.5 truncate max-w-[120px]">EVERY SHOP. EVERY DROP. NEAR YOU.</p>
+          <h1 className="text-base font-semibold tracking-tight leading-none text-zinc-900">Outpost</h1>
+          <p className="text-[11px] text-zinc-400 mt-1">Every Shop. Every Drop. Near You.</p>
         </div>
       </div>
       {items.map(({ id, icon: Icon, label }) => (
         <button key={id} onClick={() => setTab(id as TabType)}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-2xl text-left transition-all font-bold text-sm"
-          style={tab === id ? { background: 'linear-gradient(135deg, #E0533C, #ff6b4a)', color: 'white' } : { color: '#6b7280' }}>
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all font-medium text-sm"
+          style={tab === id ? { background: '#E0533C', color: 'white' } : { color: '#52525b' }}>
           <Icon className="h-4 w-4 flex-shrink-0" />
           {label}
         </button>
@@ -174,15 +174,19 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal }: any) {
           </div>
         ) : (
           <button onClick={() => setModal('auth')}
-            className="w-full py-2.5 rounded-2xl text-sm font-black text-white"
-            style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
-            Sign In
+            className="w-full py-2.5 rounded-xl text-sm font-medium text-white transition-all"
+            style={{ background: '#E0533C' }}>
+            Sign in
           </button>
         )}
         <button onClick={() => setModal('sub')}
-          className="w-full py-2.5 rounded-2xl text-sm font-black border-2 border-zinc-100 text-zinc-500">
+          className="w-full py-2.5 rounded-xl text-sm font-medium border border-zinc-200 text-zinc-600 hover:bg-zinc-50 transition-all">
           Subscription
         </button>
+        <a href="https://getoutpost.net" target="_blank" rel="noopener noreferrer"
+          className="block text-center text-[11px] text-zinc-400 hover:text-zinc-600 pt-1 transition-colors">
+          getoutpost.net
+        </a>
       </div>
     </aside>
   )
@@ -616,19 +620,13 @@ export default function App() {
               </div>
             </div>
             <div className="hidden md:flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <div className="h-8 w-8 rounded-lg flex items-center justify-center" style={{ background: '#E0533C' }}>
-                  <Compass className="h-[18px] w-[18px] text-white" />
-                </div>
-                <span className="text-lg font-semibold tracking-tight text-zinc-900">Outpost</span>
-              </div>
-              <div className="relative flex-1 max-w-md">
+              <div className="relative flex-1 max-w-lg">
                 <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-zinc-400" />
                 <input type="text" placeholder="Search shops, cities, tags"
                   value={search} onChange={e => { setSearch(e.target.value); searchEbay(e.target.value) }}
                   className="w-full bg-zinc-50 border border-zinc-200 rounded-full pl-10 pr-4 py-2.5 text-sm outline-none focus:border-zinc-400 focus:bg-white transition-colors" />
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-shrink-0">
                 <button onClick={() => setModal('notifications')} aria-label="Notifications" className="h-9 w-9 rounded-full flex items-center justify-center border border-zinc-200 bg-white hover:bg-zinc-50 transition-all">
                   <Bell className="h-4 w-4 text-zinc-500" />
                 </button>
