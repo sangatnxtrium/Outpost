@@ -58,7 +58,9 @@ function LocalMap({ shops, onSelect, activeId, userLat, userLng }: { shops: any[
     }).addTo(map)
     mapRef.current = map
     setTimeout(() => map.invalidateSize(), 200)
-    return () => { map.remove(); mapRef.current = null }
+    const onResize = () => map.invalidateSize()
+    window.addEventListener('resize', onResize)
+    return () => { window.removeEventListener('resize', onResize); map.remove(); mapRef.current = null }
   }, [])
 
   useEffect(() => {
@@ -206,7 +208,6 @@ export default function App() {
   const [tab, setTab] = useState<TabType>('discover')
   const [hoverShopId, setHoverShopId] = useState<string | null>(null)
   const [savedShops, setSavedShops] = useState<string[]>([])
-  const [mobileMapOpen, setMobileMapOpen] = useState(false)
   const [modal, setModal] = useState<ModalType>('none')
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
@@ -871,12 +872,47 @@ export default function App() {
 
             {/* MAP */}
             {tab === 'map' && (
-              <div className="md:flex md:h-[calc(100vh-57px)]">
-                <div className="md:w-[400px] md:flex-shrink-0 md:overflow-y-auto md:border-r md:border-zinc-200 p-4 space-y-3">
-                  <div>
-                    <h2 className="text-lg font-semibold text-zinc-900">Shops near you</h2>
-                    <p className="text-xs text-zinc-400 mt-0.5">{filteredShops.length} {filteredShops.length === 1 ? 'shop' : 'shops'}{userLat ? ` · within ${radius} mi` : ''}</p>
+              <>
+                {/* Desktop: list + map split */}
+                <div className="hidden md:flex md:h-[calc(100vh-57px)]">
+                  <div className="w-[400px] flex-shrink-0 overflow-y-auto border-r border-zinc-200 p-4 space-y-3">
+                    <div>
+                      <h2 className="text-lg font-semibold text-zinc-900">Shops near you</h2>
+                      <p className="text-xs text-zinc-400 mt-0.5">{filteredShops.length} {filteredShops.length === 1 ? 'shop' : 'shops'}{userLat ? ` · within ${radius} mi` : ''}</p>
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {[
+                        { id: 'all', label: 'All' },
+                        { id: 'comics', label: 'Comics' },
+                        { id: 'cards', label: 'Cards' },
+                        { id: 'collectibles', label: 'Collectibles' },
+                        { id: 'toys', label: 'Toys' },
+                      ].map(f => (
+                        <button key={f.id} onClick={() => setFilter(f.id)}
+                          className="px-4 py-1.5 rounded-full text-[13px] font-medium border transition-all whitespace-nowrap flex-shrink-0"
+                          style={filter === f.id ? { background: '#E0533C', borderColor: '#E0533C', color: 'white' } : { background: 'white', borderColor: '#e4e4e7', color: '#52525b' }}>
+                          {f.label}
+                        </button>
+                      ))}
+                    </div>
+                    {filteredShops.length === 0 ? (
+                      <div className="text-center py-12 text-zinc-400">
+                        <MapPin className="h-9 w-9 mx-auto mb-2 opacity-20" />
+                        <p className="text-sm">No shops in range. Try a wider radius.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5">
+                        {filteredShops.map((s: any) => <ShopCard key={s.id} s={s} />)}
+                      </div>
+                    )}
                   </div>
+                  <div className="flex-1 h-full">
+                    <LocalMap shops={filteredShops} onSelect={s => openShop(s)} activeId={hoverShopId} userLat={userLat} userLng={userLng} />
+                  </div>
+                </div>
+
+                {/* Mobile: map first, then list */}
+                <div className="md:hidden p-4 space-y-3">
                   <div className="flex gap-2 overflow-x-auto pb-1">
                     {[
                       { id: 'all', label: 'All' },
@@ -892,6 +928,10 @@ export default function App() {
                       </button>
                     ))}
                   </div>
+                  <div className="rounded-2xl overflow-hidden border border-zinc-200 h-[56vh]">
+                    <LocalMap shops={filteredShops} onSelect={s => openShop(s)} userLat={userLat} userLng={userLng} />
+                  </div>
+                  <p className="text-xs text-zinc-400 px-0.5">{filteredShops.length} {filteredShops.length === 1 ? 'shop' : 'shops'} nearby — tap a pin, or browse below</p>
                   {filteredShops.length === 0 ? (
                     <div className="text-center py-12 text-zinc-400">
                       <MapPin className="h-9 w-9 mx-auto mb-2 opacity-20" />
@@ -903,32 +943,7 @@ export default function App() {
                     </div>
                   )}
                 </div>
-
-                <div className="hidden md:block md:flex-1 md:h-full">
-                  <LocalMap shops={filteredShops} onSelect={s => openShop(s)} activeId={hoverShopId} userLat={userLat} userLng={userLng} />
-                </div>
-
-                <button onClick={() => setMobileMapOpen(true)}
-                  className="md:hidden fixed bottom-24 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-5 py-3 rounded-full text-white shadow-lg"
-                  style={{ background: '#27272a' }}>
-                  <Navigation className="h-4 w-4" /> Map
-                </button>
-              </div>
-            )}
-
-            {/* MOBILE FULLSCREEN MAP */}
-            {mobileMapOpen && (
-              <div className="md:hidden fixed inset-0 z-50 bg-white flex flex-col">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200">
-                  <span className="font-semibold text-zinc-900">{filteredShops.length} shops on map</span>
-                  <button onClick={() => setMobileMapOpen(false)} aria-label="Close map" className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border border-zinc-200">
-                    <X className="h-4 w-4" /> List
-                  </button>
-                </div>
-                <div className="flex-1">
-                  <LocalMap shops={filteredShops} onSelect={s => { setMobileMapOpen(false); openShop(s) }} userLat={userLat} userLng={userLng} />
-                </div>
-              </div>
+              </>
             )}
 
             {/* CLASSIFIEDS */}
