@@ -3,7 +3,7 @@ import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Compass, MapPin, Search, Flame, X, Store, User, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, DollarSign, Plus, Check, Phone, Bell, Heart, Star } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
-import { useShops, useReviews, useTradePosts, useVault, useCheckins, useEvents } from './hooks/useShops'
+import { useShops, useReviews, useTradePosts, useVault, useCheckins, useEvents, useListings } from './hooks/useShops'
 import { startCheckout } from './lib/stripe'
 import { supabase } from './lib/supabase'
 
@@ -139,7 +139,6 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal }: any) {
   const items = [
     { id: 'discover', icon: Search, label: 'Discover' },
     { id: 'map', icon: Navigation, label: 'Map' },
-    { id: 'classifieds', icon: ArrowLeftRight, label: 'Trades' },
     { id: 'marketplace', icon: Tag, label: 'Marketplace' },
     { id: 'vault', icon: Package, label: 'Vault' },
     { id: 'profile', icon: User, label: 'Profile' },
@@ -199,6 +198,7 @@ export default function App() {
   const { tradePosts, addTradePost } = useTradePosts()
   const { events: allEventsData } = useEvents()
   const { vaultItems, addVaultItem } = useVault(user?.id || null)
+  const { listings, uploadPhoto, createListing, deleteListing } = useListings()
   const [rsvps, setRsvps] = useState<string[]>([])
   const [tab, setTab] = useState<TabType>('discover')
   const [hoverShopId, setHoverShopId] = useState<string | null>(null)
@@ -214,10 +214,6 @@ export default function App() {
   const [userLng, setUserLng] = useState<number | null>(null)
   const [locationLoading, setLocationLoading] = useState(true)
   const [locationDenied, setLocationDenied] = useState(false)
-  const [marketItems, setMarketItems] = useState<any[]>([
-    { id: 1, user: 'SlabHunter', title: 'Charizard Base Holo PSA 9', price: 420, condition: 'PSA 9', category: 'cards', desc: 'Clean corners, no scratches.' },
-    { id: 2, user: 'KeyCollector', title: 'Amazing Spider-Man #129 CGC 8.0', price: 580, condition: 'CGC 8.0', category: 'comics', desc: 'First appearance of Punisher.' },
-  ])
   const [inpRev, setInpRev] = useState('')
   const [inpFind, setInpFind] = useState('')
   const [editingCategories, setEditingCategories] = useState(false)
@@ -253,6 +249,14 @@ export default function App() {
   const [mktDesc, setMktDesc] = useState('')
   const [mktCondition, setMktCondition] = useState('Raw')
   const [mktCategory, setMktCategory] = useState('cards')
+  const [mktContact, setMktContact] = useState('')
+  const [mktFile, setMktFile] = useState<File | null>(null)
+  const [mktPreview, setMktPreview] = useState<string>('')
+  const [mktSubmitting, setMktSubmitting] = useState(false)
+  const [mktFilter, setMktFilter] = useState('all')
+  const [mktSection, setMktSection] = useState<'sale' | 'trade'>('sale')
+  const [selectedListing, setSelectedListing] = useState<any>(null)
+  const [showContact, setShowContact] = useState(false)
   const [role, setRole] = useState<'hunter' | 'merchant'>('hunter')
   const [email, setEmail] = useState('')
   const [authStep, setAuthStep] = useState<'gate' | 'verify'>('gate')
@@ -303,6 +307,16 @@ export default function App() {
     (s.name.toLowerCase().includes(search.toLowerCase()) ||
       s.tags?.some((t: string) => t.toLowerCase().includes(search.toLowerCase())))
   )
+
+  const sortedListings = [...listings]
+    .map((l: any) => ({ ...l, distance: userLat && userLng && l.lat && l.lng ? getDistance(userLat, userLng, l.lat, l.lng) : null }))
+    .filter((l: any) => mktFilter === 'all' || l.category === mktFilter)
+    .sort((a: any, b: any) => {
+      if (a.distance == null && b.distance == null) return 0
+      if (a.distance == null) return 1
+      if (b.distance == null) return -1
+      return a.distance - b.distance
+    })
 
   const allEvents = allEventsData
   const eventStates = ['all', ...Array.from(new Set(allEventsData.map((ev: any) => ev.state).filter(Boolean))).sort()]
@@ -514,7 +528,7 @@ export default function App() {
     e.preventDefault()
     if (!inpOff.trim() || !inpWant.trim() || !user) return
     await addTradePost(user.id, profile?.username || 'Guest', inpOff, inpWant)
-    setInpOff(''); setInpWant('')
+    setInpOff(''); setInpWant(''); setModal('none')
   }
 
   async function handleVaultSubmit(e: React.FormEvent) {
@@ -525,11 +539,41 @@ export default function App() {
     setModal('none')
   }
 
-  function handleMarketSubmit(e: React.FormEvent) {
+  function onPickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]
+    if (!f) return
+    setMktFile(f)
+    setMktPreview(URL.createObjectURL(f))
+  }
+
+  async function handleListingSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!mktTitle || !mktPrice || !user) return
-    setMarketItems(prev => [{ id: Date.now(), user: profile?.username || 'Guest', title: mktTitle, price: parseFloat(mktPrice), condition: mktCondition, category: mktCategory, desc: mktDesc }, ...prev])
-    setMktTitle(''); setMktPrice(''); setMktDesc(''); setModal('none')
+    setMktSubmitting(true)
+    let imageUrl = ''
+    if (mktFile) {
+      const url = await uploadPhoto(mktFile, user.id)
+      if (url) imageUrl = url
+    }
+    const ok = await createListing({
+      user_id: user.id,
+      username: profile?.username || 'seller',
+      title: mktTitle,
+      description: mktDesc,
+      price: parseFloat(mktPrice),
+      category: mktCategory,
+      condition: mktCondition,
+      image_url: imageUrl,
+      contact: mktContact,
+      lat: userLat,
+      lng: userLng,
+      status: 'active',
+    })
+    setMktSubmitting(false)
+    if (ok) {
+      setMktTitle(''); setMktPrice(''); setMktDesc(''); setMktContact('')
+      setMktFile(null); setMktPreview(''); setModal('none')
+    }
   }
 
   if (authLoading || shopsLoading) {
@@ -936,97 +980,105 @@ export default function App() {
               </>
             )}
 
-            {/* CLASSIFIEDS */}
-            {tab === 'classifieds' && (
-              <div className="p-4 space-y-4 max-w-2xl">
-                <div className="rounded-3xl p-4 text-white" style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
-                  <h2 className="font-black text-lg">Trade Board</h2>
-                  <p className="text-xs text-white/70 mt-0.5">Post what you have. Find what you want.</p>
-                </div>
-                <div className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
-                  <h3 className="font-black text-sm mb-3">Post a Trade</h3>
-                  <form onSubmit={handleTradeSubmit} className="space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-bold text-zinc-400 mb-1.5 uppercase">Offering</label>
-                        <input type="text" required value={inpOff} onChange={e => setInpOff(e.target.value)}
-                          placeholder="e.g. Blastoise PSA 8"
-                          className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-zinc-400 mb-1.5 uppercase">Seeking</label>
-                        <input type="text" required value={inpWant} onChange={e => setInpWant(e.target.value)}
-                          placeholder="e.g. Venusaur PSA 7+"
-                          className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none" />
-                      </div>
-                    </div>
-                    <button type="submit" disabled={!isSignedIn}
-                      className="w-full text-white font-black py-3 rounded-2xl text-sm uppercase disabled:opacity-40"
-                      style={{ background: isSignedIn ? 'linear-gradient(135deg, #E0533C, #ff6b4a)' : '#ccc' }}>
-                      {isSignedIn ? 'Publish Trade' : 'Sign In to Post'}
-                    </button>
-                  </form>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {tradePosts.map((p: any) => (
-                    <div key={p.id} className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
-                      <p className="text-xs font-mono text-zinc-400 mb-3">@{p.username}</p>
-                      <div className="space-y-2">
-                        <div className="flex gap-2 items-center">
-                          <span className="text-xs font-black px-2 py-1 rounded-lg uppercase" style={{ background: '#F0FDF4', color: '#166534' }}>OFFER</span>
-                          <p className="text-sm font-bold">{p.offer}</p>
-                        </div>
-                        <div className="flex gap-2 items-center">
-                          <span className="text-xs font-black px-2 py-1 rounded-lg uppercase" style={{ background: '#FEF2F2', color: '#991B1B' }}>WANT</span>
-                          <p className="text-sm font-bold" style={{ color: '#E0533C' }}>{p.look_for}</p>
-                        </div>
-                      </div>
-                      <button onClick={() => alert('Swap room coming soon')}
-                        className="w-full mt-3 py-2.5 rounded-2xl text-sm font-black uppercase border-2 border-zinc-100 text-zinc-400">
-                        Connect Swap
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* MARKETPLACE */}
             {tab === 'marketplace' && (
               <div className="p-4 space-y-4">
-                <div className="rounded-3xl p-4 text-white flex items-center justify-between" style={{ background: 'linear-gradient(135deg, #065F46, #047857)' }}>
-                  <div>
-                    <h2 className="font-black text-lg">Marketplace</h2>
-                    <p className="text-xs text-white/70 mt-0.5">Buy and sell collectibles</p>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="inline-flex rounded-full border border-zinc-200 p-0.5 bg-white">
+                    <button onClick={() => setMktSection('sale')}
+                      className="px-4 py-1.5 rounded-full text-[13px] font-medium transition-all"
+                      style={mktSection === 'sale' ? { background: '#E0533C', color: 'white' } : { color: '#52525b' }}>For Sale</button>
+                    <button onClick={() => setMktSection('trade')}
+                      className="px-4 py-1.5 rounded-full text-[13px] font-medium transition-all"
+                      style={mktSection === 'trade' ? { background: '#E0533C', color: 'white' } : { color: '#52525b' }}>Trades</button>
                   </div>
-                  <button onClick={() => isSignedIn ? setModal('additem') : setModal('auth')}
-                    className="h-10 w-10 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.2)' }}>
-                    <Plus className="h-5 w-5 text-white" />
+                  <button onClick={() => isSignedIn ? setModal(mktSection === 'sale' ? 'listsale' : 'posttrade') : setModal('auth')}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium text-white flex-shrink-0"
+                    style={{ background: '#E0533C' }}>
+                    <Plus className="h-4 w-4" /> {mktSection === 'sale' ? 'List an item' : 'Post a trade'}
                   </button>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                  {marketItems.map((item: any) => (
-                    <div key={item.id} className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1">
-                          <div className="flex gap-2 mb-2">
-                            <span className="text-xs font-black px-2 py-0.5 rounded-lg uppercase" style={categoryStyle(item.category)}>{item.category}</span>
-                            <span className="text-xs font-bold px-2 py-0.5 rounded-lg" style={{ background: '#F0FDF4', color: '#166534' }}>{item.condition}</span>
-                          </div>
-                          <h3 className="font-black text-base">{item.title}</h3>
-                          <p className="text-xs text-zinc-400 mt-1">{item.desc}</p>
-                          <p className="text-xs text-zinc-400 font-mono mt-2">@{item.user}</p>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className="font-black text-xl" style={{ color: '#059669' }}>${item.price}</p>
-                          <button className="mt-2 px-4 py-2 rounded-2xl text-xs font-black text-white uppercase"
-                            style={{ background: 'linear-gradient(135deg, #065F46, #047857)' }}
-                            onClick={() => alert('Checkout coming soon')}>Buy</button>
-                        </div>
-                      </div>
-                    </div>
+              {mktSection === 'sale' ? (
+              <>
+
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {[
+                    { id: 'all', label: 'All' },
+                    { id: 'cards', label: 'Cards' },
+                    { id: 'comics', label: 'Comics' },
+                    { id: 'collectibles', label: 'Collectibles' },
+                    { id: 'toys', label: 'Toys' },
+                  ].map(f => (
+                    <button key={f.id} onClick={() => setMktFilter(f.id)}
+                      className="px-4 py-1.5 rounded-full text-[13px] font-medium border transition-all whitespace-nowrap flex-shrink-0"
+                      style={mktFilter === f.id ? { background: '#E0533C', borderColor: '#E0533C', color: 'white' } : { background: 'white', borderColor: '#e4e4e7', color: '#52525b' }}>
+                      {f.label}
+                    </button>
                   ))}
                 </div>
+
+                {sortedListings.length === 0 ? (
+                  <div className="text-center py-16 text-zinc-400">
+                    <Tag className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                    <p className="text-sm">No listings yet. Be the first to list something.</p>
+                    <button onClick={() => isSignedIn ? setModal('listsale') : setModal('auth')}
+                      className="mt-4 px-5 py-2 rounded-full text-sm font-medium text-white" style={{ background: '#E0533C' }}>
+                      List an item
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                    {sortedListings.map((item: any) => (
+                      <div key={item.id} onClick={() => { setSelectedListing(item); setShowContact(false); setModal('listingdetail') }}
+                        className="bg-white rounded-2xl border border-zinc-200 overflow-hidden cursor-pointer transition-all hover:shadow-md text-left">
+                        <div className="aspect-square bg-zinc-100">
+                          {item.image_url
+                            ? <img src={item.image_url} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
+                            : <div className="w-full h-full flex items-center justify-center text-zinc-300"><Package className="h-10 w-10" /></div>}
+                        </div>
+                        <div className="p-3">
+                          <p className="font-semibold text-zinc-900" style={{ color: '#E0533C' }}>${Number(item.price).toLocaleString()}</p>
+                          <h3 className="text-[14px] text-zinc-900 leading-snug truncate mt-0.5">{item.title}</h3>
+                          <div className="flex items-center gap-1.5 text-[12px] text-zinc-500 mt-1">
+                            {item.condition && <span className="bg-zinc-100 px-1.5 py-0.5 rounded">{item.condition}</span>}
+                            {item.distance != null && <span>· {item.distance.toFixed(1)} mi</span>}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+              ) : (
+              <>
+                {tradePosts.length === 0 ? (
+                  <div className="text-center py-16 text-zinc-400">
+                    <ArrowLeftRight className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                    <p className="text-sm">No trades posted yet. Put up what you have.</p>
+                    <button onClick={() => isSignedIn ? setModal('posttrade') : setModal('auth')}
+                      className="mt-4 px-5 py-2 rounded-full text-sm font-medium text-white" style={{ background: '#E0533C' }}>Post a trade</button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                    {tradePosts.map((p: any) => (
+                      <div key={p.id} className="bg-white rounded-2xl border border-zinc-200 p-4">
+                        <p className="text-xs text-zinc-400 mb-3">@{p.username}</p>
+                        <div className="space-y-2">
+                          <div className="flex gap-2 items-start">
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 mt-0.5" style={{ background: '#F0FDF4', color: '#166534' }}>HAS</span>
+                            <p className="text-[13px] font-medium text-zinc-900">{p.offer}</p>
+                          </div>
+                          <div className="flex gap-2 items-start">
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 mt-0.5" style={{ background: '#FEF2F2', color: '#991B1B' }}>WANTS</span>
+                            <p className="text-[13px] font-medium" style={{ color: '#E0533C' }}>{p.look_for}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+              )}
               </div>
             )}
 
@@ -1162,7 +1214,6 @@ export default function App() {
             {[
               { id: 'discover', icon: Search, label: 'Discover' },
               { id: 'map', icon: Navigation, label: 'Map' },
-              { id: 'classifieds', icon: ArrowLeftRight, label: 'Trades' },
               { id: 'marketplace', icon: Tag, label: 'Market' },
               { id: 'vault', icon: Package, label: 'Vault' },
               { id: 'profile', icon: User, label: 'Profile' },
@@ -1393,50 +1444,143 @@ export default function App() {
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
           <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl p-5 pb-10 shadow-2xl" style={{ background: '#FAF9F5' }}>
             <div className="flex justify-between items-center mb-5">
-              <h3 className="font-black text-lg">{tab === 'vault' ? 'Add to Vault' : 'List for Sale'}</h3>
+              <h3 className="font-semibold text-lg">Add to Vault</h3>
               <button onClick={() => setModal('none')}><X className="h-5 w-5 text-zinc-400" /></button>
             </div>
-            <form onSubmit={tab === 'vault' ? handleVaultSubmit : handleMarketSubmit} className="space-y-3">
-              <input type="text" required
-                value={tab === 'vault' ? vaultName : mktTitle}
-                onChange={e => tab === 'vault' ? setVaultName(e.target.value) : setMktTitle(e.target.value)}
-                placeholder="Item name"
-                className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none" />
-              <textarea
-                value={tab === 'vault' ? vaultDesc : mktDesc}
-                onChange={e => tab === 'vault' ? setVaultDesc(e.target.value) : setMktDesc(e.target.value)}
-                placeholder="Description..."
-                rows={2}
-                className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none resize-none" />
+            <form onSubmit={handleVaultSubmit} className="space-y-3">
+              <input type="text" required value={vaultName} onChange={e => setVaultName(e.target.value)}
+                placeholder="Item name" className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-sm focus:outline-none" />
+              <textarea value={vaultDesc} onChange={e => setVaultDesc(e.target.value)}
+                placeholder="Description..." rows={2} className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-sm focus:outline-none resize-none" />
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-zinc-400 mb-1.5 uppercase">Condition</label>
-                  <select value={tab === 'vault' ? vaultCondition : mktCondition}
-                    onChange={e => tab === 'vault' ? setVaultCondition(e.target.value) : setMktCondition(e.target.value)}
-                    className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-3 py-3 text-sm focus:outline-none">
-                    {['Raw','Near Mint','PSA 10','PSA 9','PSA 8','PSA 7','CGC 9.8','CGC 9.6','BGS 9.5','Damaged'].map(c => <option key={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-zinc-400 mb-1.5 uppercase">Category</label>
-                  <select value={mktCategory} onChange={e => setMktCategory(e.target.value)}
-                    className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-3 py-3 text-sm focus:outline-none">
-                    {['cards','comics','collectibles'].map(c => <option key={c}>{c}</option>)}
-                  </select>
+                <select value={vaultCondition} onChange={e => setVaultCondition(e.target.value)}
+                  className="w-full bg-white border border-zinc-200 rounded-2xl px-3 py-3 text-sm focus:outline-none">
+                  {['Raw','Near Mint','PSA 10','PSA 9','PSA 8','PSA 7','CGC 9.8','CGC 9.6','BGS 9.5','Damaged'].map(c => <option key={c}>{c}</option>)}
+                </select>
+                <div className="relative">
+                  <DollarSign className="absolute left-3.5 top-3.5 h-4 w-4 text-zinc-400" />
+                  <input type="number" required value={vaultPrice} onChange={e => setVaultPrice(e.target.value)}
+                    placeholder="0.00" className="w-full bg-white border border-zinc-200 rounded-2xl pl-10 pr-4 py-3 text-sm focus:outline-none" />
                 </div>
               </div>
+              <button type="submit" className="w-full text-white font-medium py-3.5 rounded-2xl text-sm" style={{ background: '#27272a' }}>Add to Vault</button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* LIST AN ITEM */}
+      {modal === 'listsale' && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
+          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl p-5 pb-10 shadow-2xl max-h-[92vh] overflow-y-auto" style={{ background: '#FAF9F5' }}>
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="font-semibold text-lg">List an item</h3>
+              <button onClick={() => setModal('none')}><X className="h-5 w-5 text-zinc-400" /></button>
+            </div>
+            <form onSubmit={handleListingSubmit} className="space-y-3">
+              <label className="block">
+                <div className="aspect-[4/3] rounded-2xl border-2 border-dashed border-zinc-200 bg-white flex items-center justify-center overflow-hidden cursor-pointer">
+                  {mktPreview
+                    ? <img src={mktPreview} alt="" className="w-full h-full object-cover" />
+                    : <div className="text-center text-zinc-400"><Plus className="h-6 w-6 mx-auto mb-1" /><span className="text-xs">Add a photo</span></div>}
+                </div>
+                <input type="file" accept="image/*" onChange={onPickPhoto} className="hidden" />
+              </label>
+              <input type="text" required value={mktTitle} onChange={e => setMktTitle(e.target.value)}
+                placeholder="What are you selling?" className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-sm focus:outline-none" />
               <div className="relative">
                 <DollarSign className="absolute left-3.5 top-3.5 h-4 w-4 text-zinc-400" />
-                <input type="number" required
-                  value={tab === 'vault' ? vaultPrice : mktPrice}
-                  onChange={e => tab === 'vault' ? setVaultPrice(e.target.value) : setMktPrice(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl pl-10 pr-4 py-3 text-sm focus:outline-none" />
+                <input type="number" required value={mktPrice} onChange={e => setMktPrice(e.target.value)}
+                  placeholder="Price" className="w-full bg-white border border-zinc-200 rounded-2xl pl-10 pr-4 py-3 text-sm focus:outline-none" />
               </div>
-              <button type="submit"
-                className="w-full text-white font-black py-4 rounded-2xl text-sm uppercase"
-                style={{ background: tab === 'vault' ? 'linear-gradient(135deg, #1a0a2e, #302b63)' : 'linear-gradient(135deg, #065F46, #047857)' }}>
-                {tab === 'vault' ? 'Lock to Vault' : 'List for Sale'}
+              <div className="grid grid-cols-2 gap-3">
+                <select value={mktCategory} onChange={e => setMktCategory(e.target.value)}
+                  className="w-full bg-white border border-zinc-200 rounded-2xl px-3 py-3 text-sm focus:outline-none capitalize">
+                  {['cards','comics','collectibles','toys'].map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <select value={mktCondition} onChange={e => setMktCondition(e.target.value)}
+                  className="w-full bg-white border border-zinc-200 rounded-2xl px-3 py-3 text-sm focus:outline-none">
+                  {['Raw','Near Mint','New','Used','PSA 10','PSA 9','PSA 8','CGC 9.8','CGC 9.6','BGS 9.5','Damaged'].map(c => <option key={c}>{c}</option>)}
+                </select>
+              </div>
+              <textarea value={mktDesc} onChange={e => setMktDesc(e.target.value)}
+                placeholder="Description — condition details, what's included…" rows={2} className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-sm focus:outline-none resize-none" />
+              <input type="text" value={mktContact} onChange={e => setMktContact(e.target.value)}
+                placeholder="How buyers reach you (phone, email, IG…)" className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-sm focus:outline-none" />
+              <button type="submit" disabled={mktSubmitting}
+                className="w-full text-white font-medium py-3.5 rounded-2xl text-sm disabled:opacity-60" style={{ background: '#E0533C' }}>
+                {mktSubmitting ? 'Posting…' : 'Post listing'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* LISTING DETAIL */}
+      {modal === 'listingdetail' && selectedListing && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center" onClick={() => setModal('none')}>
+          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl shadow-2xl max-h-[92vh] overflow-y-auto bg-white" onClick={e => e.stopPropagation()}>
+            <div className="relative">
+              {selectedListing.image_url
+                ? <img src={selectedListing.image_url} alt={selectedListing.title} className="w-full aspect-square object-cover" />
+                : <div className="w-full aspect-square bg-zinc-100 flex items-center justify-center text-zinc-300"><Package className="h-12 w-12" /></div>}
+              <button onClick={() => setModal('none')} className="absolute top-3 right-3 h-9 w-9 rounded-full bg-white/90 flex items-center justify-center shadow"><X className="h-5 w-5 text-zinc-600" /></button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <p className="text-2xl font-semibold" style={{ color: '#E0533C' }}>${Number(selectedListing.price).toLocaleString()}</p>
+                <h3 className="text-lg font-semibold text-zinc-900 mt-0.5">{selectedListing.title}</h3>
+                <div className="flex items-center gap-2 text-[13px] text-zinc-500 mt-1 flex-wrap">
+                  {selectedListing.condition && <span className="bg-zinc-100 px-2 py-0.5 rounded-full">{selectedListing.condition}</span>}
+                  {selectedListing.category && <span className="bg-zinc-100 px-2 py-0.5 rounded-full capitalize">{selectedListing.category}</span>}
+                  {selectedListing.distance != null && <span>· {selectedListing.distance.toFixed(1)} mi away</span>}
+                </div>
+              </div>
+              {selectedListing.description && <p className="text-sm text-zinc-600 whitespace-pre-wrap">{selectedListing.description}</p>}
+              <p className="text-xs text-zinc-400">Listed by @{selectedListing.username}</p>
+              {user?.id === selectedListing.user_id ? (
+                <button onClick={() => { deleteListing(selectedListing.id); setModal('none') }}
+                  className="w-full py-3 rounded-2xl text-sm font-medium border border-red-200 text-red-600">
+                  Delete listing
+                </button>
+              ) : showContact ? (
+                <div className="rounded-2xl bg-zinc-50 border border-zinc-200 p-4 text-center">
+                  <p className="text-xs text-zinc-400 mb-1">Contact the seller</p>
+                  <p className="text-sm font-medium text-zinc-900 break-words">{selectedListing.contact || 'No contact info provided.'}</p>
+                </div>
+              ) : (
+                <button onClick={() => setShowContact(true)}
+                  className="w-full py-3.5 rounded-2xl text-sm font-medium text-white flex items-center justify-center gap-2" style={{ background: '#E0533C' }}>
+                  <Phone className="h-4 w-4" /> Contact seller
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POST A TRADE */}
+      {modal === 'posttrade' && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
+          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl p-5 pb-10 shadow-2xl" style={{ background: '#FAF9F5' }}>
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="font-semibold text-lg">Post a trade</h3>
+              <button onClick={() => setModal('none')}><X className="h-5 w-5 text-zinc-400" /></button>
+            </div>
+            <form onSubmit={handleTradeSubmit} className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1.5">You have</label>
+                <input type="text" required value={inpOff} onChange={e => setInpOff(e.target.value)}
+                  placeholder="e.g. Blastoise PSA 8" className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-sm focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1.5">You want</label>
+                <input type="text" required value={inpWant} onChange={e => setInpWant(e.target.value)}
+                  placeholder="e.g. Venusaur PSA 7+" className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-sm focus:outline-none" />
+              </div>
+              <button type="submit" disabled={!isSignedIn}
+                className="w-full text-white font-medium py-3.5 rounded-2xl text-sm disabled:opacity-50" style={{ background: '#E0533C' }}>
+                {isSignedIn ? 'Post trade' : 'Sign in to post'}
               </button>
             </form>
           </div>

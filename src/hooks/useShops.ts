@@ -165,3 +165,42 @@ export function useEvents() {
 
   return { events, loading }
 }
+export function useListings() {
+  const [listings, setListings] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchListings = () => {
+    setLoading(true)
+    supabase
+      .from('listings')
+      .select('*')
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .then(({ data }) => { setListings(data || []); setLoading(false) })
+  }
+
+  useEffect(() => { fetchListings() }, [])
+
+  async function uploadPhoto(file: File, userId: string): Promise<string | null> {
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
+    const path = `${userId}/${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('listings').upload(path, file, { upsert: false, contentType: file.type })
+    if (error) { console.error('upload:', error.message); return null }
+    const { data } = supabase.storage.from('listings').getPublicUrl(path)
+    return data.publicUrl
+  }
+
+  async function createListing(payload: any): Promise<boolean> {
+    const { error } = await supabase.from('listings').insert(payload)
+    if (error) { console.error('createListing:', error.message); return false }
+    fetchListings()
+    return true
+  }
+
+  async function deleteListing(id: string) {
+    const { error } = await supabase.from('listings').delete().eq('id', id)
+    if (!error) fetchListings()
+  }
+
+  return { listings, loading, uploadPhoto, createListing, deleteListing, refetch: fetchListings }
+}
