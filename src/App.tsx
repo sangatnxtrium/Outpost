@@ -203,6 +203,7 @@ export default function App() {
   const fcbdDaysLeft = Math.max(0, Math.ceil((FCBD_DATE.getTime() - Date.now()) / 86400000))
   const { participants: fcbdShops, upsertParticipation, getMyParticipation } = useFcbd(FCBD_YEAR)
   const fcbdShopIds = new Set(fcbdShops.map((p: any) => p.shop_id))
+  const fcbdOfferByShop = new Map(fcbdShops.map((p: any) => [p.shop_id, p.offers]))
   const { titles: fcbdTitles } = useFcbdTitles(FCBD_YEAR)
   const [fcbdParticipating, setFcbdParticipating] = useState(true)
   const [fcbdOffers, setFcbdOffers] = useState('')
@@ -1389,6 +1390,17 @@ export default function App() {
                 </div>
               </div>
             </div>
+            {fcbdShopIds.has(selectedShop.id) && (
+              <div className="rounded-3xl p-4 border" style={{ background: '#eff6ff', borderColor: '#bfdbfe' }}>
+                <div className="flex items-center gap-2">
+                  <BookOpen className="h-4 w-4" style={{ color: '#1d4ed8' }} />
+                  <p className="font-black text-sm" style={{ color: '#1d4ed8' }}>FCBD {FCBD_YEAR} participant</p>
+                </div>
+                {fcbdOfferByShop.get(selectedShop.id) && (
+                  <p className="text-sm text-zinc-700 mt-2 whitespace-pre-wrap">{String(fcbdOfferByShop.get(selectedShop.id))}</p>
+                )}
+              </div>
+            )}
             {isMerchant && !(selectedShop as any).owner_id && (
               <button onClick={async () => {
                 if (!confirm(`Claim ${selectedShop.name} as your shop?`)) return
@@ -1942,7 +1954,7 @@ export default function App() {
                 <p className="font-black text-base text-amber-400">Verified Store</p>
                 <p className="text-2xl font-black mt-0.5 mb-1">$2.99<span className="text-sm font-normal text-white/40">/mo</span></p>
                 <p className="text-xs font-black text-emerald-400 mb-3">FREE during launch</p>
-                {['Everything in Elite','Verified badge','Edit your shop details','Broadcast drops','Manage events','Analytics','Featured placement'].map(f => (
+                {['Everything in Elite','Verified badge','Edit your shop details','FCBD participating badge','Broadcast drops','Manage events','Analytics','Featured placement'].map(f => (
                   <div key={f} className="flex items-center gap-2 py-1"><Check className="h-3.5 w-3.5 text-amber-400" /><p className="text-sm text-white/70">{f}</p></div>
                 ))}
                 <button onClick={() => { openClaimModal() }} disabled={profile?.tier === 'store'}
