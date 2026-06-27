@@ -3,11 +3,11 @@ import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Compass, MapPin, Search, Flame, X, Store, User, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, DollarSign, Plus, Check, Phone, Bell, Heart, Star } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
-import { useShops, useReviews, useTradePosts, useVault, useCheckins, useEvents, useListings } from './hooks/useShops'
+import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useListings } from './hooks/useShops'
 import { startCheckout } from './lib/stripe'
 import { supabase } from './lib/supabase'
 
-type TabType = 'discover' | 'map' | 'classifieds' | 'marketplace' | 'vault' | 'profile'
+type TabType = 'discover' | 'map' | 'classifieds' | 'marketplace' | 'profile'
 type ModalType = 'none' | 'sub' | 'auth' | 'notifications' | 'shop' | 'menu' | 'claim' | 'additem' | 'submit'
 
 function DropBanner({ shops }: { shops: any[] }) {
@@ -140,7 +140,6 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal }: any) {
     { id: 'discover', icon: Search, label: 'Discover' },
     { id: 'map', icon: Navigation, label: 'Map' },
     { id: 'marketplace', icon: Tag, label: 'Marketplace' },
-    { id: 'vault', icon: Package, label: 'Vault' },
     { id: 'profile', icon: User, label: 'Profile' },
   ]
   return (
@@ -197,7 +196,6 @@ export default function App() {
   const { checkinCount, userCheckedIn, checkIn } = useCheckins(selectedShop?.id || '')
   const { tradePosts, addTradePost } = useTradePosts()
   const { events: allEventsData } = useEvents()
-  const { vaultItems, addVaultItem } = useVault(user?.id || null)
   const { listings, uploadPhoto, createListing, deleteListing } = useListings()
   const [rsvps, setRsvps] = useState<string[]>([])
   const [tab, setTab] = useState<TabType>('discover')
@@ -226,12 +224,6 @@ export default function App() {
   const [shopCategories, setShopCategories] = useState<string[]>([])
   const [inpOff, setInpOff] = useState('')
   const [inpWant, setInpWant] = useState('')
-  const [vaultName, setVaultName] = useState('')
-  const [vaultDesc, setVaultDesc] = useState('')
-  const [vaultCondition, setVaultCondition] = useState('Raw')
-  const [vaultPrice, setVaultPrice] = useState('')
-  const [ebayPrices, setEbayPrices] = useState<Record<string, string>>({})
-  const [ebayLoading, setEbayLoading] = useState<string | null>(null)
   const [ebayResults, setEbayResults] = useState<any[]>([])
   const [ebaySearching, setEbaySearching] = useState(false)
   const [lastEbaySearch, setLastEbaySearch] = useState('')
@@ -331,39 +323,12 @@ export default function App() {
     (eventState === 'all' || ev.state === eventState)
   )
 
-  const vaultTotal = vaultItems.reduce((a: number, c: any) => a + (c.est_value || 0), 0)
   const isSignedIn = !!user
   const isMerchant = profile?.role === 'merchant'
   const myShop = shops.find((s: any) => s.owner_id === user?.id) || null
 
   function openShop(s: any) { setSelectedShopId(s.id); setModal('shop') }
 
-  async function lookupEbayPrice(itemName: string, itemId: string) {
-    setEbayLoading(itemId)
-    const appId = import.meta.env.VITE_EBAY_APP_ID
-
-    try {
-      const res = await fetch(
-        `https://svcs.ebay.com/services/search/FindingService/v1?OPERATION-NAME=findCompletedItems&SERVICE-VERSION=1.0.0&SECURITY-APPNAME=${appId}&RESPONSE-DATA-FORMAT=JSON&keywords=${encodeURIComponent(itemName)}&paginationInput.entriesPerPage=5&itemFilter(0).name=SoldItemsOnly&itemFilter(0).value=true&sortOrder=EndTimeSoonest`
-      )
-      const data = await res.json()
-      const items = data?.findCompletedItemsResponse?.[0]?.searchResult?.[0]?.item || []
-      if (items.length > 0) {
-        const prices = items.map((i: any) => parseFloat(i.sellingStatus?.[0]?.sellingState?.[0] === 'EndedWithSales' ? i.sellingStatus?.[0]?.currentPrice?.[0]?.__value__ : '0')).filter((p: number) => p > 0)
-        if (prices.length > 0) {
-          const min = Math.min(...prices).toFixed(0)
-          const max = Math.max(...prices).toFixed(0)
-          setEbayPrices(prev => ({ ...prev, [itemId]: `$${min} – $${max}` }))
-          setEbayLoading(null)
-          return
-        }
-      }
-    } catch (err) {}
-
-    // Fallback mock
-    setEbayPrices(prev => ({ ...prev, [itemId]: `$${(Math.random() * 500 + 50).toFixed(0)} – $${(Math.random() * 1000 + 500).toFixed(0)}` }))
-    setEbayLoading(null)
-  }
 
   async function searchEbay(query: string) {
     if (query.length < 3) { setEbayResults([]); return }
@@ -552,14 +517,6 @@ export default function App() {
     if (!inpOff.trim() || !inpWant.trim() || !user) return
     await addTradePost(user.id, profile?.username || 'Guest', inpOff, inpWant)
     setInpOff(''); setInpWant(''); setModal('none')
-  }
-
-  async function handleVaultSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!vaultName || !vaultPrice || !user) return
-    await addVaultItem(user.id, vaultName, parseFloat(vaultPrice) || 0)
-    setVaultName(''); setVaultDesc(''); setVaultPrice(''); setVaultCondition('Raw')
-    setModal('none')
   }
 
   function onPickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -1105,54 +1062,6 @@ export default function App() {
               </div>
             )}
 
-            {/* VAULT */}
-            {tab === 'vault' && (
-              <div className="p-4 space-y-4 max-w-2xl">
-                <div className="rounded-3xl p-5 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
-                  <div className="absolute top-0 right-0 w-40 h-40 rounded-full opacity-10" style={{ background: '#38BDF8', transform: 'translate(30%,-30%)' }} />
-                  <p className="text-xs font-mono uppercase tracking-widest opacity-40">Total Estimated Value</p>
-                  <p className="text-4xl font-black mt-1">${vaultTotal.toLocaleString()}</p>
-                  <p className="text-xs opacity-40 mt-1">{vaultItems.length} items tracked</p>
-                </div>
-                <button onClick={() => isSignedIn ? setModal('additem') : setModal('auth')}
-                  className="w-full text-white font-black py-3.5 rounded-2xl text-sm uppercase flex items-center justify-center gap-2"
-                  style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
-                  <Plus className="h-4 w-4" /> Add Item to Vault
-                </button>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {vaultItems.map((item: any) => (
-                    <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-100">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <p className="font-black text-sm">{item.name}</p>
-                          {item.condition && <span className="text-xs font-bold px-2 py-0.5 rounded-lg mt-1 inline-block" style={{ background: '#F0FDF4', color: '#166534' }}>{item.condition}</span>}
-                        </div>
-                        <div className="text-right">
-                          <p className="font-black text-lg" style={{ color: '#059669' }}>${item.est_value?.toLocaleString()}</p>
-                          {ebayPrices[item.id] ? (
-                            <p className="text-xs text-zinc-400 mt-1">eBay: {ebayPrices[item.id]}</p>
-                          ) : (
-                            <button onClick={() => lookupEbayPrice(item.name, item.id)}
-                              disabled={ebayLoading === item.id}
-                              className="text-xs font-bold mt-1 px-2 py-1 rounded-lg"
-                              style={{ background: '#FEF3C7', color: '#92400E' }}>
-                              {ebayLoading === item.id ? 'Checking...' : '📦 eBay Price'}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  {vaultItems.length === 0 && (
-                    <div className="text-center py-10 text-zinc-400 col-span-2">
-                      <Package className="h-10 w-10 mx-auto mb-2 opacity-20" />
-                      <p className="text-sm font-mono">Your vault is empty</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
             {/* PROFILE */}
             {tab === 'profile' && (
               <div className="p-4 space-y-4 max-w-lg">
@@ -1218,7 +1127,7 @@ export default function App() {
                     </div>
                     <div>
                       <p className="font-black text-xl">Not signed in</p>
-                      <p className="text-sm text-zinc-400 mt-2 leading-relaxed">Sign in to access your vault, post trades, and leave reviews</p>
+                      <p className="text-sm text-zinc-400 mt-2 leading-relaxed">Sign in to post trades, list items for sale, and leave reviews</p>
                     </div>
                     <button onClick={() => setModal('auth')}
                       className="text-white font-black px-10 py-4 rounded-2xl text-sm uppercase"
@@ -1238,7 +1147,6 @@ export default function App() {
               { id: 'discover', icon: Search, label: 'Discover' },
               { id: 'map', icon: Navigation, label: 'Map' },
               { id: 'marketplace', icon: Tag, label: 'Market' },
-              { id: 'vault', icon: Package, label: 'Vault' },
               { id: 'profile', icon: User, label: 'Profile' },
             ].map(({ id, icon: Icon, label }) => (
               <button key={id} onClick={() => setTab(id as TabType)}
@@ -1512,36 +1420,6 @@ export default function App() {
                   style={{ background: '#1a0a2e' }}>Post</button>
               </form>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ADD ITEM */}
-      {modal === 'additem' && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
-          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl p-5 pb-10 shadow-2xl" style={{ background: '#FAF9F5' }}>
-            <div className="flex justify-between items-center mb-5">
-              <h3 className="font-semibold text-lg">Add to Vault</h3>
-              <button onClick={() => setModal('none')}><X className="h-5 w-5 text-zinc-400" /></button>
-            </div>
-            <form onSubmit={handleVaultSubmit} className="space-y-3">
-              <input type="text" required value={vaultName} onChange={e => setVaultName(e.target.value)}
-                placeholder="Item name" className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-sm focus:outline-none" />
-              <textarea value={vaultDesc} onChange={e => setVaultDesc(e.target.value)}
-                placeholder="Description..." rows={2} className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-sm focus:outline-none resize-none" />
-              <div className="grid grid-cols-2 gap-3">
-                <select value={vaultCondition} onChange={e => setVaultCondition(e.target.value)}
-                  className="w-full bg-white border border-zinc-200 rounded-2xl px-3 py-3 text-sm focus:outline-none">
-                  {['Raw','Near Mint','PSA 10','PSA 9','PSA 8','PSA 7','CGC 9.8','CGC 9.6','BGS 9.5','Damaged'].map(c => <option key={c}>{c}</option>)}
-                </select>
-                <div className="relative">
-                  <DollarSign className="absolute left-3.5 top-3.5 h-4 w-4 text-zinc-400" />
-                  <input type="number" required value={vaultPrice} onChange={e => setVaultPrice(e.target.value)}
-                    placeholder="0.00" className="w-full bg-white border border-zinc-200 rounded-2xl pl-10 pr-4 py-3 text-sm focus:outline-none" />
-                </div>
-              </div>
-              <button type="submit" className="w-full text-white font-medium py-3.5 rounded-2xl text-sm" style={{ background: '#27272a' }}>Add to Vault</button>
-            </form>
           </div>
         </div>
       )}
@@ -1884,7 +1762,7 @@ export default function App() {
               <div className="rounded-3xl p-4 border-2 border-zinc-200 bg-white">
                 <p className="font-black text-base">Hunter Base</p>
                 <p className="text-2xl font-black mt-0.5 mb-3">Free</p>
-                {['Browse all shops','View drops & events','Post trades','3 vault items'].map(f => (
+                {['Browse all shops & photos','Drops & events','Post trades & listings','Contact sellers'].map(f => (
                   <div key={f} className="flex items-center gap-2 py-1"><Check className="h-3.5 w-3.5 text-zinc-400" /><p className="text-sm text-zinc-500">{f}</p></div>
                 ))}
                 <button onClick={() => setModal('none')} className="w-full mt-3 py-2.5 rounded-2xl text-xs font-black uppercase bg-zinc-100 text-zinc-500">Current</button>
@@ -1893,7 +1771,7 @@ export default function App() {
                 <p className="font-black text-base" style={{ color: '#E0533C' }}>Elite Pass</p>
                 <p className="text-2xl font-black mt-0.5 mb-1">$1.99<span className="text-sm font-normal text-zinc-400">/mo</span></p>
                 <p className="text-xs font-black text-emerald-600 mb-3">FREE during launch</p>
-                {['Everything in Free','Unlimited vault','eBay price lookups','Drop notifications','Price charts'].map(f => (
+                {['Everything in Free','eBay price lookups','Drop notifications','Price charts','Save favorite shops'].map(f => (
                   <div key={f} className="flex items-center gap-2 py-1"><Check className="h-3.5 w-3.5" style={{ color: '#E0533C' }} /><p className="text-sm text-zinc-600">{f}</p></div>
                 ))}
                 <button onClick={() => handleUpgrade('elite')} disabled={checkoutLoading || profile?.tier === 'elite'}
@@ -1906,7 +1784,7 @@ export default function App() {
                 <p className="font-black text-base text-amber-400">Verified Store</p>
                 <p className="text-2xl font-black mt-0.5 mb-1">$2.99<span className="text-sm font-normal text-white/40">/mo</span></p>
                 <p className="text-xs font-black text-emerald-400 mb-3">FREE during launch</p>
-                {['Everything in Elite','Verified badge','Broadcast drops','Manage events','Analytics','Featured placement'].map(f => (
+                {['Everything in Elite','Verified badge','Edit your shop details','Broadcast drops','Manage events','Analytics','Featured placement'].map(f => (
                   <div key={f} className="flex items-center gap-2 py-1"><Check className="h-3.5 w-3.5 text-amber-400" /><p className="text-sm text-white/70">{f}</p></div>
                 ))}
                 <button onClick={() => { openClaimModal() }} disabled={profile?.tier === 'store'}
