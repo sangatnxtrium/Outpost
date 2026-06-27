@@ -21,9 +21,17 @@ export default async function handler(req, res) {
   let url
 
   if (name) {
-    if (!NAME_RE.test(name)) return res.status(400).end('bad photo name')
+    // The stored value encodes slashes as '~' to avoid Vercel's path-traversal
+    // firewall (which 403s any query value containing '/'). Decode it back.
+    const decoded = String(name).replace(/~/g, '/')
+    // Real Places photo names: places/<id>/photos/<ref>. Allow the full
+    // base64url-ish charset Google uses; just block anything that isn't that
+    // shape so we can't be pointed at arbitrary URLs.
+    if (!/^places\/[\w-]+\/photos\/[\w-]+$/.test(decoded)) {
+      return res.status(400).end('bad photo name: ' + decoded.slice(0, 80))
+    }
     const width = Math.min(parseInt(w, 10) || 640, 1600)
-    url = `https://places.googleapis.com/v1/${name}/media?maxWidthPx=${width}&key=${GOOGLE_API_KEY}`
+    url = `https://places.googleapis.com/v1/${decoded}/media?maxWidthPx=${width}&key=${GOOGLE_API_KEY}`
   } else if (lat != null && lng != null) {
     const la = parseFloat(lat)
     const ln = parseFloat(lng)
