@@ -29,7 +29,7 @@ class AdminErrorBoundary extends React.Component<{children: any}, {error: string
 
 const ADMIN_EMAILS = ['sangtruong@gmail.com']
 
-type Tab = 'dashboard' | 'shops' | 'users' | 'reviews' | 'trades' | 'events' | 'claims' | 'marketplace'
+type Tab = 'dashboard' | 'shops' | 'users' | 'reviews' | 'trades' | 'events' | 'claims' | 'marketplace' | 'fcbd'
 
 export default function Admin() {
   const [checking, setChecking] = useState(true)
@@ -53,10 +53,19 @@ export default function Admin() {
   const [claims, setClaims] = useState<any[]>([])
   const [marketItems, setMarketItems] = useState<any[]>([])
   const [checkins, setCheckins] = useState(0)
+  const FCBD_YEAR = 2027
+  const [fcbdTitles, setFcbdTitles] = useState<any[]>([])
+  const [fcbdParticipants, setFcbdParticipants] = useState<any[]>([])
+  const [ftTitle, setFtTitle] = useState('')
+  const [ftPublisher, setFtPublisher] = useState('')
+  const [ftImage, setFtImage] = useState('')
+  const [ftSaving, setFtSaving] = useState(false)
   const [editingEvent, setEditingEvent] = useState<any>(null)
   const [eventFields, setEventFields] = useState<any>({})
   const [addingEvent, setAddingEvent] = useState(false)
   const [newEvent, setNewEvent] = useState({ title: "", date: "", location: "", city: "", state: "", description: "", categories: ["cards"] })
+  const [addingShop, setAddingShop] = useState(false)
+  const [newShop, setNewShop] = useState({ name: "", address: "", city: "", state: "", category: "cards", lat: "", lng: "", phone: "", website: "" })
 
   const [editShop, setEditShop] = useState<any>(null)
   const [editFields, setEditFields] = useState<any>({})
@@ -76,6 +85,59 @@ export default function Admin() {
   useEffect(() => {
     if (authed) fetchAll()
   }, [authed])
+
+  async function addFcbdComic() {
+    if (!ftTitle.trim()) return
+    setFtSaving(true)
+    const { error } = await supabase.from('fcbd_titles').insert({
+      year: FCBD_YEAR,
+      title: ftTitle.trim(),
+      publisher: ftPublisher.trim() || null,
+      image_url: ftImage.trim() || null,
+    })
+    setFtSaving(false)
+    if (error) { alert(error.message); return }
+    const ft = await supabase.from('fcbd_titles').select('*').eq('year', FCBD_YEAR).order('created_at')
+    setFcbdTitles(ft.data || [])
+    setFtTitle(''); setFtPublisher(''); setFtImage('')
+  }
+
+  async function deleteFcbdComic(id: string) {
+    const { error } = await supabase.from('fcbd_titles').delete().eq('id', id)
+    if (error) { alert(error.message); return }
+    setFcbdTitles(fcbdTitles.filter(x => x.id !== id))
+  }
+
+  async function addEvent() {
+    if (!newEvent.title.trim() || !newEvent.date) { alert('Title and date are required'); return }
+    const { error } = await supabase.from('events').insert({ ...newEvent })
+    if (error) { alert(error.message); return }
+    setAddingEvent(false)
+    setNewEvent({ title: "", date: "", location: "", city: "", state: "", description: "", categories: ["cards"] })
+    const e = await supabase.from('events').select('*, shops(name)').order('date')
+    setEvents(e.data || [])
+  }
+
+  async function addShop() {
+    if (!newShop.name.trim()) { alert('Shop name is required'); return }
+    const payload: any = {
+      name: newShop.name.trim(),
+      address: newShop.address.trim() || null,
+      city: newShop.city.trim() || null,
+      state: newShop.state.trim() || null,
+      category: newShop.category,
+      phone: newShop.phone.trim() || null,
+      website: newShop.website.trim() || null,
+      lat: newShop.lat ? parseFloat(newShop.lat) : null,
+      lng: newShop.lng ? parseFloat(newShop.lng) : null,
+    }
+    const { error } = await supabase.from('shops').insert(payload)
+    if (error) { alert(error.message); return }
+    setAddingShop(false)
+    setNewShop({ name: "", address: "", city: "", state: "", category: "cards", lat: "", lng: "", phone: "", website: "" })
+    const s = await supabase.from('shops').select('*').order('name')
+    setShops(s.data || [])
+  }
 
   async function saveEvent() {
     await supabase.from('events').update(eventFields).eq('id', editingEvent.id)
@@ -103,6 +165,10 @@ export default function Admin() {
       setEvents(e.data || [])
       setClaims(c.data || [])
       setCheckins(ci.count || 0)
+      const ft = await supabase.from('fcbd_titles').select('*').eq('year', FCBD_YEAR).order('created_at')
+      setFcbdTitles(ft.data || [])
+      const fp = await supabase.from('fcbd_participation').select('*, shops(name)').eq('year', FCBD_YEAR).eq('participating', true).order('updated_at', { ascending: false })
+      setFcbdParticipants(fp.data || [])
     } catch (err) {
       console.error('fetchAll error', err)
     }
@@ -219,6 +285,7 @@ export default function Admin() {
     { id: 'events', icon: Calendar, label: `Events (${events.length})` },
     { id: 'claims', icon: Shield, label: `Claims (${pendingClaims})` },
     { id: 'marketplace', icon: Package, label: `Market (${marketItems.length})` },
+    { id: 'fcbd', icon: Calendar, label: `FCBD (${fcbdTitles.length})` },
   ]
 
   function catStyle(cat: string) {
@@ -387,7 +454,47 @@ export default function Admin() {
         {/* SHOPS */}
         {tab === 'shops' && (
           <div className="space-y-3">
-            <h2 className="font-black text-xl">Shops ({fShops.length})</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="font-black text-xl">Shops ({fShops.length})</h2>
+              <button onClick={() => setAddingShop(!addingShop)}
+                className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-black text-white"
+                style={{ background: addingShop ? '#71717a' : '#E0533C' }}>
+                {addingShop ? <><X className="h-3 w-3" /> Cancel</> : <><Plus className="h-3 w-3" /> Add shop</>}
+              </button>
+            </div>
+            {addingShop && (
+              <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4 space-y-2">
+                <input value={newShop.name} onChange={e => setNewShop({ ...newShop, name: e.target.value })}
+                  placeholder="Shop name" className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                <input value={newShop.address} onChange={e => setNewShop({ ...newShop, address: e.target.value })}
+                  placeholder="Address" className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                <div className="grid grid-cols-2 gap-2">
+                  <input value={newShop.city} onChange={e => setNewShop({ ...newShop, city: e.target.value })}
+                    placeholder="City" className="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                  <input value={newShop.state} onChange={e => setNewShop({ ...newShop, state: e.target.value })}
+                    placeholder="State" className="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input value={newShop.lat} onChange={e => setNewShop({ ...newShop, lat: e.target.value })}
+                    placeholder="Latitude" className="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                  <input value={newShop.lng} onChange={e => setNewShop({ ...newShop, lng: e.target.value })}
+                    placeholder="Longitude" className="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <select value={newShop.category} onChange={e => setNewShop({ ...newShop, category: e.target.value })}
+                    className="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none">
+                    {['cards', 'comics', 'collectibles', 'toys'].map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <input value={newShop.phone} onChange={e => setNewShop({ ...newShop, phone: e.target.value })}
+                    placeholder="Phone" className="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                </div>
+                <input value={newShop.website} onChange={e => setNewShop({ ...newShop, website: e.target.value })}
+                  placeholder="Website" className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                <button onClick={addShop} className="w-full py-2 rounded-xl text-xs font-black text-white flex items-center justify-center gap-1" style={{ background: '#059669' }}>
+                  <Check className="h-3 w-3" /> Create shop
+                </button>
+              </div>
+            )}
             {fShops.map(s => (
               <div key={s.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4">
                 {editShop?.id === s.id ? (
@@ -524,7 +631,35 @@ export default function Admin() {
         {/* EVENTS */}
         {tab === 'events' && (
           <div className="space-y-3">
-            <h2 className="font-black text-xl">Events ({fEvents.length})</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="font-black text-xl">Events ({fEvents.length})</h2>
+              <button onClick={() => setAddingEvent(!addingEvent)}
+                className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-black text-white"
+                style={{ background: addingEvent ? '#71717a' : '#E0533C' }}>
+                {addingEvent ? <><X className="h-3 w-3" /> Cancel</> : <><Plus className="h-3 w-3" /> Add event</>}
+              </button>
+            </div>
+            {addingEvent && (
+              <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4 space-y-2">
+                <input value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })}
+                  placeholder="Title" className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                <input type="date" value={newEvent.date} onChange={e => setNewEvent({ ...newEvent, date: e.target.value })}
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                <input value={newEvent.location} onChange={e => setNewEvent({ ...newEvent, location: e.target.value })}
+                  placeholder="Location / venue" className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                <div className="grid grid-cols-2 gap-2">
+                  <input value={newEvent.city} onChange={e => setNewEvent({ ...newEvent, city: e.target.value })}
+                    placeholder="City" className="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                  <input value={newEvent.state} onChange={e => setNewEvent({ ...newEvent, state: e.target.value })}
+                    placeholder="State" className="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                </div>
+                <textarea value={newEvent.description} onChange={e => setNewEvent({ ...newEvent, description: e.target.value })}
+                  placeholder="Description" rows={2} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none resize-none" />
+                <button onClick={addEvent} className="w-full py-2 rounded-xl text-xs font-black text-white flex items-center justify-center gap-1" style={{ background: '#059669' }}>
+                  <Check className="h-3 w-3" /> Create event
+                </button>
+              </div>
+            )}
             {fEvents.map(ev => (
               <div key={ev.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4">
                 <div className="flex items-start justify-between gap-3">
@@ -672,6 +807,66 @@ export default function Admin() {
               </div>
               ))}
               {filteredMarket.length === 0 && <p className="text-center text-zinc-400 py-8 text-sm font-mono">No vault items yet</p>}
+            </div>
+          )}
+
+    {/* FCBD */}
+          {tab === 'fcbd' && (
+            <div className="space-y-4">
+              <h2 className="font-black text-xl">Free Comic Book Day {FCBD_YEAR}</h2>
+
+              <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4 space-y-2.5">
+                <p className="text-sm font-black">Add a showcased comic</p>
+                <input value={ftTitle} onChange={e => setFtTitle(e.target.value)} placeholder="Comic title"
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                <div className="grid grid-cols-2 gap-2">
+                  <input value={ftPublisher} onChange={e => setFtPublisher(e.target.value)} placeholder="Publisher"
+                    className="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                  <input value={ftImage} onChange={e => setFtImage(e.target.value)} placeholder="Cover image URL"
+                    className="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                </div>
+                <button onClick={addFcbdComic} disabled={ftSaving}
+                  className="w-full py-2 rounded-xl text-xs font-black text-white flex items-center justify-center gap-1 disabled:opacity-60"
+                  style={{ background: '#E0533C' }}><Plus className="h-3 w-3" /> {ftSaving ? 'Adding…' : 'Add comic'}</button>
+              </div>
+
+              <div>
+                <p className="text-sm font-black mb-2">Showcased comics ({fcbdTitles.length})</p>
+                {fcbdTitles.length === 0 ? (
+                  <p className="text-center text-zinc-400 py-8 text-sm font-mono">No comics added yet</p>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {fcbdTitles.map((t: any) => (
+                      <div key={t.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
+                        <div className="aspect-[2/3] bg-zinc-100">
+                          {t.image_url ? <img src={t.image_url} alt={t.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-zinc-300"><Package className="h-7 w-7" /></div>}
+                        </div>
+                        <div className="p-2">
+                          <p className="text-xs font-black leading-tight">{t.title}</p>
+                          {t.publisher && <p className="text-[11px] text-zinc-400 mt-0.5 truncate">{t.publisher}</p>}
+                          <button onClick={() => deleteFcbdComic(t.id)} className="text-[11px] text-red-500 mt-1 flex items-center gap-1"><Trash2 className="h-3 w-3" /> Remove</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <p className="text-sm font-black mb-2">Participating shops ({fcbdParticipants.length})</p>
+                {fcbdParticipants.length === 0 ? (
+                  <p className="text-center text-zinc-400 py-8 text-sm font-mono">No shops signed up yet</p>
+                ) : (
+                  <div className="space-y-2">
+                    {fcbdParticipants.map((p: any) => (
+                      <div key={p.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-3">
+                        <p className="font-black text-sm">{p.shops?.name || 'Shop'}</p>
+                        {p.offers && <p className="text-xs text-zinc-500 mt-0.5">{p.offers}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
