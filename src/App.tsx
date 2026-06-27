@@ -8,7 +8,7 @@ import { startCheckout } from './lib/stripe'
 import { supabase } from './lib/supabase'
 
 type TabType = 'discover' | 'map' | 'classifieds' | 'marketplace' | 'fcbd' | 'profile'
-type ModalType = 'none' | 'sub' | 'auth' | 'notifications' | 'shop' | 'menu' | 'claim' | 'additem' | 'submit'
+type ModalType = 'none' | 'sub' | 'auth' | 'notifications' | 'shop' | 'menu' | 'claim' | 'additem' | 'submit' | 'listsale' | 'listingdetail' | 'posttrade' | 'editprofile'
 
 function DropBanner({ shops }: { shops: any[] }) {
   const [idx, setIdx] = useState(0)
@@ -189,7 +189,7 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal }: any) {
 }
 
 export default function App() {
-  const { user, profile, loading: authLoading, sendOtp, verifyOtp, signOut } = useAuth()
+  const { user, profile, loading: authLoading, sendOtp, verifyOtp, signOut, updateProfile } = useAuth()
   const { shops, loading: shopsLoading, updateHotFind, updateShop } = useShops()
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null)
   const selectedShop = shops.find((s: any) => s.id === selectedShopId) || null
@@ -273,6 +273,12 @@ export default function App() {
   const [qFile, setQFile] = useState<File | null>(null)
   const [qPreview, setQPreview] = useState('')
   const [qPosting, setQPosting] = useState(false)
+  const [epName, setEpName] = useState('')
+  const [epAvatarFile, setEpAvatarFile] = useState<File | null>(null)
+  const [epAvatarPreview, setEpAvatarPreview] = useState('')
+  const [epBannerFile, setEpBannerFile] = useState<File | null>(null)
+  const [epBannerPreview, setEpBannerPreview] = useState('')
+  const [epSaving, setEpSaving] = useState(false)
   const [role, setRole] = useState<'hunter' | 'merchant'>('hunter')
   const [email, setEmail] = useState('')
   const [authStep, setAuthStep] = useState<'gate' | 'verify'>('gate')
@@ -333,6 +339,8 @@ export default function App() {
       if (b.distance == null) return -1
       return a.distance - b.distance
     })
+  const myListings = user ? listings.filter((l: any) => l.user_id === user.id) : []
+  const myTrades = user ? tradePosts.filter((t: any) => t.user_id === user.id) : []
 
   const allEvents = allEventsData
   const eventStates = ['all', ...Array.from(new Set(allEventsData.map((ev: any) => ev.state).filter(Boolean))).sort()]
@@ -608,6 +616,32 @@ export default function App() {
   async function handleDeleteComment(id: string) {
     await deleteComment(id)
     setListingComments(prev => prev.filter((x: any) => x.id !== id))
+  }
+
+  function openEditProfile() {
+    setEpName(profile?.display_name || '')
+    setEpAvatarFile(null); setEpAvatarPreview('')
+    setEpBannerFile(null); setEpBannerPreview('')
+    setModal('editprofile')
+  }
+  function onPickAvatar(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]; if (!f) return
+    setEpAvatarFile(f); setEpAvatarPreview(URL.createObjectURL(f))
+  }
+  function onPickBanner(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]; if (!f) return
+    setEpBannerFile(f); setEpBannerPreview(URL.createObjectURL(f))
+  }
+  async function handleSaveProfile() {
+    if (!user) return
+    setEpSaving(true)
+    const fields: any = {}
+    if (epName.trim()) fields.display_name = epName.trim()
+    if (epAvatarFile) { const url = await uploadPhoto(epAvatarFile, user.id); if (url) fields.avatar_url = url }
+    if (epBannerFile) { const url = await uploadPhoto(epBannerFile, user.id); if (url) fields.banner_url = url }
+    if (Object.keys(fields).length > 0) await updateProfile(fields)
+    setEpSaving(false)
+    setModal('none')
   }
 
   async function handleListingSubmit(e: React.FormEvent) {
@@ -1244,13 +1278,24 @@ export default function App() {
               <div className="p-4 space-y-4 max-w-lg">
                 {isSignedIn ? (
                   <>
-                    <div className="rounded-3xl p-5 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
-                      <div className="absolute bottom-0 right-0 w-32 h-32 rounded-full opacity-20" style={{ background: 'white', transform: 'translate(20%,20%)' }} />
-                      <div className="h-14 w-14 rounded-3xl flex items-center justify-center mb-3" style={{ background: 'rgba(255,255,255,0.2)' }}>
-                        <User className="h-7 w-7 text-white" />
+                    <div className="rounded-3xl p-5 text-white relative overflow-hidden"
+                      style={profile?.banner_url
+                        ? { backgroundImage: `url(${profile.banner_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                        : { background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
+                      {profile?.banner_url
+                        ? <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.35)' }} />
+                        : <div className="absolute bottom-0 right-0 w-32 h-32 rounded-full opacity-20" style={{ background: 'white', transform: 'translate(20%,20%)' }} />}
+                      <button onClick={openEditProfile} className="absolute top-4 right-4 z-10 text-xs font-medium px-3 py-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.25)' }}>Edit</button>
+                      <div className="relative">
+                        <div className="h-14 w-14 rounded-3xl flex items-center justify-center mb-3 overflow-hidden" style={{ background: 'rgba(255,255,255,0.2)' }}>
+                          {profile?.avatar_url
+                            ? <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                            : <User className="h-7 w-7 text-white" />}
+                        </div>
+                        <p className="font-black text-xl">{profile?.display_name || `@${profile?.username}`}</p>
+                        {profile?.display_name && <p className="text-sm text-white/70">@{profile?.username}</p>}
+                        <p className="text-xs text-white/60 mt-1 font-mono uppercase">{profile?.role} · {profile?.tier} plan</p>
                       </div>
-                      <p className="font-black text-xl">@{profile?.username}</p>
-                      <p className="text-xs text-white/60 mt-1 font-mono uppercase">{profile?.role} · {profile?.tier} plan</p>
                     </div>
                     {myShop && (
                       <button onClick={() => openShop(myShop)}
@@ -1302,6 +1347,35 @@ export default function App() {
                           className="w-full mt-3 py-2.5 rounded-2xl text-sm font-medium text-white disabled:opacity-60" style={{ background: '#E0533C' }}>
                           {fcbdSaving ? 'Saving…' : fcbdSaved ? 'Saved ✓' : 'Save'}
                         </button>
+                      </div>
+                    )}
+
+                    {(myListings.length > 0 || myTrades.length > 0) && (
+                      <div className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
+                        <p className="text-xs font-black uppercase text-zinc-400 mb-3">My Listings &amp; Trades</p>
+                        {myListings.length > 0 && (
+                          <div className="grid grid-cols-3 gap-2 mb-2">
+                            {myListings.map((l: any) => (
+                              <button key={l.id} onClick={() => { setSelectedListing(l); setShowContact(false); setModal('listingdetail') }} className="text-left">
+                                <div className="aspect-square rounded-xl bg-zinc-100 overflow-hidden">
+                                  {l.image_url
+                                    ? <img src={l.image_url} alt={l.title} className="w-full h-full object-cover" />
+                                    : <div className="w-full h-full flex items-center justify-center text-zinc-300"><Package className="h-6 w-6" /></div>}
+                                </div>
+                                <p className="text-[11px] font-medium truncate mt-1" style={{ color: '#E0533C' }}>${Number(l.price).toLocaleString()}</p>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {myTrades.length > 0 && (
+                          <div className="space-y-1.5">
+                            {myTrades.map((t: any) => (
+                              <div key={t.id} className="text-xs text-zinc-600 bg-zinc-50 rounded-xl px-3 py-2">
+                                <span className="font-medium text-emerald-700">HAS</span> {t.offer} · <span className="font-medium" style={{ color: '#E0533C' }}>WANTS</span> {t.look_for}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -1766,6 +1840,50 @@ export default function App() {
                   <button onClick={() => setModal('auth')} className="mt-3 text-xs font-medium" style={{ color: '#E0533C' }}>Sign in to ask a question</button>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT PROFILE */}
+      {modal === 'editprofile' && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
+          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl p-5 pb-10 shadow-2xl max-h-[92vh] overflow-y-auto" style={{ background: '#FAF9F5' }}>
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="font-semibold text-lg">Edit profile</h3>
+              <button onClick={() => setModal('none')}><X className="h-5 w-5 text-zinc-400" /></button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Banner image</label>
+                <label className="block cursor-pointer">
+                  <div className="h-24 rounded-2xl overflow-hidden bg-zinc-100 flex items-center justify-center"
+                    style={(epBannerPreview || profile?.banner_url) ? { backgroundImage: `url(${epBannerPreview || profile?.banner_url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}>
+                    {!(epBannerPreview || profile?.banner_url) && <span className="text-xs text-zinc-400"><Plus className="h-5 w-5 mx-auto mb-0.5" />Add a banner</span>}
+                  </div>
+                  <input type="file" accept="image/*" onChange={onPickBanner} className="hidden" />
+                </label>
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="cursor-pointer flex-shrink-0">
+                  <div className="h-16 w-16 rounded-2xl overflow-hidden bg-zinc-100 flex items-center justify-center">
+                    {(epAvatarPreview || profile?.avatar_url)
+                      ? <img src={epAvatarPreview || profile?.avatar_url || ''} alt="" className="h-full w-full object-cover" />
+                      : <User className="h-6 w-6 text-zinc-400" />}
+                  </div>
+                  <input type="file" accept="image/*" onChange={onPickAvatar} className="hidden" />
+                </label>
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Display name</label>
+                  <input value={epName} onChange={e => setEpName(e.target.value)} placeholder={profile?.username || 'Your name'}
+                    className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none" />
+                </div>
+              </div>
+              <p className="text-xs text-zinc-400">Tap the square to change your avatar. Your @{profile?.username} handle stays the same.</p>
+              <button onClick={handleSaveProfile} disabled={epSaving}
+                className="w-full py-3.5 rounded-2xl text-sm font-medium text-white disabled:opacity-60" style={{ background: '#E0533C' }}>
+                {epSaving ? 'Saving…' : 'Save profile'}
+              </button>
             </div>
           </div>
         </div>
