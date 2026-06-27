@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react'
 import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { Compass, MapPin, Search, Flame, X, Store, User, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, DollarSign, Plus, Check, Phone, Bell, Heart, Star } from 'lucide-react'
+import { Compass, MapPin, Search, Flame, X, Store, User, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, DollarSign, Plus, Check, Phone, Bell, Heart, Star, BookOpen } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
-import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useListings } from './hooks/useShops'
+import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useListings, useFcbd, useFcbdTitles } from './hooks/useShops'
 import { startCheckout } from './lib/stripe'
 import { supabase } from './lib/supabase'
 
-type TabType = 'discover' | 'map' | 'classifieds' | 'marketplace' | 'profile'
+type TabType = 'discover' | 'map' | 'classifieds' | 'marketplace' | 'fcbd' | 'profile'
 type ModalType = 'none' | 'sub' | 'auth' | 'notifications' | 'shop' | 'menu' | 'claim' | 'additem' | 'submit'
 
 function DropBanner({ shops }: { shops: any[] }) {
@@ -140,6 +140,7 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal }: any) {
     { id: 'discover', icon: Search, label: 'Discover' },
     { id: 'map', icon: Navigation, label: 'Map' },
     { id: 'marketplace', icon: Tag, label: 'Marketplace' },
+    { id: 'fcbd', icon: BookOpen, label: 'FCBD' },
     { id: 'profile', icon: User, label: 'Profile' },
   ]
   return (
@@ -197,6 +198,17 @@ export default function App() {
   const { tradePosts, addTradePost } = useTradePosts()
   const { events: allEventsData } = useEvents()
   const { listings, uploadPhoto, createListing, deleteListing } = useListings()
+  const FCBD_YEAR = 2027
+  const FCBD_DATE = new Date('2027-05-01T00:00:00')
+  const fcbdDaysLeft = Math.max(0, Math.ceil((FCBD_DATE.getTime() - Date.now()) / 86400000))
+  const { participants: fcbdShops, upsertParticipation, getMyParticipation } = useFcbd(FCBD_YEAR)
+  const fcbdShopIds = new Set(fcbdShops.map((p: any) => p.shop_id))
+  const { titles: fcbdTitles } = useFcbdTitles(FCBD_YEAR)
+  const [fcbdParticipating, setFcbdParticipating] = useState(true)
+  const [fcbdOffers, setFcbdOffers] = useState('')
+  const [fcbdSaving, setFcbdSaving] = useState(false)
+  const [fcbdSaved, setFcbdSaved] = useState(false)
+  const [fcbdLoaded, setFcbdLoaded] = useState(false)
   const [rsvps, setRsvps] = useState<string[]>([])
   const [tab, setTab] = useState<TabType>('discover')
   const [hoverShopId, setHoverShopId] = useState<string | null>(null)
@@ -326,6 +338,33 @@ export default function App() {
   const isSignedIn = !!user
   const isMerchant = profile?.role === 'merchant'
   const myShop = shops.find((s: any) => s.owner_id === user?.id) || null
+
+  useEffect(() => {
+    if (myShop && !fcbdLoaded) {
+      getMyParticipation(myShop.id).then((rec: any) => {
+        if (rec) {
+          setFcbdParticipating(rec.participating)
+          setFcbdOffers(rec.offers || '')
+        }
+        setFcbdLoaded(true)
+      })
+    }
+  }, [myShop, fcbdLoaded])
+
+  async function handleFcbdSave() {
+    if (!myShop || !user) return
+    setFcbdSaving(true)
+    setFcbdSaved(false)
+    await upsertParticipation({
+      shop_id: myShop.id,
+      owner_id: user.id,
+      year: FCBD_YEAR,
+      participating: fcbdParticipating,
+      offers: fcbdOffers.trim() || null,
+    })
+    setFcbdSaving(false)
+    setFcbdSaved(true)
+  }
 
   function openShop(s: any) { setSelectedShopId(s.id); setModal('shop') }
 
@@ -586,11 +625,18 @@ export default function App() {
             className="absolute top-2.5 right-2.5 h-8 w-8 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm">
             <Heart className="h-[18px] w-[18px] transition-colors" style={isSaved ? { color: '#E0533C', fill: '#E0533C' } : { color: '#52525b' }} />
           </button>
-          {s.hot_find && (
-            <span className="absolute top-2.5 left-2.5 text-[11px] text-white px-2 py-1 rounded-full inline-flex items-center gap-1 shadow-sm" style={{ background: '#E0533C' }}>
-              <Flame className="h-3 w-3" /> Hot find
-            </span>
-          )}
+          <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5 items-start">
+            {s.hot_find && (
+              <span className="text-[11px] text-white px-2 py-1 rounded-full inline-flex items-center gap-1 shadow-sm" style={{ background: '#E0533C' }}>
+                <Flame className="h-3 w-3" /> Hot find
+              </span>
+            )}
+            {fcbdShopIds.has(s.id) && (
+              <span className="text-[11px] text-white px-2 py-1 rounded-full inline-flex items-center gap-1 shadow-sm" style={{ background: '#1d4ed8' }}>
+                <BookOpen className="h-3 w-3" /> FCBD
+              </span>
+            )}
+          </div>
         </div>
         <div className="p-3">
           <h3 className="font-semibold text-[15px] leading-snug text-zinc-900 truncate">{s.name}</h3>
@@ -1062,6 +1108,90 @@ export default function App() {
               </div>
             )}
 
+            {/* FCBD */}
+            {tab === 'fcbd' && (
+              <div className="p-4 space-y-4 max-w-3xl">
+                <div className="rounded-3xl p-5 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
+                  <BookOpen className="absolute -right-4 -top-4 h-28 w-28 opacity-10" />
+                  <p className="text-xs uppercase tracking-widest opacity-80">Free Comic Book Day</p>
+                  <h2 className="text-2xl font-bold mt-1">FCBD {FCBD_YEAR}</h2>
+                  <p className="text-sm opacity-90 mt-1">May 1, {FCBD_YEAR} · date tentative</p>
+                  <div className="mt-4 inline-flex items-baseline gap-2 bg-white/20 rounded-full px-4 py-1.5">
+                    <span className="text-xl font-bold">{fcbdDaysLeft}</span>
+                    <span className="text-xs opacity-90">days to go</span>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="font-semibold text-zinc-900 mb-2">Showcased comics {fcbdTitles.length > 0 && `(${fcbdTitles.length})`}</p>
+                  {fcbdTitles.length === 0 ? (
+                    <div className="text-center py-10 text-zinc-400 bg-white rounded-3xl border border-zinc-100">
+                      <BookOpen className="h-9 w-9 mx-auto mb-2 opacity-20" />
+                      <p className="text-sm">The {FCBD_YEAR} lineup hasn't been posted yet.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
+                      {fcbdTitles.map((t: any) => (
+                        <div key={t.id} className="bg-white rounded-2xl border border-zinc-200 overflow-hidden">
+                          <div className="aspect-[2/3] bg-zinc-100">
+                            {t.image_url
+                              ? <img src={t.image_url} alt={t.title} loading="lazy" className="w-full h-full object-cover" />
+                              : <div className="w-full h-full flex items-center justify-center text-zinc-300"><BookOpen className="h-8 w-8" /></div>}
+                          </div>
+                          <div className="p-2">
+                            <p className="text-[12px] font-medium text-zinc-900 leading-tight line-clamp-2">{t.title}</p>
+                            {t.publisher && <p className="text-[11px] text-zinc-400 mt-0.5 truncate">{t.publisher}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {myShop && (
+                  <div className="bg-white rounded-2xl border border-zinc-200 p-3 flex items-center gap-2 text-sm text-zinc-500">
+                    <BookOpen className="h-4 w-4 flex-shrink-0" style={{ color: '#1d4ed8' }} />
+                    <span>Manage your shop's FCBD participation from your <button onClick={() => setTab('profile')} className="font-medium underline" style={{ color: '#E0533C' }}>Profile</button>.</span>
+                  </div>
+                )}
+
+                <div>
+                  <p className="font-semibold text-zinc-900 mb-2">Participating shops {fcbdShops.length > 0 && `(${fcbdShops.length})`}</p>
+                  {fcbdShops.length === 0 ? (
+                    <div className="text-center py-12 text-zinc-400 bg-white rounded-3xl border border-zinc-100">
+                      <BookOpen className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                      <p className="text-sm">No shops have signed up yet.</p>
+                      <p className="text-xs mt-1">Check back as May {FCBD_YEAR} approaches.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {fcbdShops.map((p: any) => {
+                        const s = p.shops || {}
+                        const dist = userLat && userLng && s.lat && s.lng ? getDistance(userLat, userLng, s.lat, s.lng) : null
+                        return (
+                          <div key={p.id} onClick={() => openShop(shops.find((x: any) => x.id === p.shop_id) || s)}
+                            className="bg-white rounded-2xl border border-zinc-200 overflow-hidden cursor-pointer hover:shadow-md transition-all flex">
+                            <div className="w-24 flex-shrink-0 bg-zinc-100">
+                              {s.image_url
+                                ? <img src={s.image_url} alt={s.name} loading="lazy" className="w-full h-full object-cover" />
+                                : <div className="w-full h-full flex items-center justify-center text-zinc-300"><Store className="h-7 w-7" /></div>}
+                            </div>
+                            <div className="p-3 flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <h3 className="font-semibold text-zinc-900 truncate">{s.name}</h3>
+                                {dist != null && <span className="text-xs text-zinc-400 flex-shrink-0">{dist.toFixed(1)} mi</span>}
+                              </div>
+                              {p.offers && <p className="text-[13px] mt-1 line-clamp-2" style={{ color: '#E0533C' }}><span className="font-medium">Offer: </span>{p.offers}</p>}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* PROFILE */}
             {tab === 'profile' && (
               <div className="p-4 space-y-4 max-w-lg">
@@ -1099,6 +1229,33 @@ export default function App() {
                           </div>
                         )}
                       </button>
+                    )}
+
+                    {myShop && (
+                      <div className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
+                        <div className="flex items-center gap-2 mb-1">
+                          <BookOpen className="h-4 w-4" style={{ color: '#1d4ed8' }} />
+                          <p className="font-black text-sm">Free Comic Book Day {FCBD_YEAR}</p>
+                        </div>
+                        <p className="text-xs text-zinc-400 mb-3">Tell shoppers if {myShop.name} is taking part.</p>
+                        <div className="flex items-center justify-between py-1.5">
+                          <span className="text-sm text-zinc-700">We're participating</span>
+                          <button onClick={() => { setFcbdParticipating(!fcbdParticipating); setFcbdSaved(false) }}
+                            className="relative w-12 h-7 rounded-full transition-colors flex-shrink-0"
+                            style={{ background: fcbdParticipating ? '#E0533C' : '#d4d4d8' }}>
+                            <span className="absolute top-1 h-5 w-5 rounded-full bg-white transition-all" style={{ left: fcbdParticipating ? '24px' : '4px' }} />
+                          </button>
+                        </div>
+                        {fcbdParticipating && (
+                          <textarea value={fcbdOffers} onChange={e => { setFcbdOffers(e.target.value); setFcbdSaved(false) }} rows={3}
+                            placeholder="Your FCBD sales, discounts & in-store specials (e.g. 20% off back issues, free grab bags, raffle, creator signing)"
+                            className="w-full mt-2 bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none resize-none" />
+                        )}
+                        <button onClick={handleFcbdSave} disabled={fcbdSaving}
+                          className="w-full mt-3 py-2.5 rounded-2xl text-sm font-medium text-white disabled:opacity-60" style={{ background: '#E0533C' }}>
+                          {fcbdSaving ? 'Saving…' : fcbdSaved ? 'Saved ✓' : 'Save'}
+                        </button>
+                      </div>
                     )}
 
                     <div className="bg-white rounded-3xl overflow-hidden shadow-sm border border-zinc-100">
@@ -1147,6 +1304,7 @@ export default function App() {
               { id: 'discover', icon: Search, label: 'Discover' },
               { id: 'map', icon: Navigation, label: 'Map' },
               { id: 'marketplace', icon: Tag, label: 'Market' },
+              { id: 'fcbd', icon: BookOpen, label: 'FCBD' },
               { id: 'profile', icon: User, label: 'Profile' },
             ].map(({ id, icon: Icon, label }) => (
               <button key={id} onClick={() => setTab(id as TabType)}
