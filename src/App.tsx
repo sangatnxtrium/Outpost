@@ -135,7 +135,7 @@ function categoryIconColor(cat: string) {
   return '#7C3AED'
 }
 
-function Sidebar({ tab, setTab, isSignedIn, profile, setModal }: any) {
+function Sidebar({ tab, setTab, isSignedIn, profile, setModal, unreadCount }: any) {
   const items = [
     { id: 'discover', icon: Search, label: 'Discover' },
     { id: 'map', icon: Navigation, label: 'Map' },
@@ -747,7 +747,7 @@ export default function App() {
   return (
     <div className="min-h-screen text-[#18191B] font-sans" style={{ background: '#FAFAF9' }}>
       <div className="flex min-h-screen">
-        <Sidebar tab={tab} setTab={setTab} isSignedIn={isSignedIn} profile={profile} setModal={setModal} />
+        <Sidebar tab={tab} setTab={setTab} isSignedIn={isSignedIn} profile={profile} setModal={setModal} unreadCount={unreadCount} />
 
         <div className="flex-1 flex flex-col min-h-screen max-w-2xl mx-auto w-full md:max-w-none">
 
@@ -2331,4 +2331,4 @@ export default function App() {
       )}
     </div>
   )
-}// cache bust Sat Jun 27 11:59:58 MDT 2026
+}
