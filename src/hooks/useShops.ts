@@ -17,7 +17,7 @@ export function useShops() {
     while (true) {
       const { data, error } = await supabase
         .from('shops')
-        .select('id, name, address, category, categories, hot_find, rating, tags, lat, lng, hours, description, phone, owner_id, image_url')
+        .select('id, name, address, category, categories, hot_find, rating, tags, lat, lng, hours, description, phone, website, owner_id, image_url')
         .order('rating', { ascending: false })
         .range(from, from + batchSize - 1)
       if (error) { setError(error.message); break }
@@ -39,7 +39,16 @@ export function useShops() {
     return { error: error?.message || null }
   }
 
-  return { shops, loading, error, refetch: fetchShops, updateHotFind }
+  async function updateShop(shopId: string, fields: any) {
+    const { error } = await supabase
+      .from('shops')
+      .update(fields)
+      .eq('id', shopId)
+    if (!error) fetchShops()
+    return { error: error?.message || null }
+  }
+
+  return { shops, loading, error, refetch: fetchShops, updateHotFind, updateShop }
 }
 
 export function useReviews(shopId: string) {

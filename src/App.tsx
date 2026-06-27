@@ -190,7 +190,7 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal }: any) {
 
 export default function App() {
   const { user, profile, loading: authLoading, sendOtp, verifyOtp, signOut } = useAuth()
-  const { shops, loading: shopsLoading, updateHotFind } = useShops()
+  const { shops, loading: shopsLoading, updateHotFind, updateShop } = useShops()
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null)
   const selectedShop = shops.find((s: any) => s.id === selectedShopId) || null
   const { reviews, addReview } = useReviews(selectedShop?.id || '')
@@ -217,6 +217,12 @@ export default function App() {
   const [inpRev, setInpRev] = useState('')
   const [inpFind, setInpFind] = useState('')
   const [editingCategories, setEditingCategories] = useState(false)
+  const [editingInfo, setEditingInfo] = useState(false)
+  const [inpWebsite, setInpWebsite] = useState('')
+  const [inpPhone, setInpPhone] = useState('')
+  const [inpHours, setInpHours] = useState('')
+  const [inpDesc, setInpDesc] = useState('')
+  const [savingInfo, setSavingInfo] = useState(false)
   const [shopCategories, setShopCategories] = useState<string[]>([])
   const [inpOff, setInpOff] = useState('')
   const [inpWant, setInpWant] = useState('')
@@ -453,6 +459,23 @@ export default function App() {
 
   function handleCodeKey(i: number, e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Backspace' && !authCode[i] && i > 0) codeRefs[i-1].current?.focus()
+  }
+
+  async function handleSaveShopInfo() {
+    if (!selectedShop) return
+    setSavingInfo(true)
+    const fields = {
+      website: inpWebsite.trim() || null,
+      phone: inpPhone.trim() || null,
+      hours: inpHours.trim() || null,
+      description: inpDesc.trim() || null,
+    }
+    const { error } = await updateShop(selectedShop.id, fields)
+    setSavingInfo(false)
+    if (!error) {
+      setSelectedShop({ ...selectedShop, ...fields })
+      setEditingInfo(false)
+    }
   }
 
   async function handleClaimSubmit() {
@@ -1289,6 +1312,14 @@ export default function App() {
                       <Phone className="h-3.5 w-3.5" /> Call
                     </a>
                   )}
+                  {(selectedShop as any).website && (
+                    <a href={(selectedShop as any).website.startsWith('http') ? (selectedShop as any).website : `https://${(selectedShop as any).website}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs font-black px-3 py-2 rounded-2xl text-white"
+                      style={{ background: '#27272a' }}>
+                      🌐 Website
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
@@ -1329,6 +1360,52 @@ export default function App() {
                 )}
               </div>
             )}
+            {isMerchant && (selectedShop as any).owner_id === user?.id && (
+              <div className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-black uppercase text-zinc-400">Shop Details</p>
+                  <button onClick={() => {
+                    if (!editingInfo) {
+                      setInpWebsite((selectedShop as any).website || '')
+                      setInpPhone((selectedShop as any).phone || '')
+                      setInpHours((selectedShop as any).hours || '')
+                      setInpDesc((selectedShop as any).description || '')
+                    }
+                    setEditingInfo(!editingInfo)
+                  }}
+                    className="text-xs font-black px-3 py-1.5 rounded-xl"
+                    style={{ background: editingInfo ? '#E0533C' : '#f3f4f6', color: editingInfo ? 'white' : '#6b7280' }}>
+                    {editingInfo ? 'Cancel' : 'Edit'}
+                  </button>
+                </div>
+                {editingInfo ? (
+                  <div className="space-y-2.5">
+                    <input value={inpWebsite} onChange={e => setInpWebsite(e.target.value)}
+                      placeholder="Website (https://…)" className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none" />
+                    <input value={inpPhone} onChange={e => setInpPhone(e.target.value)}
+                      placeholder="Phone" className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none" />
+                    <input value={inpHours} onChange={e => setInpHours(e.target.value)}
+                      placeholder="Hours (e.g. Mon–Sat 11–7)" className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none" />
+                    <textarea value={inpDesc} onChange={e => setInpDesc(e.target.value)} rows={3}
+                      placeholder="Short description of your shop" className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none resize-none" />
+                    <button onClick={handleSaveShopInfo} disabled={savingInfo}
+                      className="w-full py-2.5 rounded-2xl text-xs font-black uppercase text-white disabled:opacity-60"
+                      style={{ background: 'linear-gradient(135deg, #059669, #047857)' }}>
+                      {savingInfo ? 'Saving…' : 'Save Details'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5 text-sm text-zinc-600">
+                    {(selectedShop as any).website
+                      ? <p>🌐 <a href={(selectedShop as any).website.startsWith('http') ? (selectedShop as any).website : `https://${(selectedShop as any).website}`} target="_blank" rel="noopener noreferrer" className="underline break-all" style={{ color: '#E0533C' }}>{(selectedShop as any).website}</a></p>
+                      : <p className="text-zinc-400">No website yet — tap Edit to add yours.</p>}
+                    {(selectedShop as any).phone && <p>📞 {(selectedShop as any).phone}</p>}
+                    {(selectedShop as any).hours && <p>🕑 {(selectedShop as any).hours}</p>}
+                  </div>
+                )}
+              </div>
+            )}
+
             {isMerchant && (selectedShop as any).owner_id === user?.id && (
               <div className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
                 <div className="flex items-center justify-between mb-3">
