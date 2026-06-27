@@ -225,10 +225,23 @@ export default function Admin() {
   }
 
   async function approveClaim(claim: any) {
-    await supabase.from('shop_claims').update({ status: 'approved' }).eq('id', claim.id)
-    const { data: match } = await supabase.from('shops').select('id').ilike('name', `%${claim.shop_name}%`).single()
-    if (match) {
-      await supabase.from('shops').update({ owner_id: claim.user_id }).eq('id', match.id)
+    // Resolve the exact shop being claimed. Prefer the shop_id captured at claim
+    // time; fall back to a best-effort name match for older/registration claims.
+    let targetShopId = claim.shop_id || null
+    if (!targetShopId && claim.shop_name) {
+      const { data: matches } = await supabase
+        .from('shops').select('id,owner_id').ilike('name', `%${claim.shop_name}%`).limit(1)
+      if (matches && matches.length) targetShopId = matches[0].id
+    }
+
+    if (targetShopId) {
+      const { data: shop } = await supabase
+        .from('shops').select('owner_id').eq('id', targetShopId).maybeSingle()
+      if (shop?.owner_id && shop.owner_id !== claim.user_id) {
+        alert('That shop is already owned by another account. Reject this claim, or reassign ownership manually before approving.')
+        return
+      }
+      await supabase.from('shops').update({ owner_id: claim.user_id }).eq('id', targetShopId)
     } else {
       await supabase.from('shops').insert({
         name: claim.shop_name, address: claim.shop_address, phone: claim.phone,
@@ -237,6 +250,8 @@ export default function Admin() {
         description: `${claim.shop_name} — verified Colorado collectibles shop.`,
       })
     }
+
+    await supabase.from('shop_claims').update({ status: 'approved' }).eq('id', claim.id)
     await supabase.from('profiles').update({ role: 'merchant', tier: 'store' }).eq('id', claim.user_id)
     setClaims(claims.map(c => c.id === claim.id ? { ...c, status: 'approved' } : c))
     fetchAll()
@@ -735,6 +750,9 @@ export default function Admin() {
                     <p className="text-xs text-zinc-400">{c.category} · {c.hours}</p>
                     {c.phone && <p className="text-xs text-zinc-400">{c.phone}</p>}
                     <p className="text-xs text-zinc-300 font-mono mt-1">EIN: {c.ein}</p>
+                    <p className="text-xs font-mono mt-0.5" style={{ color: c.shop_id ? '#059669' : '#9ca3af' }}>
+                      {c.shop_id ? '✓ Linked to an existing listing' : '○ No listing link — will match by name or create new'}
+                    </p>
                   </div>
                 </div>
                 {c.status === 'pending' && (

@@ -256,6 +256,7 @@ export default function App() {
   const [claimCategories, setClaimCategories] = useState<string[]>(['cards'])
   const [claimHours, setClaimHours] = useState('')
   const [claimStep, setClaimStep] = useState(1)
+  const [claimShopId, setClaimShopId] = useState<string | null>(null)
   const [existingClaim, setExistingClaim] = useState<any>(null)
   const [claimCheckLoading, setClaimCheckLoading] = useState(false)
   const [mktTitle, setMktTitle] = useState('')
@@ -506,6 +507,7 @@ export default function App() {
       user_id: user.id,
       username: profile?.username || user.email?.split('@')[0] || 'unknown',
       email: user.email || '',
+      shop_id: claimShopId,
       shop_name: claimName,
       shop_address: claimAddress,
       phone: claimPhone,
@@ -527,7 +529,7 @@ export default function App() {
     closeModal()
   }
 
-  async function openClaimModal() {
+  async function openClaimModal(shop?: any) {
     if (!user) { setModal('auth'); return }
     setClaimCheckLoading(true)
     const { data } = await supabase
@@ -535,8 +537,18 @@ export default function App() {
       .select('*')
       .eq('user_id', user.id)
       .in('status', ['pending', 'approved'])
-      .single()
+      .maybeSingle()
     setExistingClaim(data || null)
+    if (shop) {
+      setClaimShopId(shop.id)
+      setClaimName(shop.name || '')
+      setClaimAddress(shop.address || '')
+      setClaimPhone(shop.phone || '')
+      setClaimCategory(shop.category || 'cards')
+      setClaimHours(shop.hours || '')
+    } else {
+      setClaimShopId(null)
+    }
     setClaimCheckLoading(false)
     setModal('claim')
   }
@@ -1571,6 +1583,16 @@ export default function App() {
                 )}
               </div>
             )}
+            {isSignedIn && !(selectedShop as any).owner_id && (
+              <button onClick={() => openClaimModal(selectedShop)}
+                className="w-full rounded-3xl p-4 border-2 border-dashed text-center"
+                style={{ borderColor: '#E0533C', background: 'rgba(224,83,60,0.04)' }}>
+                <Store className="h-5 w-5 mx-auto mb-1" style={{ color: '#E0533C' }} />
+                <p className="font-black text-sm" style={{ color: '#E0533C' }}>Own this shop? Claim it</p>
+                <p className="text-xs text-zinc-400 mt-0.5">Verify to edit details &amp; get the owner badge</p>
+              </button>
+            )}
+
             {isMerchant && (selectedShop as any).owner_id === user?.id && (
               <div className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
                 <div className="flex items-center justify-between mb-3">
