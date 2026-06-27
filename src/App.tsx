@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { Compass, MapPin, Search, Flame, X, Store, User, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, DollarSign, Plus, Check, Phone, Bell, Heart, Star, BookOpen } from 'lucide-react'
+import { Compass, MapPin, Search, Flame, X, Store, User, Users, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, DollarSign, Plus, Check, Phone, Bell, Heart, Star, BookOpen, Send } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
 import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useListings, useFcbd, useFcbdTitles } from './hooks/useShops'
 import { startCheckout } from './lib/stripe'
@@ -139,7 +139,7 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal }: any) {
   const items = [
     { id: 'discover', icon: Search, label: 'Discover' },
     { id: 'map', icon: Navigation, label: 'Map' },
-    { id: 'marketplace', icon: Tag, label: 'Marketplace' },
+    { id: 'marketplace', icon: Users, label: 'Community' },
     { id: 'fcbd', icon: BookOpen, label: 'FCBD' },
     { id: 'profile', icon: User, label: 'Profile' },
   ]
@@ -197,7 +197,7 @@ export default function App() {
   const { checkinCount, userCheckedIn, checkIn } = useCheckins(selectedShop?.id || '')
   const { tradePosts, addTradePost } = useTradePosts()
   const { events: allEventsData } = useEvents()
-  const { listings, uploadPhoto, createListing, deleteListing } = useListings()
+  const { listings, uploadPhoto, createListing, deleteListing, fetchComments, addComment, deleteComment } = useListings()
   const FCBD_YEAR = 2027
   const FCBD_DATE = new Date('2027-05-01T00:00:00')
   const fcbdDaysLeft = Math.max(0, Math.ceil((FCBD_DATE.getTime() - Date.now()) / 86400000))
@@ -268,6 +268,11 @@ export default function App() {
   const [mktSection, setMktSection] = useState<'sale' | 'trade'>('sale')
   const [selectedListing, setSelectedListing] = useState<any>(null)
   const [showContact, setShowContact] = useState(false)
+  const [listingComments, setListingComments] = useState<any[]>([])
+  const [qBody, setQBody] = useState('')
+  const [qFile, setQFile] = useState<File | null>(null)
+  const [qPreview, setQPreview] = useState('')
+  const [qPosting, setQPosting] = useState(false)
   const [role, setRole] = useState<'hunter' | 'merchant'>('hunter')
   const [email, setEmail] = useState('')
   const [authStep, setAuthStep] = useState<'gate' | 'verify'>('gate')
@@ -564,6 +569,45 @@ export default function App() {
     if (!f) return
     setMktFile(f)
     setMktPreview(URL.createObjectURL(f))
+  }
+
+  useEffect(() => {
+    if (modal === 'listingdetail' && selectedListing) {
+      fetchComments(selectedListing.id).then(setListingComments)
+    } else {
+      setListingComments([])
+    }
+  }, [modal, selectedListing])
+
+  function onPickQPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]
+    if (!f) return
+    setQFile(f)
+    setQPreview(URL.createObjectURL(f))
+  }
+
+  async function handlePostComment() {
+    if (!qBody.trim() || !user || !selectedListing) return
+    setQPosting(true)
+    let imageUrl = ''
+    if (qFile) { const url = await uploadPhoto(qFile, user.id); if (url) imageUrl = url }
+    const { error } = await addComment({
+      listing_id: selectedListing.id,
+      user_id: user.id,
+      username: profile?.username || 'user',
+      body: qBody.trim(),
+      image_url: imageUrl || null,
+    })
+    setQPosting(false)
+    if (!error) {
+      setQBody(''); setQFile(null); setQPreview('')
+      setListingComments(await fetchComments(selectedListing.id))
+    }
+  }
+
+  async function handleDeleteComment(id: string) {
+    await deleteComment(id)
+    setListingComments(prev => prev.filter((x: any) => x.id !== id))
   }
 
   async function handleListingSubmit(e: React.FormEvent) {
@@ -1306,7 +1350,7 @@ export default function App() {
             {[
               { id: 'discover', icon: Search, label: 'Discover' },
               { id: 'map', icon: Navigation, label: 'Map' },
-              { id: 'marketplace', icon: Tag, label: 'Market' },
+              { id: 'marketplace', icon: Users, label: 'Community' },
               { id: 'fcbd', icon: BookOpen, label: 'FCBD' },
               { id: 'profile', icon: User, label: 'Profile' },
             ].map(({ id, icon: Icon, label }) => (
@@ -1681,6 +1725,47 @@ export default function App() {
                   <Phone className="h-4 w-4" /> Contact seller
                 </button>
               )}
+
+              <div className="pt-4 mt-1 border-t border-zinc-100">
+                <p className="font-semibold text-zinc-900 text-sm mb-2">Questions ({listingComments.length})</p>
+                <div className="space-y-3">
+                  {listingComments.length === 0 && <p className="text-xs text-zinc-400">No questions yet — ask the seller below.</p>}
+                  {listingComments.map((c: any) => (
+                    <div key={c.id} className="flex gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[13px] font-medium text-zinc-900">@{c.username}</span>
+                          {c.user_id === selectedListing.user_id && <span className="text-[10px] px-1.5 py-0.5 rounded-full text-white" style={{ background: '#E0533C' }}>Seller</span>}
+                        </div>
+                        {c.body && <p className="text-sm text-zinc-700 mt-0.5 whitespace-pre-wrap break-words">{c.body}</p>}
+                        {c.image_url && <img src={c.image_url} alt="" className="mt-1.5 rounded-xl max-h-44 w-auto" />}
+                      </div>
+                      {user?.id === c.user_id && (
+                        <button onClick={() => handleDeleteComment(c.id)} className="text-zinc-300 hover:text-red-500 flex-shrink-0"><X className="h-4 w-4" /></button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {isSignedIn ? (
+                  <div className="mt-3 space-y-2">
+                    {qPreview && <img src={qPreview} alt="" className="rounded-xl max-h-32 w-auto" />}
+                    <div className="flex items-end gap-2">
+                      <textarea value={qBody} onChange={e => setQBody(e.target.value)} rows={1} placeholder="Ask a question…"
+                        className="flex-1 bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none resize-none" />
+                      <label className="h-10 w-10 rounded-full bg-zinc-100 flex items-center justify-center cursor-pointer flex-shrink-0">
+                        <Plus className="h-4 w-4 text-zinc-500" />
+                        <input type="file" accept="image/*" onChange={onPickQPhoto} className="hidden" />
+                      </label>
+                      <button onClick={handlePostComment} disabled={qPosting || !qBody.trim()}
+                        className="h-10 w-10 rounded-full flex items-center justify-center text-white flex-shrink-0 disabled:opacity-50" style={{ background: '#E0533C' }}>
+                        <Send className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button onClick={() => setModal('auth')} className="mt-3 text-xs font-medium" style={{ color: '#E0533C' }}>Sign in to ask a question</button>
+                )}
+              </div>
             </div>
           </div>
         </div>

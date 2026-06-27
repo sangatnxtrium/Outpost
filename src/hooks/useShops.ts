@@ -211,7 +211,25 @@ export function useListings() {
     if (!error) fetchListings()
   }
 
-  return { listings, loading, uploadPhoto, createListing, deleteListing, refetch: fetchListings }
+  async function fetchComments(listingId: string) {
+    const { data } = await supabase
+      .from('listing_comments')
+      .select('*')
+      .eq('listing_id', listingId)
+      .order('created_at', { ascending: true })
+    return data || []
+  }
+
+  async function addComment(payload: any) {
+    const { error } = await supabase.from('listing_comments').insert(payload)
+    return { error: error?.message || null }
+  }
+
+  async function deleteComment(id: string) {
+    await supabase.from('listing_comments').delete().eq('id', id)
+  }
+
+  return { listings, loading, uploadPhoto, createListing, deleteListing, refetch: fetchListings, fetchComments, addComment, deleteComment }
 }
 
 export function useFcbd(year: number) {
