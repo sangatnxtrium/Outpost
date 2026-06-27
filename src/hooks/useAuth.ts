@@ -59,13 +59,20 @@ export function useAuth() {
     })
     if (error) return { error: error.message }
     if (data.user) {
-      const role = (data.user.user_metadata?.role as UserRole) || 'hunter'
-      await supabase.from('profiles').upsert({
-        id: data.user.id,
-        username: email.split('@')[0],
-        role,
-        tier: 'free',
-      }, { onConflict: 'id' })
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', data.user.id)
+        .maybeSingle()
+      if (!existing) {
+        const role = (data.user.user_metadata?.role as UserRole) || 'hunter'
+        await supabase.from('profiles').insert({
+          id: data.user.id,
+          username: email.split('@')[0],
+          role,
+          tier: 'free',
+        })
+      }
     }
     return { error: null }
   }

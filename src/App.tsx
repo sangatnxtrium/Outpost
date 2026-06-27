@@ -691,8 +691,10 @@ export default function App() {
                 <button onClick={() => setModal('notifications')} aria-label="Notifications" className="h-9 w-9 rounded-full flex items-center justify-center border border-zinc-200 bg-white hover:bg-zinc-50 transition-all">
                   <Bell className="h-4 w-4 text-zinc-500" />
                 </button>
-                <button onClick={() => setModal('sub')} className="px-4 py-2 rounded-full text-xs font-medium border border-zinc-200 text-zinc-700 hover:bg-zinc-50 transition-all">Pro</button>
-                <button onClick={() => isSignedIn ? signOut() : setModal('auth')} className="px-4 py-2 rounded-full text-xs font-medium text-white transition-all" style={{ background: '#E0533C' }}>
+                <button onClick={() => setModal('sub')} className="px-4 py-2 rounded-full text-xs font-medium border border-zinc-200 text-zinc-700 hover:bg-zinc-50 transition-all">
+                  {!isSignedIn ? 'Pro' : profile?.tier === 'store' ? 'Store' : profile?.tier === 'elite' ? 'Elite' : isMerchant ? 'Merchant' : 'Pro'}
+                </button>
+                <button onClick={() => isSignedIn ? setTab('profile') : setModal('auth')} className="px-4 py-2 rounded-full text-xs font-medium text-white transition-all" style={{ background: '#E0533C' }}>
                   {isSignedIn ? `@${profile?.username}` : 'Sign in'}
                 </button>
               </div>

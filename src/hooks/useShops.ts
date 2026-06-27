@@ -213,3 +213,68 @@ export function useListings() {
 
   return { listings, loading, uploadPhoto, createListing, deleteListing, refetch: fetchListings }
 }
+
+export function useFcbd(year: number) {
+  const [participants, setParticipants] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchParticipants = () => {
+    setLoading(true)
+    supabase
+      .from('fcbd_participation')
+      .select('*, shops(id,name,address,lat,lng,image_url,category,rating)')
+      .eq('year', year)
+      .eq('participating', true)
+      .then(({ data }) => { setParticipants(data || []); setLoading(false) })
+  }
+
+  useEffect(() => { fetchParticipants() }, [year])
+
+  async function upsertParticipation(p: any) {
+    const { error } = await supabase
+      .from('fcbd_participation')
+      .upsert({ ...p, updated_at: new Date().toISOString() }, { onConflict: 'shop_id,year' })
+    if (!error) fetchParticipants()
+    return { error: error?.message || null }
+  }
+
+  async function getMyParticipation(shopId: string) {
+    const { data } = await supabase
+      .from('fcbd_participation')
+      .select('*')
+      .eq('shop_id', shopId)
+      .eq('year', year)
+      .maybeSingle()
+    return data
+  }
+
+  return { participants, loading, upsertParticipation, getMyParticipation, refetch: fetchParticipants }
+}
+
+export function useFcbdTitles(year: number) {
+  const [titles, setTitles] = useState<any[]>([])
+
+  const fetchTitles = () => {
+    supabase
+      .from('fcbd_titles')
+      .select('*')
+      .eq('year', year)
+      .order('created_at', { ascending: true })
+      .then(({ data }) => setTitles(data || []))
+  }
+
+  useEffect(() => { fetchTitles() }, [year])
+
+  async function addTitle(t: any) {
+    const { error } = await supabase.from('fcbd_titles').insert(t)
+    if (!error) fetchTitles()
+    return { error: error?.message || null }
+  }
+
+  async function deleteTitle(id: string) {
+    const { error } = await supabase.from('fcbd_titles').delete().eq('id', id)
+    if (!error) fetchTitles()
+  }
+
+  return { titles, addTitle, deleteTitle, refetch: fetchTitles }
+}
