@@ -3,7 +3,7 @@ import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Compass, MapPin, Search, Flame, X, Store, User, Users, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, DollarSign, Plus, Check, Phone, Bell, Heart, Star, BookOpen, Send } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
-import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useListings, useFcbd, useFcbdTitles } from './hooks/useShops'
+import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useListings, useFcbd, useFcbdTitles, useNotifications } from './hooks/useShops'
 import { startCheckout } from './lib/stripe'
 import { supabase } from './lib/supabase'
 
@@ -162,6 +162,9 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal }: any) {
           className="w-full flex items-center gap-2 px-3 py-2.5 rounded-2xl text-sm font-bold text-zinc-500 hover:bg-zinc-50 transition-all border border-zinc-100">
           <Bell className="h-4 w-4" />
           Notifications
+          {unreadCount > 0 && (
+            <span className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold text-white flex items-center justify-center" style={{ background: '#E0533C' }}>{unreadCount > 9 ? '9+' : unreadCount}</span>
+          )}
         </button>
         {isSignedIn ? (
           <div className="px-3 py-2.5 rounded-2xl bg-zinc-50 border border-zinc-100">
@@ -198,6 +201,7 @@ export default function App() {
   const { tradePosts, addTradePost } = useTradePosts()
   const { events: allEventsData } = useEvents()
   const { listings, uploadPhoto, createListing, deleteListing, fetchComments, addComment, deleteComment } = useListings()
+  const { items: notifications, unread: unreadCount, refetch: refetchNotifs, markAllRead } = useNotifications(user?.id || null)
   const FCBD_YEAR = 2027
   const FCBD_DATE = new Date('2027-05-01T00:00:00')
   const fcbdDaysLeft = Math.max(0, Math.ceil((FCBD_DATE.getTime() - Date.now()) / 86400000))
@@ -580,6 +584,13 @@ export default function App() {
   }
 
   useEffect(() => {
+    if (modal === 'notifications') {
+      refetchNotifs()
+      markAllRead()
+    }
+  }, [modal])
+
+  useEffect(() => {
     if (modal === 'listingdetail' && selectedListing) {
       fetchComments(selectedListing.id).then(setListingComments)
     } else {
@@ -766,8 +777,11 @@ export default function App() {
                   className="w-full bg-zinc-50 border border-zinc-200 rounded-full pl-10 pr-4 py-2.5 text-sm outline-none focus:border-zinc-400 focus:bg-white transition-colors" />
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <button onClick={() => setModal('notifications')} aria-label="Notifications" className="h-9 w-9 rounded-full flex items-center justify-center border border-zinc-200 bg-white hover:bg-zinc-50 transition-all">
+                <button onClick={() => setModal('notifications')} aria-label="Notifications" className="relative h-9 w-9 rounded-full flex items-center justify-center border border-zinc-200 bg-white hover:bg-zinc-50 transition-all">
                   <Bell className="h-4 w-4 text-zinc-500" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold text-white flex items-center justify-center" style={{ background: '#E0533C' }}>{unreadCount > 9 ? '9+' : unreadCount}</span>
+                  )}
                 </button>
                 <button onClick={() => setModal('sub')} className="px-4 py-2 rounded-full text-xs font-medium border border-zinc-200 text-zinc-700 hover:bg-zinc-50 transition-all">
                   {!isSignedIn ? 'Pro' : profile?.tier === 'store' ? 'Store' : profile?.tier === 'elite' ? 'Elite' : isMerchant ? 'Merchant' : 'Pro'}
@@ -2285,26 +2299,29 @@ export default function App() {
               <button onClick={() => setModal('none')} className="text-white/40 hover:text-white"><X className="h-5 w-5" /></button>
             </div>
             <div className="divide-y divide-zinc-100 max-h-[70vh] overflow-y-auto">
-              {[
-                { icon: '🔥', title: 'New Drop Nearby', body: 'Mile High Comics just posted: Amazing Spider-Man #300 CGC 9.4', time: '2m ago', unread: true },
-                { icon: '📅', title: 'Event Reminder', body: 'Regional Pokemon Box Tournament starts tomorrow', time: '1h ago', unread: true },
-                { icon: '🏷️', title: 'New Marketplace Listing', body: 'Charizard Base Holo PSA 9 listed for $420', time: '3h ago', unread: false },
-                { icon: '🔥', title: 'New Drop Nearby', body: 'Denver Card Shop just posted: 1986 Fleer Michael Jordan Rookie PSA 8', time: '5h ago', unread: false },
-                { icon: '⭐', title: 'Welcome to Outpost', body: 'Your account is set up. Start exploring shops near you.', time: '10h ago', unread: false },
-              ].map((n, i) => (
-                <div key={i} className="flex items-start gap-3 px-5 py-4" style={{ background: n.unread ? 'rgba(224,83,60,0.04)' : 'white' }}>
-                  <div className="h-10 w-10 rounded-2xl flex items-center justify-center flex-shrink-0 text-lg"
-                    style={{ background: n.unread ? 'rgba(224,83,60,0.1)' : '#F3F4F6' }}>{n.icon}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-black text-sm">{n.title}</p>
-                      {n.unread && <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: '#E0533C' }} />}
-                    </div>
-                    <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed">{n.body}</p>
-                    <p className="text-xs text-zinc-300 font-mono mt-1">{n.time}</p>
-                  </div>
+              {notifications.length === 0 ? (
+                <div className="text-center py-14 text-zinc-400">
+                  <Bell className="h-9 w-9 mx-auto mb-2 opacity-20" />
+                  <p className="text-sm">No notifications yet.</p>
                 </div>
-              ))}
+              ) : notifications.map((n: any) => {
+                const mins = Math.floor((Date.now() - new Date(n.created_at).getTime()) / 60000)
+                const ago = mins < 1 ? 'just now' : mins < 60 ? `${mins}m ago` : mins < 1440 ? `${Math.floor(mins / 60)}h ago` : `${Math.floor(mins / 1440)}d ago`
+                return (
+                  <div key={n.id} className="flex items-start gap-3 px-5 py-4" style={{ background: !n.read ? 'rgba(224,83,60,0.04)' : 'white' }}>
+                    <div className="h-10 w-10 rounded-2xl flex items-center justify-center flex-shrink-0 text-lg"
+                      style={{ background: !n.read ? 'rgba(224,83,60,0.1)' : '#F3F4F6' }}>{n.type === 'reply' ? '💬' : '❓'}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-black text-sm">{n.title}</p>
+                        {!n.read && <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: '#E0533C' }} />}
+                      </div>
+                      {n.body && <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed">{n.body}</p>}
+                      <p className="text-xs text-zinc-300 font-mono mt-1">{ago}</p>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
             <div className="px-5 py-4 border-t border-zinc-100">
               <button onClick={() => setModal('none')} className="w-full py-3 rounded-2xl text-sm font-black text-zinc-400 border-2 border-zinc-100">Close</button>

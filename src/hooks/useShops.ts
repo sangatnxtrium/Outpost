@@ -296,3 +296,29 @@ export function useFcbdTitles(year: number) {
 
   return { titles, addTitle, deleteTitle, refetch: fetchTitles }
 }
+
+export function useNotifications(userId: string | null) {
+  const [items, setItems] = useState<any[]>([])
+
+  const fetchNotifs = () => {
+    if (!userId) { setItems([]); return }
+    supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50)
+      .then(({ data }) => setItems(data || []))
+  }
+
+  useEffect(() => { fetchNotifs() }, [userId])
+
+  async function markAllRead() {
+    if (!userId) return
+    await supabase.from('notifications').update({ read: true }).eq('user_id', userId).eq('read', false)
+    setItems(prev => prev.map((n: any) => ({ ...n, read: true })))
+  }
+
+  const unread = items.filter((n: any) => !n.read).length
+  return { items, unread, refetch: fetchNotifs, markAllRead }
+}
