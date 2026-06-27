@@ -146,7 +146,7 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal }: any) {
   return (
     <aside className="hidden md:flex flex-col w-56 border-r border-zinc-200 bg-white h-screen sticky top-0 p-4 gap-1 flex-shrink-0">
       <div className="px-2 py-4 mb-2">
-        <img src="/logo.png" alt="getOutpost.net" className="w-40 h-auto" />
+        <img src="/logo.png" alt="getOutpost.net" onClick={() => setTab('discover')} className="w-40 h-auto cursor-pointer" />
         <p className="text-[11px] text-zinc-400 mt-2 px-1">Every Shop. Every Drop. Near You.</p>
       </div>
       {items.map(({ id, icon: Icon, label }) => (
@@ -666,7 +666,7 @@ export default function App() {
           <header className="sticky top-0 z-20 px-4 pt-10 pb-3 md:pt-3 md:pb-3 border-b border-zinc-200 bg-white/95 backdrop-blur">
             <div className="flex items-center justify-between gap-2 md:hidden">
               <div className="min-w-0 flex-1">
-                <img src="/logo.png" alt="getOutpost.net" className="h-[75px] w-auto" />
+                <img src="/logo.png" alt="getOutpost.net" onClick={() => setTab('discover')} className="h-[75px] w-auto cursor-pointer" />
                 <p className="text-[15px] mt-0.5 whitespace-nowrap text-zinc-400">Every Shop. Every Drop. Near You.</p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
