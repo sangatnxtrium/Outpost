@@ -17,18 +17,18 @@ const NAME_RE = /^places\/[A-Za-z0-9_-]+\/photos\/[A-Za-z0-9_-]+$/
 export default async function handler(req, res) {
   if (!GOOGLE_API_KEY) return res.status(500).end('missing GOOGLE_API_KEY')
 
-  const { name, lat, lng, w } = req.query || {}
+  const q = req.query || {}
+  // Photo reference can arrive as a path segment (/api/photo/<ref>) via rewrite,
+  // or as the `ref` query param. Slashes are encoded as '~'. We avoid the param
+  // literally called `name`, which Vercel's WAF blocks.
+  const rawRef = q.ref || q.path
+  const { lat, lng, w } = q
   let url
 
-  if (name) {
-    // The stored value encodes slashes as '~' to avoid Vercel's path-traversal
-    // firewall (which 403s any query value containing '/'). Decode it back.
-    const decoded = String(name).replace(/~/g, '/')
-    // Real Places photo names: places/<id>/photos/<ref>. Allow the full
-    // base64url-ish charset Google uses; just block anything that isn't that
-    // shape so we can't be pointed at arbitrary URLs.
+  if (rawRef) {
+    const decoded = String(rawRef).replace(/~/g, '/')
     if (!/^places\/[\w-]+\/photos\/[\w-]+$/.test(decoded)) {
-      return res.status(400).end('bad photo name: ' + decoded.slice(0, 80))
+      return res.status(400).end('bad photo ref: ' + decoded.slice(0, 80))
     }
     const width = Math.min(parseInt(w, 10) || 640, 1600)
     url = `https://places.googleapis.com/v1/${decoded}/media?maxWidthPx=${width}&key=${GOOGLE_API_KEY}`

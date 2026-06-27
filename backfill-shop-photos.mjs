@@ -80,7 +80,7 @@ async function findPhotoUrl(shop) {
 
   // The new media endpoint returns the image. skipHttpRedirect=false makes the
   // URL itself serve the bytes, so it works directly in an <img src>.
-  return `/api/photo?name=${photoName}`
+  return `/api/photo?ref=${photoName.replace(/\//g, '~')}`
 }
 
 async function main() {
