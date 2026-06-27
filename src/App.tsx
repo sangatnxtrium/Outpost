@@ -686,15 +686,15 @@ export default function App() {
             {tab === 'discover' && (
               <div className="p-4 space-y-4">
                 {/* Section toggle */}
-                <div className="flex gap-2">
+                <div className="inline-flex rounded-full border border-zinc-200 p-0.5 bg-white">
                   <button onClick={() => setActiveSection('shops')}
-                    className="flex-1 py-2 rounded-full text-sm font-medium transition-all"
-                    style={activeSection === 'shops' ? { background: '#E0533C', color: 'white' } : { background: 'white', color: '#71717a', border: '1px solid #e4e4e7' }}>
+                    className="px-4 py-1.5 rounded-full text-[13px] font-medium transition-all"
+                    style={activeSection === 'shops' ? { background: '#E0533C', color: 'white' } : { color: '#52525b' }}>
                     Shops
                   </button>
                   <button onClick={() => setActiveSection('events')}
-                    className="flex-1 py-2 rounded-full text-sm font-medium transition-all"
-                    style={activeSection === 'events' ? { background: '#E0533C', color: 'white' } : { background: 'white', color: '#71717a', border: '1px solid #e4e4e7' }}>
+                    className="px-4 py-1.5 rounded-full text-[13px] font-medium transition-all"
+                    style={activeSection === 'events' ? { background: '#E0533C', color: 'white' } : { color: '#52525b' }}>
                     Events
                   </button>
                 </div>
