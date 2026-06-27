@@ -6,6 +6,7 @@
     { "path": "/api/refresh-events", "schedule": "0 9 * * 1" }
   ],
   "rewrites": [
+    { "source": "/img/:ref", "destination": "/api/photo?pp=:ref" },
     { "source": "/admin", "destination": "/index.html" },
     { "source": "/privacy", "destination": "/index.html" },
     { "source": "/terms", "destination": "/index.html" },

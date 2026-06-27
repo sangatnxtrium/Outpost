@@ -18,9 +18,9 @@ export default async function handler(req, res) {
   if (!GOOGLE_API_KEY) return res.status(500).end('missing GOOGLE_API_KEY')
 
   const q = req.query || {}
-  // Photo reference arrives via the `pp` query param (slashes encoded as '~').
-  // We deliberately avoid param names on WAF watchlists — `name`, `ref`, `path`,
-  // `url`, `file` all get 403'd by Vercel's platform firewall as SSRF/LFI probes.
+  // Photo reference arrives as a PATH segment: /img/<ref> rewritten to
+  // /api/photo?pp=<ref>. Slashes in the ref are encoded as '~'. Path-based
+  // routing avoids Vercel's firewall, which 403s string query values.
   const rawRef = q.pp
   const { lat, lng, w } = q
   let url
