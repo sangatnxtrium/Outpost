@@ -97,11 +97,10 @@ function LocalMap({ shops, onSelect, activeId, userLat, userLng }: { shops: any[
   return <div ref={elRef} className="w-full h-full" style={{ minHeight: 280, position: 'relative', zIndex: 0, isolation: 'isolate' }} />
 }
 
-function streetViewUrl(s: any, size = '480x360'): string | null {
+function streetViewUrl(s: any): string | null {
   if (s?.image_url) return s.image_url
-  const key = import.meta.env.VITE_GOOGLE_MAPS_KEY
-  if (key && typeof s?.lat === 'number' && typeof s?.lng === 'number') {
-    return `https://maps.googleapis.com/maps/api/streetview?size=${size}&location=${s.lat},${s.lng}&fov=80&source=outdoor&key=${key}`
+  if (typeof s?.lat === 'number' && typeof s?.lng === 'number') {
+    return `/api/photo?lat=${s.lat}&lng=${s.lng}`
   }
   return null
 }
