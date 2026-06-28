@@ -76,12 +76,18 @@ export function PrivacyPolicy() {
             <p>We do not track your location in the background or share it with third parties for advertising. You can revoke location permission at any time in your device settings; you can still use the app, and you can browse listings from anywhere instead of by distance.</p>
           </Section>
 
-          <Section title="7. Data Retention">
+          <Section title="7. Cookies and Local Storage">
+            <p>Outpost does not use advertising cookies or third-party tracking or analytics cookies. We do not track you across other websites.</p>
+            <p>We use first-party browser storage (local storage) only for essential functions: keeping you signed in to your account and remembering that you've completed the welcome screens. This information stays on your device and is not used to profile you or sold to anyone. Clearing your browser storage will sign you out and reset these preferences.</p>
+            <p>Some of our service providers (such as Stripe for payments) may set their own cookies when you interact with their checkout. Their use of cookies is governed by their own privacy policies.</p>
+          </Section>
+
+          <Section title="8. Data Retention">
             <p>We retain your account data for as long as your account is active. If you delete your account, we will delete your personal data within 30 days, except where required by law.</p>
             <p>Public content (trade posts, listings, questions, and replies) may remain visible until removed by you or an administrator.</p>
           </Section>
 
-          <Section title="8. Your Rights">
+          <Section title="9. Your Rights">
             <p>You have the right to:</p>
             <p>• Access the personal information we hold about you</p>
             <p>• Request correction of inaccurate data</p>
@@ -90,15 +96,15 @@ export function PrivacyPolicy() {
             <p>To exercise these rights, contact us at {EMAIL}</p>
           </Section>
 
-          <Section title="9. Children's Privacy">
+          <Section title="10. Children's Privacy">
             <p>Outpost is not directed to children under 13. We do not knowingly collect personal information from children under 13. If we learn we have collected information from a child under 13, we will delete it promptly.</p>
           </Section>
 
-          <Section title="10. Changes to This Policy">
+          <Section title="11. Changes to This Policy">
             <p>We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new policy on this page and updating the "Last updated" date.</p>
           </Section>
 
-          <Section title="11. Contact Us">
+          <Section title="12. Contact Us">
             <p>If you have questions about this Privacy Policy, please contact us at:</p>
             <p><strong>Email:</strong> {EMAIL}</p>
             <p><strong>Website:</strong> {WEBSITE}</p>

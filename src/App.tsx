@@ -389,6 +389,26 @@ export default function App() {
     setShowOnboarding(false)
   }
 
+  useEffect(() => {
+    if (!user) { setSavedShops([]); return }
+    let active = true
+    supabase.from('saved_shops').select('shop_id').eq('user_id', user.id).then(({ data }) => {
+      if (active && data) setSavedShops(data.map((r: any) => r.shop_id))
+    })
+    return () => { active = false }
+  }, [user?.id])
+
+  async function toggleSaveShop(shopId: string) {
+    const isSaved = savedShops.includes(shopId)
+    setSavedShops(isSaved ? savedShops.filter(id => id !== shopId) : [...savedShops, shopId])
+    if (!user) return
+    if (isSaved) {
+      await supabase.from('saved_shops').delete().eq('user_id', user.id).eq('shop_id', shopId)
+    } else {
+      await supabase.from('saved_shops').upsert({ user_id: user.id, shop_id: shopId })
+    }
+  }
+
   const sortedShops = locationLoading ? [] : [...shops]
     .map((s: any) => ({ ...s, distance: userLat && userLng ? getDistance(userLat, userLng, s.lat, s.lng) : null }))
     .sort((a: any, b: any) => {
@@ -882,7 +902,7 @@ export default function App() {
         <div className="relative">
           <ShopThumb s={s} className="w-full aspect-[4/3]" />
           <button
-            onClick={(e) => { e.stopPropagation(); setSavedShops(isSaved ? savedShops.filter((id: string) => id !== s.id) : [...savedShops, s.id]) }}
+            onClick={(e) => { e.stopPropagation(); toggleSaveShop(s.id) }}
             aria-label={isSaved ? 'Saved' : 'Save shop'}
             className="absolute top-2.5 right-2.5 h-8 w-8 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm">
             <Heart className="h-[18px] w-[18px] transition-colors" style={isSaved ? { color: '#E0533C', fill: '#E0533C' } : { color: '#52525b' }} />
@@ -1607,6 +1627,22 @@ export default function App() {
                           className="w-full mt-3 py-2.5 rounded-2xl text-sm font-medium text-white disabled:opacity-60" style={{ background: '#E0533C' }}>
                           {fcbdSaving ? 'Saving…' : fcbdSaved ? 'Saved ✓' : 'Save'}
                         </button>
+                      </div>
+                    )}
+
+                    {savedShops.length > 0 && (
+                      <div className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
+                        <p className="text-xs font-black uppercase text-zinc-400 mb-3">Saved Shops</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          {savedShops.map((id: string) => shops.find((s: any) => s.id === id)).filter(Boolean).map((s: any) => (
+                            <button key={s.id} onClick={() => openShop(s)} className="text-left">
+                              <div className="aspect-square rounded-xl bg-zinc-100 overflow-hidden">
+                                <ShopThumb s={s} className="w-full h-full" />
+                              </div>
+                              <p className="text-[11px] font-medium truncate mt-1 text-zinc-700">{s.name}</p>
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
 
