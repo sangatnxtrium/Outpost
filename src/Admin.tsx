@@ -29,7 +29,7 @@ class AdminErrorBoundary extends React.Component<{children: any}, {error: string
 
 const ADMIN_EMAILS = ['sangtruong@gmail.com']
 
-type Tab = 'dashboard' | 'shops' | 'users' | 'reviews' | 'trades' | 'events' | 'claims' | 'marketplace' | 'fcbd'
+type Tab = 'dashboard' | 'shops' | 'users' | 'reviews' | 'trades' | 'events' | 'claims' | 'marketplace' | 'fcbd' | 'moderation'
 
 export default function Admin() {
   const [checking, setChecking] = useState(true)
@@ -56,6 +56,7 @@ export default function Admin() {
   const FCBD_YEAR = 2027
   const [fcbdTitles, setFcbdTitles] = useState<any[]>([])
   const [fcbdParticipants, setFcbdParticipants] = useState<any[]>([])
+  const [comments, setComments] = useState<any[]>([])
   const [ftTitle, setFtTitle] = useState('')
   const [ftPublisher, setFtPublisher] = useState('')
   const [ftImage, setFtImage] = useState('')
@@ -169,6 +170,15 @@ export default function Admin() {
       setFcbdTitles(ft.data || [])
       const fp = await supabase.from('fcbd_participation').select('*, shops(name)').eq('year', FCBD_YEAR).eq('participating', true).order('updated_at', { ascending: false })
       setFcbdParticipants(fp.data || [])
+      const [lc, tc] = await Promise.all([
+        supabase.from('listing_comments').select('*, listings(title)').order('created_at', { ascending: false }).limit(100),
+        supabase.from('trade_comments').select('*, trade_posts(offer)').order('created_at', { ascending: false }).limit(100),
+      ])
+      const combined = [
+        ...(lc.data || []).map((x: any) => ({ ...x, _type: 'listing', _context: x.listings?.title || 'a listing' })),
+        ...(tc.data || []).map((x: any) => ({ ...x, _type: 'trade', _context: x.trade_posts?.offer || 'a trade' })),
+      ].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      setComments(combined)
     } catch (err) {
       console.error('fetchAll error', err)
     }
@@ -278,6 +288,12 @@ export default function Admin() {
     setClaims(claims.map(c => c.id === id ? { ...c, status: 'rejected' } : c))
   }
 
+  async function deleteCommentMod(c: any) {
+    const table = c._type === 'trade' ? 'trade_comments' : 'listing_comments'
+    await supabase.from(table).delete().eq('id', c.id)
+    setComments(prev => prev.filter((x: any) => x.id !== c.id))
+  }
+
   const pendingClaims = claims.filter(c => c.status === 'pending').length
   const filteredMarket = (marketItems || []).filter((m: any) => m.name?.toLowerCase().includes(search.toLowerCase()))
   const eliteCount = users.filter(u => u.tier === 'elite').length
@@ -301,6 +317,7 @@ export default function Admin() {
     { id: 'claims', icon: Shield, label: `Claims (${pendingClaims})` },
     { id: 'marketplace', icon: Package, label: `Market (${marketItems.length})` },
     { id: 'fcbd', icon: Calendar, label: `FCBD (${fcbdTitles.length})` },
+    { id: 'moderation', icon: MessageSquare, label: `Q&A (${comments.length})` },
   ]
 
   function catStyle(cat: string) {
@@ -722,6 +739,42 @@ export default function Admin() {
         )}
 
         {/* CLAIMS */}
+        {tab === 'moderation' && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="font-black text-xl">Q&amp;A Moderation ({comments.length})</h2>
+              <span className="text-xs text-zinc-400 font-mono">listing + trade questions</span>
+            </div>
+            {comments.map((c: any) => (
+              <div key={`${c._type}-${c.id}`} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-black px-2 py-0.5 rounded-lg" style={c._type === 'trade' ? { background: '#EDE9FE', color: '#5B21B6' } : { background: '#E0F2FE', color: '#0369A1' }}>
+                        {c._type === 'trade' ? 'TRADE' : 'LISTING'}
+                      </span>
+                      <p className="text-xs font-mono text-zinc-400">@{c.username}</p>
+                    </div>
+                    <p className="text-sm text-zinc-800 break-words whitespace-pre-wrap">{c.body}</p>
+                    {c.image_url && <img src={c.image_url} alt="" className="mt-2 rounded-xl max-h-32 w-auto" />}
+                    <p className="text-xs text-zinc-300 mt-1 truncate">on: {c._context}</p>
+                  </div>
+                  <button onClick={() => deleteCommentMod(c)}
+                    className="flex-shrink-0 h-9 w-9 rounded-xl flex items-center justify-center text-red-500 border border-red-100 hover:bg-red-50">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+            {comments.length === 0 && (
+              <div className="text-center text-zinc-400 py-12">
+                <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-20" />
+                <p className="text-sm font-mono">No questions posted yet</p>
+              </div>
+            )}
+          </div>
+        )}
+
         {tab === 'claims' && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
