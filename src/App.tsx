@@ -2591,7 +2591,7 @@ export default function App() {
                 <p className="font-black text-base" style={{ color: '#E0533C' }}>Elite Pass</p>
                 <p className="text-2xl font-black mt-0.5 mb-1">$1.99<span className="text-sm font-normal text-zinc-400">/mo</span></p>
                 <p className="text-xs font-black text-emerald-600 mb-3">FREE during launch</p>
-                {['Everything in Free','eBay price lookups','Drop notifications','Price charts','Save favorite shops'].map(f => (
+                {['Everything in Free','Save favorite shops','Activity notifications','Customize your profile'].map(f => (
                   <div key={f} className="flex items-center gap-2 py-1"><Check className="h-3.5 w-3.5" style={{ color: '#E0533C' }} /><p className="text-sm text-zinc-600">{f}</p></div>
                 ))}
                 <button onClick={() => handleUpgrade('elite')} disabled={checkoutLoading || profile?.tier === 'elite'}
@@ -2604,7 +2604,7 @@ export default function App() {
                 <p className="font-black text-base text-amber-400">Verified Store</p>
                 <p className="text-2xl font-black mt-0.5 mb-1">$2.99<span className="text-sm font-normal text-white/40">/mo</span></p>
                 <p className="text-xs font-black text-emerald-400 mb-3">FREE during launch</p>
-                {['Everything in Elite','Verified badge','Edit your shop details','FCBD participating badge','Broadcast drops','Manage events','Analytics','Featured placement'].map(f => (
+                {['Everything in Elite','Verified badge','Edit your shop details','Add up to 5 shop photos','Set your cover photo','Highlight a hot find','FCBD participating badge'].map(f => (
                   <div key={f} className="flex items-center gap-2 py-1"><Check className="h-3.5 w-3.5 text-amber-400" /><p className="text-sm text-white/70">{f}</p></div>
                 ))}
                 <button onClick={() => { openClaimModal() }} disabled={profile?.tier === 'store'}

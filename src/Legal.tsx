@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
 
-const LAST_UPDATED = 'May 21, 2026'
+const LAST_UPDATED = 'June 28, 2026'
 const COMPANY = 'Outpost'
 const EMAIL = 'legal@getoutpost.net'
 const WEBSITE = 'www.getoutpost.net'
@@ -38,10 +38,10 @@ export function PrivacyPolicy() {
 
           <Section title="2. Information We Collect">
             <p><strong>Account Information:</strong> When you create an account, we collect your email address and the username you choose.</p>
-            <p><strong>Location Data:</strong> With your permission, we collect your device's location to show nearby collectibles shops and events. You can disable location access at any time in your device settings.</p>
-            <p><strong>Usage Data:</strong> We collect information about how you use the app, including shops you view, events you RSVP to, trades you post, and items you add to your vault.</p>
+            <p><strong>Location Data:</strong> With your permission, we collect your device's location to show nearby collectibles shops, events, and community listings. When you post a marketplace listing or trade, we attach an <strong>approximate</strong> location to that post (your coordinates are rounded to roughly a neighborhood-sized area before they are stored) so other users can see about how far away an item is. We do not store or display your exact location for posts. You can disable location access at any time in your device settings.</p>
+            <p><strong>Usage Data:</strong> We collect information about how you use the app, including shops you view, events you RSVP to, and trades and listings you post.</p>
             <p><strong>Payment Information:</strong> Payments are processed by Stripe. We do not store your credit card information. Stripe's privacy policy applies to payment data.</p>
-            <p><strong>User Content:</strong> Reviews, trade posts, marketplace listings, and vault items you create are stored on our servers.</p>
+            <p><strong>User Content:</strong> Content you create — including trade posts, marketplace listings, shop photos, profile images, questions, and replies — is stored on our servers. <strong>Photos and images you upload are stored in publicly accessible storage,</strong> which means anyone with the image's link can view it. Do not upload images that contain sensitive personal information.</p>
           </Section>
 
           <Section title="3. How We Use Your Information">
@@ -62,7 +62,7 @@ export function PrivacyPolicy() {
             <p>• <strong>Stripe:</strong> Our payment processor</p>
             <p>• <strong>Vercel:</strong> Our hosting provider</p>
             <p>• <strong>Law enforcement:</strong> When required by law or to protect our rights</p>
-            <p>Public information such as reviews, trade posts, and marketplace listings are visible to other users of the app.</p>
+            <p>Public information such as trade posts, marketplace listings, uploaded photos, usernames, and the approximate location attached to your posts is visible to other users of the app.</p>
           </Section>
 
           <Section title="5. Data Security">
@@ -71,13 +71,14 @@ export function PrivacyPolicy() {
           </Section>
 
           <Section title="6. Location Data">
-            <p>Location access is optional. If you grant permission, we use your location solely to show nearby shops and events. We do not track your location in the background or share it with third parties.</p>
-            <p>You can revoke location permission at any time in your device settings without affecting your ability to use the app.</p>
+            <p>Location access is optional. If you grant permission, we use your device location to show nearby shops, events, and community listings, and to calculate distances.</p>
+            <p>When you post a marketplace listing or trade, the location attached to that post is <strong>approximate</strong>: your coordinates are rounded to roughly a neighborhood-sized area before being stored, and other users only ever see an approximate distance (for example, "~3 mi"), never your precise location or address. Shop listings, which represent public businesses, may show a more precise location and distance.</p>
+            <p>We do not track your location in the background or share it with third parties for advertising. You can revoke location permission at any time in your device settings; you can still use the app, and you can browse listings from anywhere instead of by distance.</p>
           </Section>
 
           <Section title="7. Data Retention">
             <p>We retain your account data for as long as your account is active. If you delete your account, we will delete your personal data within 30 days, except where required by law.</p>
-            <p>Public content (reviews, trade posts) may remain visible until manually removed by an administrator.</p>
+            <p>Public content (trade posts, listings, questions, and replies) may remain visible until removed by you or an administrator.</p>
           </Section>
 
           <Section title="8. Your Rights">
@@ -129,7 +130,7 @@ export function TermsOfService() {
           </Section>
 
           <Section title="2. Description of Service">
-            <p>Outpost is a directory and community platform for collectibles enthusiasts. We help users discover local comic shops, trading card stores, and collectibles dealers. We also provide tools for trading, selling, and tracking collectibles.</p>
+            <p>Outpost is a directory and community platform for collectibles enthusiasts. We help users discover local comic shops, trading card stores, and collectibles dealers, and we provide tools for buying, selling, and trading collectibles and connecting with other collectors.</p>
           </Section>
 
           <Section title="3. User Accounts">
@@ -139,7 +140,8 @@ export function TermsOfService() {
           </Section>
 
           <Section title="4. User Content">
-            <p>You retain ownership of content you post (reviews, trade listings, marketplace items). By posting content, you grant Outpost a non-exclusive license to display that content within the app.</p>
+            <p>You retain ownership of content you post (trade listings, marketplace items, photos, questions, and replies). By posting content, you grant Outpost a non-exclusive, worldwide, royalty-free license to host, store, display, and distribute that content within the app for the purpose of operating the service. Photos you upload are stored in publicly accessible storage and may be viewed by anyone with the link.</p>
+            <p>You are solely responsible for the content you post, and you represent that you own it or have the right to share it.</p>
             <p>You agree not to post content that is:</p>
             <p>• False, misleading, or fraudulent</p>
             <p>• Offensive, harassing, or abusive</p>
@@ -149,14 +151,14 @@ export function TermsOfService() {
           </Section>
 
           <Section title="5. Marketplace and Trades">
-            <p>Outpost provides a platform for users to list items for sale and post trade offers. We are not a party to any transaction between users.</p>
-            <p>We do not guarantee the accuracy of listings, the quality of items, or that transactions will be completed. Users transact at their own risk.</p>
-            <p>We are not responsible for any disputes between buyers and sellers.</p>
+            <p>Outpost provides a platform for users to list items for sale and post trade offers and to connect with one another. <strong>Outpost does not process payments, handle shipping, or take part in any transaction between users.</strong> We are not a party to, and take no commission on, any sale or trade. All arrangements — including payment, exchange, and delivery or meetup — are made directly between users.</p>
+            <p>We do not verify users, listings, or items, and we do not guarantee the accuracy of listings, the condition or authenticity of items, or that any transaction will be completed. You transact at your own risk.</p>
+            <p><strong>Meeting safety:</strong> If you arrange to meet another user in person, you do so at your own risk. We strongly recommend meeting in a safe, public place, and we are not responsible for any interactions, transactions, injuries, losses, or disputes that arise between users.</p>
           </Section>
 
           <Section title="6. Shop Listings">
-            <p>Shop information is sourced from Google Places API and user submissions. We do not guarantee the accuracy, completeness, or currency of shop information including hours, phone numbers, or addresses.</p>
-            <p>Shop owners may claim their listing by completing our EIN verification process. Verified shop owners are responsible for keeping their information accurate.</p>
+            <p>Shop information is sourced from third-party data providers and user submissions. We do not guarantee the accuracy, completeness, or currency of shop information including hours, phone numbers, or addresses.</p>
+            <p>Shop owners may request to claim their listing by submitting business details, including an EIN. Claims are reviewed by our team before approval, but this review is not a guarantee of identity or ownership — we do not independently verify EINs or business registration, and approval does not constitute an endorsement. We may approve, decline, or revoke any claim at our discretion. Once approved, shop owners are responsible for keeping their information accurate.</p>
           </Section>
 
           <Section title="7. Subscriptions and Payments">
@@ -172,7 +174,7 @@ export function TermsOfService() {
             <p>• Attempt to gain unauthorized access to any part of the service</p>
             <p>• Use the service for any illegal purpose</p>
             <p>• Impersonate any person or entity</p>
-            <p>• Post fake reviews or manipulate ratings</p>
+            <p>• Misrepresent items or post fraudulent listings</p>
           </Section>
 
           <Section title="9. Disclaimer of Warranties">
