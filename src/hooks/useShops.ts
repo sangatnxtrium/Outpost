@@ -151,6 +151,25 @@ export function useCheckins(shopId: string) {
   return { checkinCount, userCheckedIn, checkIn }
 }
 
+export function useNews() {
+  const [articles, setArticles] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    supabase
+      .from('news_articles')
+      .select('*')
+      .order('published_at', { ascending: false, nullsFirst: false })
+      .limit(80)
+      .then(({ data }) => {
+        setArticles(data || [])
+        setLoading(false)
+      })
+  }, [])
+
+  return { articles, loading }
+}
+
 export function useEvents() {
   const [events, setEvents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)

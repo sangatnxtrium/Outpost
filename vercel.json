@@ -3,7 +3,8 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "crons": [
-    { "path": "/api/refresh-events", "schedule": "0 9 * * 1" }
+    { "path": "/api/refresh-events", "schedule": "0 9 * * 1" },
+    { "path": "/api/news-ingest", "schedule": "0 8 * * *" }
   ],
   "rewrites": [
     { "source": "/img/:ref", "destination": "/api/photo?pp=:ref" },
