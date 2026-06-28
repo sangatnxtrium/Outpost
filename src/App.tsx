@@ -8,7 +8,7 @@ import { startCheckout } from './lib/stripe'
 import { supabase } from './lib/supabase'
 
 type TabType = 'discover' | 'map' | 'classifieds' | 'marketplace' | 'fcbd' | 'profile'
-type ModalType = 'none' | 'sub' | 'auth' | 'notifications' | 'shop' | 'menu' | 'claim' | 'additem' | 'submit' | 'listsale' | 'listingdetail' | 'posttrade' | 'tradedetail' | 'editprofile'
+type ModalType = 'none' | 'sub' | 'auth' | 'notifications' | 'shop' | 'menu' | 'claim' | 'additem' | 'submit' | 'listsale' | 'listingdetail' | 'posttrade' | 'tradedetail' | 'editprofile' | 'setlocation'
 
 function DropBanner({ shops }: { shops: any[] }) {
   const [idx, setIdx] = useState(0)
@@ -95,6 +95,38 @@ function LocalMap({ shops, onSelect, activeId, userLat, userLng }: { shops: any[
   }, [activeId])
 
   return <div ref={elRef} className="w-full h-full" style={{ minHeight: 280, position: 'relative', zIndex: 0, isolation: 'isolate' }} />
+}
+
+function RadiusPicker({ lat, lng, radiusMiles }: { lat: number, lng: number, radiusMiles: number }) {
+  const elRef = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<any>(null)
+  const circleRef = useRef<any>(null)
+  const dotRef = useRef<any>(null)
+
+  function fit() {
+    const map = mapRef.current, circle = circleRef.current
+    if (map && circle) { try { map.fitBounds(circle.getBounds(), { padding: [16, 16] }) } catch { /* noop */ } }
+  }
+
+  useEffect(() => {
+    if (!elRef.current || mapRef.current) return
+    const map = L.map(elRef.current, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false }).setView([lat, lng], 9)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map)
+    mapRef.current = map
+    circleRef.current = L.circle([lat, lng], { radius: radiusMiles * 1609.34, color: '#E0533C', weight: 1.5, fillColor: '#E0533C', fillOpacity: 0.15 }).addTo(map)
+    dotRef.current = L.circleMarker([lat, lng], { radius: 6, color: '#fff', weight: 2, fillColor: '#E0533C', fillOpacity: 1 }).addTo(map)
+    setTimeout(() => { map.invalidateSize(); fit() }, 150)
+    return () => { map.remove(); mapRef.current = null }
+  }, [])
+
+  useEffect(() => {
+    if (!mapRef.current) return
+    if (dotRef.current) dotRef.current.setLatLng([lat, lng])
+    if (circleRef.current) { circleRef.current.setLatLng([lat, lng]); circleRef.current.setRadius(radiusMiles * 1609.34) }
+    fit()
+  }, [lat, lng, radiusMiles])
+
+  return <div ref={elRef} className="w-full h-full" style={{ minHeight: 300, position: 'relative', zIndex: 0, isolation: 'isolate' }} />
 }
 
 function streetViewUrl(s: any): string | null {
@@ -273,7 +305,9 @@ export default function App() {
   const [mktPreview, setMktPreview] = useState<string>('')
   const [mktSubmitting, setMktSubmitting] = useState(false)
   const [mktFilter, setMktFilter] = useState('all')
+  const [mktSearch, setMktSearch] = useState('')
   const [mktRadius, setMktRadius] = useState<number | 'any'>(50)
+  const [locRadius, setLocRadius] = useState(50)
   const [mktSection, setMktSection] = useState<'sale' | 'trade'>('sale')
   const [selectedListing, setSelectedListing] = useState<any>(null)
   const [selectedTrade, setSelectedTrade] = useState<any>(null)
@@ -299,17 +333,19 @@ export default function App() {
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const codeRefs = Array.from({length: 6}, () => useRef<HTMLInputElement>(null))
 
-  useEffect(() => {
+  function requestLocation() {
     if (!navigator.geolocation) {
       setLocationLoading(false)
       setLocationDenied(true)
       return
     }
+    setLocationLoading(true)
     navigator.geolocation.getCurrentPosition(
       pos => {
         setUserLat(pos.coords.latitude)
         setUserLng(pos.coords.longitude)
         setLocationLoading(false)
+        setLocationDenied(false)
       },
       (err) => {
         console.log('Geolocation error:', err.code, err.message)
@@ -318,6 +354,10 @@ export default function App() {
       },
       { timeout: 10000, maximumAge: 0, enableHighAccuracy: false }
     )
+  }
+
+  useEffect(() => {
+    requestLocation()
   }, [])
 
   const sortedShops = locationLoading ? [] : [...shops]
@@ -344,10 +384,12 @@ export default function App() {
   const inRadius = (distance: number | null) =>
     mktRadius === 'any' || !userLat || !userLng || (distance != null && distance <= mktRadius)
 
+  const mktQuery = mktSearch.trim().toLowerCase()
   const sortedListings = [...listings]
     .map((l: any) => ({ ...l, distance: userLat && userLng && l.lat && l.lng ? getDistance(userLat, userLng, l.lat, l.lng) : null }))
     .filter((l: any) => mktFilter === 'all' || l.category === mktFilter)
     .filter((l: any) => inRadius(l.distance))
+    .filter((l: any) => !mktQuery || `${l.title || ''} ${l.description || ''} ${l.category || ''} ${l.condition || ''}`.toLowerCase().includes(mktQuery))
     .sort((a: any, b: any) => {
       if (a.distance == null && b.distance == null) return 0
       if (a.distance == null) return 1
@@ -360,6 +402,7 @@ export default function App() {
   const sortedTrades = [...tradePosts]
     .map((t: any) => ({ ...t, distance: userLat && userLng && t.lat && t.lng ? getDistance(userLat, userLng, t.lat, t.lng) : null }))
     .filter((t: any) => inRadius(t.distance))
+    .filter((t: any) => !mktQuery || `${t.offer || ''} ${t.look_for || ''} ${t.username || ''}`.toLowerCase().includes(mktQuery))
     .sort((a: any, b: any) => {
       if (a.distance == null && b.distance == null) return 0
       if (a.distance == null) return 1
@@ -1220,18 +1263,28 @@ export default function App() {
                   </button>
                 </div>
 
-                <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                  <span className="text-xs text-zinc-400 flex-shrink-0">Within</span>
-                  {[10, 25, 50, 100, 'any'].map((r: any) => (
-                    <button key={r} onClick={() => setMktRadius(r)}
-                      className="px-3 py-1 rounded-full text-xs font-medium flex-shrink-0 border transition-all"
-                      style={mktRadius === r ? { background: '#18181b', borderColor: '#18181b', color: 'white' } : { background: 'white', borderColor: '#e4e4e7', color: '#52525b' }}>
-                      {r === 'any' ? 'Anywhere' : `${r}mi`}
+                <div className="relative">
+                  <Search className="h-4 w-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input value={mktSearch} onChange={e => setMktSearch(e.target.value)}
+                    placeholder={mktSection === 'sale' ? 'Search items for sale…' : 'Search trades…'}
+                    className="w-full bg-white border border-zinc-200 rounded-2xl pl-10 pr-10 py-2.5 text-sm focus:outline-none" />
+                  {mktSearch && (
+                    <button onClick={() => setMktSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400">
+                      <X className="h-4 w-4" />
                     </button>
-                  ))}
+                  )}
                 </div>
+
+                <button onClick={() => { setLocRadius(typeof mktRadius === 'number' ? mktRadius : 50); setModal('setlocation') }}
+                  className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-2xl border border-zinc-200 bg-white">
+                  <span className="flex items-center gap-2 text-sm text-zinc-700">
+                    <Navigation className="h-4 w-4" style={{ color: '#E0533C' }} />
+                    {mktRadius === 'any' ? 'Anywhere' : `Within ${mktRadius} miles`}
+                  </span>
+                  <span className="text-xs font-medium" style={{ color: '#E0533C' }}>Change</span>
+                </button>
                 {!userLat && mktRadius !== 'any' && (
-                  <p className="text-xs text-zinc-400">Enable location to see items near you, or pick “Anywhere”.</p>
+                  <p className="text-xs text-zinc-400">Set your location to see items near you.</p>
                 )}
 
               {mktSection === 'sale' ? (
@@ -2071,6 +2124,56 @@ export default function App() {
                 className="w-full py-3.5 rounded-2xl text-sm font-medium text-white disabled:opacity-60" style={{ background: '#E0533C' }}>
                 {epSaving ? 'Saving…' : 'Save profile'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SET LOCATION */}
+      {modal === 'setlocation' && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
+          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl shadow-2xl max-h-[92vh] overflow-y-auto" style={{ background: '#FAF9F5' }}>
+            <div className="px-5 py-4 flex items-center justify-between border-b border-zinc-100">
+              <h3 className="font-semibold text-lg">Set location</h3>
+              <button onClick={() => setModal('none')}><X className="h-5 w-5 text-zinc-400" /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="relative rounded-2xl overflow-hidden border border-zinc-200" style={{ height: 300 }}>
+                {userLat && userLng ? (
+                  <RadiusPicker lat={userLat} lng={userLng} radiusMiles={locRadius} />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center text-zinc-400 gap-2 bg-zinc-100">
+                    <Navigation className="h-7 w-7 opacity-30" />
+                    <p className="text-sm">No location set</p>
+                  </div>
+                )}
+                <button onClick={requestLocation} aria-label="Use my location"
+                  className="absolute top-3 right-3 h-10 w-10 rounded-full bg-white shadow-lg flex items-center justify-center z-[400]">
+                  <Navigation className="h-4 w-4" style={{ color: locationLoading ? '#9ca3af' : '#E0533C' }} />
+                </button>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-sm font-medium text-zinc-700">Distance</span>
+                  <span className="text-sm font-bold px-2.5 py-0.5 rounded-lg text-white" style={{ background: '#E0533C' }}>{locRadius} miles</span>
+                </div>
+                <input type="range" min={1} max={100} value={locRadius} onChange={e => setLocRadius(parseInt(e.target.value))}
+                  className="w-full accent-[#E0533C]" style={{ accentColor: '#E0533C' }} disabled={!userLat} />
+                <div className="flex justify-between text-[10px] text-zinc-400 mt-0.5"><span>1 mi</span><span>100 mi</span></div>
+              </div>
+
+              <div className="flex gap-2">
+                <button onClick={() => { setMktRadius('any'); setModal('none') }}
+                  className="flex-1 py-3 rounded-2xl text-sm font-medium border border-zinc-200 bg-white text-zinc-700">
+                  Search anywhere
+                </button>
+                <button onClick={() => { setMktRadius(locRadius); setModal('none') }} disabled={!userLat}
+                  className="flex-1 py-3 rounded-2xl text-sm font-medium text-white disabled:opacity-50" style={{ background: '#E0533C' }}>
+                  Apply
+                </button>
+              </div>
+              {!userLat && <p className="text-xs text-zinc-400 text-center">Tap the location button above to use your current location.</p>}
             </div>
           </div>
         </div>
