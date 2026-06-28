@@ -3,7 +3,7 @@ import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Compass, MapPin, Search, Flame, X, Store, User, Users, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, DollarSign, Plus, Check, Phone, Bell, Heart, Star, BookOpen, Send, Globe } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
-import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useListings, useFcbd, useFcbdTitles, useNotifications } from './hooks/useShops'
+import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useListings, useFcbd, useFcbdTitles, useNotifications, useAppSettings } from './hooks/useShops'
 import { startCheckout } from './lib/stripe'
 import { supabase } from './lib/supabase'
 
@@ -201,8 +201,10 @@ export default function App() {
   const { events: allEventsData } = useEvents()
   const { listings, uploadPhoto, createListing, deleteListing, fetchComments, addComment, deleteComment } = useListings()
   const { items: notifications, unread: unreadCount, refetch: refetchNotifs, markAllRead } = useNotifications(user?.id || null)
-  const FCBD_YEAR = 2027
-  const FCBD_DATE = new Date('2027-05-01T00:00:00')
+  const { settings: appSettings } = useAppSettings()
+  const FCBD_YEAR = parseInt(appSettings.fcbd_year || '') || 2027
+  const FCBD_DATE = new Date(`${appSettings.fcbd_date || '2027-05-01'}T00:00:00`)
+  const FCBD_DATE_LABEL = FCBD_DATE.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
   const fcbdDaysLeft = Math.max(0, Math.ceil((FCBD_DATE.getTime() - Date.now()) / 86400000))
   const { participants: fcbdShops, upsertParticipation, getMyParticipation } = useFcbd(FCBD_YEAR)
   const fcbdShopIds = new Set(fcbdShops.map((p: any) => p.shop_id))
@@ -484,6 +486,18 @@ export default function App() {
 
   function handleCodeKey(i: number, e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Backspace' && !authCode[i] && i > 0) codeRefs[i-1].current?.focus()
+  }
+
+  async function handleSwapCover(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]
+    if (!f || !selectedShop || !user) return
+    setGalleryBusy(true)
+    const url = await uploadPhoto(f, user.id)
+    if (url) {
+      await updateShop(selectedShop.id, { image_url: url })
+      setSelectedShop({ ...selectedShop, image_url: url })
+    }
+    setGalleryBusy(false)
   }
 
   async function handleAddShopPhoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -1282,7 +1296,7 @@ export default function App() {
                   <BookOpen className="absolute -right-4 -top-4 h-28 w-28 opacity-10" />
                   <p className="text-xs uppercase tracking-widest opacity-80">Free Comic Book Day</p>
                   <h2 className="text-2xl font-bold mt-1">FCBD {FCBD_YEAR}</h2>
-                  <p className="text-sm opacity-90 mt-1">May 1, {FCBD_YEAR} · date tentative</p>
+                  <p className="text-sm opacity-90 mt-1">{FCBD_DATE_LABEL} · date tentative</p>
                   <div className="mt-4 inline-flex items-baseline gap-2 bg-white/20 rounded-full px-4 py-1.5">
                     <span className="text-xl font-bold">{fcbdDaysLeft}</span>
                     <span className="text-xs opacity-90">days to go</span>
@@ -1556,7 +1570,15 @@ export default function App() {
             <span className="text-amber-400 font-bold">{selectedShop.rating}★</span>
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-4 md:max-w-2xl md:mx-auto md:w-full">
-            <ShopThumb s={selectedShop} className="h-44 w-full rounded-3xl border border-zinc-200" />
+            <div className="relative">
+              <ShopThumb s={selectedShop} className="h-44 w-full rounded-3xl border border-zinc-200" />
+              {isMerchant && (selectedShop as any).owner_id === user?.id && (
+                <label className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white cursor-pointer shadow-lg" style={{ background: 'rgba(0,0,0,0.6)' }}>
+                  <Plus className="h-3.5 w-3.5" />{galleryBusy ? 'Uploading…' : 'Change cover'}
+                  <input type="file" accept="image/*" onChange={handleSwapCover} className="hidden" disabled={galleryBusy} />
+                </label>
+              )}
+            </div>
             {(selectedShop as any).gallery?.length > 0 && (
               <div className="grid grid-cols-3 gap-2">
                 {(selectedShop as any).gallery.map((g: string, i: number) => (

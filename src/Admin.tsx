@@ -53,7 +53,9 @@ export default function Admin() {
   const [claims, setClaims] = useState<any[]>([])
   const [marketItems, setMarketItems] = useState<any[]>([])
   const [checkins, setCheckins] = useState(0)
-  const FCBD_YEAR = 2027
+  const [fcbdYear, setFcbdYear] = useState(2027)
+  const [fcbdDateStr, setFcbdDateStr] = useState('2027-05-01')
+  const [savingFcbd, setSavingFcbd] = useState(false)
   const [fcbdTitles, setFcbdTitles] = useState<any[]>([])
   const [fcbdParticipants, setFcbdParticipants] = useState<any[]>([])
   const [comments, setComments] = useState<any[]>([])
@@ -87,18 +89,29 @@ export default function Admin() {
     if (authed) fetchAll()
   }, [authed])
 
+  async function saveFcbdSettings() {
+    setSavingFcbd(true)
+    const { error } = await supabase.from('app_settings').upsert([
+      { key: 'fcbd_year', value: String(fcbdYear), updated_at: new Date().toISOString() },
+      { key: 'fcbd_date', value: fcbdDateStr, updated_at: new Date().toISOString() },
+    ])
+    setSavingFcbd(false)
+    if (error) { alert(error.message); return }
+    fetchAll()
+  }
+
   async function addFcbdComic() {
     if (!ftTitle.trim()) return
     setFtSaving(true)
     const { error } = await supabase.from('fcbd_titles').insert({
-      year: FCBD_YEAR,
+      year: fcbdYear,
       title: ftTitle.trim(),
       publisher: ftPublisher.trim() || null,
       image_url: ftImage.trim() || null,
     })
     setFtSaving(false)
     if (error) { alert(error.message); return }
-    const ft = await supabase.from('fcbd_titles').select('*').eq('year', FCBD_YEAR).order('created_at')
+    const ft = await supabase.from('fcbd_titles').select('*').eq('year', fcbdYear).order('created_at')
     setFcbdTitles(ft.data || [])
     setFtTitle(''); setFtPublisher(''); setFtImage('')
   }
@@ -166,9 +179,15 @@ export default function Admin() {
       setEvents(e.data || [])
       setClaims(c.data || [])
       setCheckins(ci.count || 0)
-      const ft = await supabase.from('fcbd_titles').select('*').eq('year', FCBD_YEAR).order('created_at')
+      const stg = await supabase.from('app_settings').select('*')
+      const sm: Record<string, string> = {}
+      ;(stg.data || []).forEach((r: any) => { sm[r.key] = r.value })
+      const yr = parseInt(sm.fcbd_year || '') || 2027
+      setFcbdYear(yr)
+      setFcbdDateStr(sm.fcbd_date || '2027-05-01')
+      const ft = await supabase.from('fcbd_titles').select('*').eq('year', yr).order('created_at')
       setFcbdTitles(ft.data || [])
-      const fp = await supabase.from('fcbd_participation').select('*, shops(name)').eq('year', FCBD_YEAR).eq('participating', true).order('updated_at', { ascending: false })
+      const fp = await supabase.from('fcbd_participation').select('*, shops(name)').eq('year', yr).eq('participating', true).order('updated_at', { ascending: false })
       setFcbdParticipants(fp.data || [])
       const [lc, tc] = await Promise.all([
         supabase.from('listing_comments').select('*, listings(title)').order('created_at', { ascending: false }).limit(100),
@@ -884,7 +903,28 @@ export default function Admin() {
     {/* FCBD */}
           {tab === 'fcbd' && (
             <div className="space-y-4">
-              <h2 className="font-black text-xl">Free Comic Book Day {FCBD_YEAR}</h2>
+              <h2 className="font-black text-xl">Free Comic Book Day {fcbdYear}</h2>
+
+              <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4 space-y-2.5">
+                <p className="text-sm font-black">Event date &amp; year</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs text-zinc-400">Year</label>
+                    <input type="number" value={fcbdYear} onChange={e => setFcbdYear(parseInt(e.target.value) || 2027)}
+                      className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-zinc-400">Date</label>
+                    <input type="date" value={fcbdDateStr} onChange={e => setFcbdDateStr(e.target.value)}
+                      className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                  </div>
+                </div>
+                <button onClick={saveFcbdSettings} disabled={savingFcbd}
+                  className="w-full py-2.5 rounded-xl text-xs font-black uppercase text-white disabled:opacity-60" style={{ background: '#1d4ed8' }}>
+                  {savingFcbd ? 'Saving…' : 'Save date & year'}
+                </button>
+                <p className="text-xs text-zinc-400">Changing the year switches which comics &amp; participating shops are shown, everywhere in the app.</p>
+              </div>
 
               <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4 space-y-2.5">
                 <p className="text-sm font-black">Add a showcased comic</p>

@@ -124,32 +124,6 @@ export function useTradePosts() {
   return { tradePosts, addTradePost, deleteTradePost, fetchTradeComments, addTradeComment, deleteTradeComment }
 }
 
-export function useVault(userId: string | null) {
-  const [vaultItems, setVaultItems] = useState<any[]>([])
-
-  useEffect(() => {
-    if (!userId) return
-    supabase
-      .from('vault_items')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => setVaultItems(data || []))
-  }, [userId])
-
-  async function addVaultItem(userId: string, name: string, estValue: number) {
-    const { data, error } = await supabase
-      .from('vault_items')
-      .insert({ user_id: userId, name, est_value: estValue })
-      .select()
-      .single()
-    if (data) setVaultItems(prev => [...prev, data])
-    return { error: error?.message || null }
-  }
-
-  return { vaultItems, addVaultItem }
-}
-
 export function useCheckins(shopId: string) {
   const [checkinCount, setCheckinCount] = useState(0)
   const [userCheckedIn, setUserCheckedIn] = useState(false)
@@ -356,4 +330,28 @@ export function useNotifications(userId: string | null) {
 
   const unread = items.filter((n: any) => !n.read).length
   return { items, unread, refetch: fetchNotifs, markAllRead }
+}
+
+export function useAppSettings() {
+  const [settings, setSettings] = useState<Record<string, string>>({})
+
+  const fetchSettings = () => {
+    supabase.from('app_settings').select('*').then(({ data }) => {
+      const m: Record<string, string> = {}
+      ;(data || []).forEach((r: any) => { m[r.key] = r.value })
+      setSettings(m)
+    })
+  }
+
+  useEffect(() => { fetchSettings() }, [])
+
+  async function saveSetting(key: string, value: string) {
+    const { error } = await supabase
+      .from('app_settings')
+      .upsert({ key, value, updated_at: new Date().toISOString() })
+    if (!error) setSettings(prev => ({ ...prev, [key]: value }))
+    return { error: error?.message || null }
+  }
+
+  return { settings, saveSetting, refetch: fetchSettings }
 }
