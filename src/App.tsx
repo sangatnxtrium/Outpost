@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { Compass, MapPin, Search, Flame, X, Store, User, Users, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, DollarSign, Plus, Check, Phone, Bell, Heart, Star, BookOpen, Send, Globe } from 'lucide-react'
+import { Compass, MapPin, Search, Flame, X, Store, User, Users, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, ShieldCheck, DollarSign, Plus, Check, Phone, Bell, Heart, Star, BookOpen, Send, Globe } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
 import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useListings, useFcbd, useFcbdTitles, useNotifications, useAppSettings } from './hooks/useShops'
 import { startCheckout } from './lib/stripe'
@@ -159,6 +159,30 @@ function fmtDist(d: number | null | undefined): string {
   return `~${Math.round(d)} mi`
 }
 
+const STANDING_STYLE: Record<string, { bg: string; fg: string }> = {
+  New:         { bg: '#F4F4F5', fg: '#71717A' },
+  Member:      { bg: '#E0F2FE', fg: '#0369A1' },
+  Established: { bg: '#EDE9FE', fg: '#6D28D9' },
+  Trusted:     { bg: '#FEF3C7', fg: '#B45309' },
+}
+
+function StandingBadge({ standing, verified, size = 'sm' }: { standing?: string | null; verified?: boolean; size?: 'sm' | 'lg' }) {
+  if (!standing) return null
+  const st = STANDING_STYLE[standing] || STANDING_STYLE.New
+  const pad = size === 'lg' ? 'px-2.5 py-1 text-xs' : 'px-2 py-0.5 text-[10px]'
+  const icon = size === 'lg' ? 'h-3.5 w-3.5' : 'h-3 w-3'
+  return (
+    <span className="inline-flex items-center gap-1 align-middle">
+      <span className={`rounded-full font-bold uppercase tracking-wide ${pad}`} style={{ background: st.bg, color: st.fg }}>{standing}</span>
+      {verified && (
+        <span className={`inline-flex items-center gap-0.5 rounded-full font-bold uppercase tracking-wide ${pad}`} style={{ background: '#F0FDF4', color: '#166534' }}>
+          <ShieldCheck className={icon} /> Verified
+        </span>
+      )}
+    </span>
+  )
+}
+
 function getDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 3959
   const dLat = (lat2 - lat1) * Math.PI / 180
@@ -265,6 +289,9 @@ export default function App() {
   const [tab, setTab] = useState<TabType>('discover')
   const [hoverShopId, setHoverShopId] = useState<string | null>(null)
   const [savedShops, setSavedShops] = useState<string[]>([])
+  const [standingMap, setStandingMap] = useState<Record<string, any>>({})
+  const [showStandingInfo, setShowStandingInfo] = useState(false)
+  const [reportedIds, setReportedIds] = useState<string[]>([])
   const [modal, setModal] = useState<ModalType>('none')
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
@@ -398,8 +425,37 @@ export default function App() {
     supabase.from('event_rsvps').select('event_id').eq('user_id', user.id).then(({ data }) => {
       if (active && data) setRsvps(data.map((r: any) => r.event_id))
     })
+    // Record one activity row per day (idempotent) — powers "active days" in standing
+    const today = new Date().toISOString().slice(0, 10)
+    supabase.from('user_activity').upsert({ user_id: user.id, day: today }).then(() => {})
     return () => { active = false }
   }, [user?.id])
+
+  async function loadStanding(ids: (string | null | undefined)[]) {
+    const missing = Array.from(new Set(ids.filter((id): id is string => !!id && !(id in standingMap))))
+    if (missing.length === 0) return
+    const { data } = await supabase
+      .from('user_standing')
+      .select('user_id, standing, is_verified_seller, score, member_since')
+      .in('user_id', missing)
+    setStandingMap(prev => {
+      const next = { ...prev }
+      if (data) for (const row of data) next[row.user_id] = row
+      for (const id of missing) if (!(id in next)) next[id] = null // cache misses to avoid refetch
+      return next
+    })
+  }
+
+  async function reportSeller(targetUserId: string) {
+    if (!user) { setModal('auth'); return }
+    if (!targetUserId || targetUserId === user.id) return
+    if (reportedIds.includes(targetUserId)) return
+    setReportedIds(prev => [...prev, targetUserId])
+    const { error } = await supabase.from('user_reports').insert({ reported_user_id: targetUserId, reporter_id: user.id, reason: 'reported in app' })
+    if (error && !/duplicate|unique/i.test(error.message)) {
+      setReportedIds(prev => prev.filter(id => id !== targetUserId)) // revert on real failure
+    }
+  }
 
   async function toggleSaveShop(shopId: string) {
     const isSaved = savedShops.includes(shopId)
@@ -954,6 +1010,17 @@ export default function App() {
     )
   }
 
+  useEffect(() => {
+    const ids: (string | null | undefined)[] = [user?.id]
+    sortedListings.forEach((l: any) => ids.push(l.user_id))
+    sortedTrades.forEach((t: any) => ids.push(t.user_id))
+    if (selectedListing?.user_id) ids.push(selectedListing.user_id)
+    if (selectedTrade?.user_id) ids.push(selectedTrade.user_id)
+    if (selectedShop?.owner_id) ids.push(selectedShop.owner_id)
+    loadStanding(ids)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, sortedListings.length, sortedTrades.length, selectedListing?.id, selectedTrade?.id, selectedShopId])
+
   return (
     <div className="min-h-screen text-[#18191B] font-sans" style={{ background: '#FAFAF9' }}>
       {showOnboarding && (
@@ -1464,8 +1531,11 @@ export default function App() {
                       <button key={p.id} onClick={() => { setSelectedTrade(p); setModal('tradedetail') }}
                         className="w-full text-left bg-white rounded-2xl border border-zinc-200 p-4 hover:shadow-md transition-all">
                         <div className="flex items-center justify-between mb-3">
-                          <p className="text-xs text-zinc-400">@{p.username}</p>
-                          {p.distance != null && <span className="text-[11px] text-zinc-400">{fmtDist(p.distance)}</span>}
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <p className="text-xs text-zinc-400 truncate">@{p.username}</p>
+                            <StandingBadge standing={standingMap[p.user_id]?.standing} verified={standingMap[p.user_id]?.is_verified_seller} />
+                          </div>
+                          {p.distance != null && <span className="text-[11px] text-zinc-400 flex-shrink-0">{fmtDist(p.distance)}</span>}
                         </div>
                         {p.image_url && <img src={p.image_url} alt="" loading="lazy" className="w-full h-32 object-cover rounded-xl mb-3" />}
                         <div className="space-y-2">
@@ -1595,6 +1665,26 @@ export default function App() {
                         <p className="text-xs text-white/60 mt-1 font-mono uppercase">{profile?.role} · {profile?.tier} plan</p>
                       </div>
                     </div>
+
+                    {user && (
+                      <div className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100 mb-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs font-black uppercase text-zinc-400">Community Standing</p>
+                          <button onClick={() => setShowStandingInfo(v => !v)} className="text-xs font-medium" style={{ color: '#E0533C' }}>How it works</button>
+                        </div>
+                        <StandingBadge standing={standingMap[user.id]?.standing || 'New'} verified={standingMap[user.id]?.is_verified_seller} size="lg" />
+                        {showStandingInfo && (
+                          <div className="mt-3 pt-3 border-t border-zinc-100 space-y-2 text-xs text-zinc-500 leading-relaxed">
+                            <p>Your standing shows how established you are on Outpost. It's a sign of real participation — not a guarantee about any deal. Always meet in a safe, public place.</p>
+                            <p>It grows with time on Outpost, days you're active, real listings and trades you post, helping out in Q&amp;A, and a complete profile. Owning an EIN-verified shop earns a <span className="font-semibold text-emerald-700">Verified</span> mark.</p>
+                            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                              <StandingBadge standing="New" /><StandingBadge standing="Member" /><StandingBadge standing="Established" /><StandingBadge standing="Trusted" />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {myShop && (
                       <button onClick={() => openShop(myShop)}
                         className="w-full bg-white rounded-3xl p-4 text-left shadow-sm border border-zinc-100 mb-3 hover:shadow-md transition-all">
@@ -2179,7 +2269,13 @@ export default function App() {
                 </div>
               </div>
               {selectedListing.description && <p className="text-sm text-zinc-600 whitespace-pre-wrap">{selectedListing.description}</p>}
-              <p className="text-xs text-zinc-400">Listed by @{selectedListing.username}</p>
+              <p className="text-xs text-zinc-400 flex items-center gap-1.5 flex-wrap">Listed by @{selectedListing.username} <StandingBadge standing={standingMap[selectedListing.user_id]?.standing} verified={standingMap[selectedListing.user_id]?.is_verified_seller} /></p>
+              {user && selectedListing.user_id && selectedListing.user_id !== user.id && (
+                <button onClick={() => reportSeller(selectedListing.user_id)} disabled={reportedIds.includes(selectedListing.user_id)}
+                  className="text-[11px] text-zinc-400 hover:text-red-500 transition-colors mt-1 disabled:text-zinc-300">
+                  {reportedIds.includes(selectedListing.user_id) ? '✓ Reported — thanks' : '⚑ Report seller'}
+                </button>
+              )}
               {user?.id === selectedListing.user_id ? (
                 <button onClick={() => { deleteListing(selectedListing.id); setModal('none') }}
                   className="w-full py-3 rounded-2xl text-sm font-medium border border-red-200 text-red-600">
@@ -2343,7 +2439,13 @@ export default function App() {
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
           <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl shadow-2xl max-h-[92vh] overflow-y-auto" style={{ background: '#FAF9F5' }}>
             <div className="px-5 py-4 flex items-center justify-between border-b border-zinc-100">
-              <p className="font-semibold text-zinc-900">Trade · @{selectedTrade.username}{selectedTrade.distance != null ? ` · ${fmtDist(selectedTrade.distance)}` : ''}</p>
+              <p className="font-semibold text-zinc-900 flex items-center gap-1.5 flex-wrap">Trade · @{selectedTrade.username}{selectedTrade.distance != null ? ` · ${fmtDist(selectedTrade.distance)}` : ''} <StandingBadge standing={standingMap[selectedTrade.user_id]?.standing} verified={standingMap[selectedTrade.user_id]?.is_verified_seller} /></p>
+              {user && selectedTrade.user_id && selectedTrade.user_id !== user.id && (
+                <button onClick={() => reportSeller(selectedTrade.user_id)} disabled={reportedIds.includes(selectedTrade.user_id)}
+                  className="text-[11px] text-zinc-400 hover:text-red-500 transition-colors mt-1 disabled:text-zinc-300">
+                  {reportedIds.includes(selectedTrade.user_id) ? '✓ Reported — thanks' : '⚑ Report user'}
+                </button>
+              )}
               <button onClick={() => setModal('none')}><X className="h-5 w-5 text-zinc-400" /></button>
             </div>
             <div className="p-5 space-y-3">
