@@ -1537,6 +1537,11 @@ export default function App() {
                           {filtered.map((a: any) => (
                             <a key={a.id} href={a.url} target="_blank" rel="noopener noreferrer"
                               className="block bg-white rounded-2xl border border-zinc-200 p-4 hover:shadow-md transition-all">
+                              {a.image_url && (
+                                <img src={a.image_url} alt="" loading="lazy"
+                                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                                  className="w-full h-44 object-cover rounded-xl mb-3" />
+                              )}
                               <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                                 {a.source_name && <span className="text-[11px] font-bold px-2 py-0.5 rounded-md" style={{ background: '#F4F4F5', color: '#3f3f46' }}>{a.source_name}</span>}
                                 <span className="text-[11px] font-bold px-2 py-0.5 rounded-md" style={{ background: '#FEF3C7', color: '#92400E' }}>{a.category}</span>

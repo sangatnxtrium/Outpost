@@ -1,5 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 
+// Give the function headroom for the (capped, parallel) image fetches.
+export const config = { maxDuration: 60 }
+
 // ---------------------------------------------------------------------------
 // /api/news-ingest  —  triggered by Vercel Cron (see vercel.json) or manually.
 // Reads active rows from `news_sources`, fetches each Google News RSS search
@@ -12,6 +15,59 @@ const { SUPABASE_URL, SUPABASE_SERVICE_KEY, CRON_SECRET } = process.env
 
 const PER_SOURCE = 18 // max items kept per query per run
 const PRUNE_DAYS = 30 // delete articles older than this
+const MAX_IMAGE_FETCH = 36 // cap article-page fetches per run (newest first)
+const IMG_TIMEOUT = 5000 // ms per image fetch
+const IMG_CONCURRENCY = 6 // parallel image fetches
+
+// Pull the og:image (or twitter:image) preview URL from an article page.
+// Follows redirects (Google News links bounce to the publisher), times out
+// quickly, and returns null on any failure so the card falls back to text.
+async function fetchOgImage(url) {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), IMG_TIMEOUT)
+  try {
+    const resp = await fetch(url, {
+      redirect: 'follow',
+      signal: ctrl.signal,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; OutpostNews/1.0; +https://www.getoutpost.net)' },
+    })
+    if (!resp.ok) return null
+    const html = (await resp.text()).slice(0, 200_000) // only need the <head>
+    const patterns = [
+      /<meta[^>]+property=["']og:image(?::url)?["'][^>]+content=["']([^"']+)["']/i,
+      /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image(?::url)?["']/i,
+      /<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i,
+      /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i,
+    ]
+    for (const re of patterns) {
+      const m = html.match(re)
+      if (m && m[1]) {
+        let img = m[1].trim().replace(/&amp;/g, '&')
+        if (img.startsWith('//')) img = 'https:' + img
+        if (/^https?:\/\//i.test(img)) return img
+      }
+    }
+    return null
+  } catch {
+    return null
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+// Run an async mapper over items with a concurrency cap.
+async function mapWithConcurrency(items, limit, fn) {
+  const out = new Array(items.length)
+  let i = 0
+  async function worker() {
+    while (i < items.length) {
+      const idx = i++
+      out[idx] = await fn(items[idx], idx)
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+  return out
+}
 
 function isAuthorized(req) {
   if (!CRON_SECRET) return true // no secret configured -> allow (set one in prod!)
@@ -112,20 +168,43 @@ export default async function handler(req, res) {
   }
 
   let inserted = 0
+  let withImages = 0
   if (rows.length) {
-    // onConflict url + ignoreDuplicates => INSERT ... ON CONFLICT DO NOTHING,
-    // so only genuinely new headlines are added.
-    const { data, error } = await supabase
+    // 1) Insert new articles first (no images yet) so they're saved regardless
+    //    of how the image step goes.
+    const { data: insData, error: insErr } = await supabase
       .from('news_articles')
       .upsert(rows, { onConflict: 'url', ignoreDuplicates: true })
       .select('id')
-    if (error) return res.status(500).json({ error: error.message, perSource })
-    inserted = data?.length || 0
+    if (insErr) return res.status(500).json({ error: insErr.message, perSource })
+    inserted = insData?.length || 0
+
+    // 2) Best-effort: fetch og:image for this run's articles that lack one
+    //    (newest first, capped). If this step is slow or times out, the
+    //    articles are already saved — they just stay text-only.
+    const urls = rows.map(r => r.url)
+    const { data: needImg } = await supabase
+      .from('news_articles')
+      .select('id, url')
+      .in('url', urls)
+      .is('image_url', null)
+      .order('published_at', { ascending: false })
+      .limit(MAX_IMAGE_FETCH)
+
+    if (needImg?.length) {
+      const images = await mapWithConcurrency(needImg, IMG_CONCURRENCY, r => fetchOgImage(r.url))
+      await Promise.all(needImg.map((r, idx) => {
+        const img = images[idx]
+        if (!img) return Promise.resolve()
+        withImages++
+        return supabase.from('news_articles').update({ image_url: img }).eq('id', r.id)
+      }))
+    }
   }
 
   // Prune old articles so the table stays small.
   const cutoff = new Date(Date.now() - PRUNE_DAYS * 86400_000).toISOString()
   await supabase.from('news_articles').delete().lt('published_at', cutoff)
 
-  return res.status(200).json({ ok: true, sources: sources.length, fetched: rows.length, inserted, perSource })
+  return res.status(200).json({ ok: true, sources: sources.length, fetched: rows.length, inserted, withImages, perSource })
 }
