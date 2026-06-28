@@ -334,7 +334,19 @@ export function useNotifications(userId: string | null) {
       .then(({ data }) => setItems(data || []))
   }
 
-  useEffect(() => { fetchNotifs() }, [userId])
+  useEffect(() => {
+    fetchNotifs()
+    if (!userId) return
+    const channel = supabase
+      .channel(`notif:${userId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+        (payload: any) => setItems((prev: any[]) => [payload.new, ...prev]),
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [userId])
 
   async function markAllRead() {
     if (!userId) return
