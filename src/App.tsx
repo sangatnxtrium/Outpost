@@ -308,6 +308,7 @@ export default function App() {
   const [mktSearch, setMktSearch] = useState('')
   const [mktRadius, setMktRadius] = useState<number | 'any'>(50)
   const [locRadius, setLocRadius] = useState(50)
+  const [locTarget, setLocTarget] = useState<'community' | 'discover'>('community')
   const [mktSection, setMktSection] = useState<'sale' | 'trade'>('sale')
   const [selectedListing, setSelectedListing] = useState<any>(null)
   const [selectedTrade, setSelectedTrade] = useState<any>(null)
@@ -983,18 +984,14 @@ export default function App() {
                 )}
 
                 {/* Radius selector + view map - only for shops */}
-                {activeSection === 'shops' && userLat && (
+                {activeSection === 'shops' && (
                   <div className="flex items-center gap-2 px-0.5">
-                    <span className="text-xs text-zinc-400 flex-shrink-0">Within</span>
-                    <div className="flex gap-1">
-                      {[10, 25, 50, 100].map(r => (
-                        <button key={r} onClick={() => setRadius(r)}
-                          className="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
-                          style={radius === r ? { background: '#27272a', color: 'white' } : { background: '#f4f4f5', color: '#71717a' }}>
-                          {r}mi
-                        </button>
-                      ))}
-                    </div>
+                    <button onClick={() => { setLocTarget('discover'); setLocRadius(radius); setModal('setlocation') }}
+                      className="flex items-center gap-2 px-3.5 py-2 rounded-2xl border border-zinc-200 bg-white text-sm text-zinc-700">
+                      <Navigation className="h-4 w-4" style={{ color: '#E0533C' }} />
+                      Within {radius} miles
+                      <span className="text-xs font-medium" style={{ color: '#E0533C' }}>· Change</span>
+                    </button>
                     <button onClick={() => setTab('map')}
                       className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-white flex-shrink-0"
                       style={{ background: '#E0533C' }}>
@@ -1275,7 +1272,7 @@ export default function App() {
                   )}
                 </div>
 
-                <button onClick={() => { setLocRadius(typeof mktRadius === 'number' ? mktRadius : 50); setModal('setlocation') }}
+                <button onClick={() => { setLocTarget('community'); setLocRadius(typeof mktRadius === 'number' ? mktRadius : 50); setModal('setlocation') }}
                   className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-2xl border border-zinc-200 bg-white">
                   <span className="flex items-center gap-2 text-sm text-zinc-700">
                     <Navigation className="h-4 w-4" style={{ color: '#E0533C' }} />
@@ -2164,11 +2161,13 @@ export default function App() {
               </div>
 
               <div className="flex gap-2">
-                <button onClick={() => { setMktRadius('any'); setModal('none') }}
-                  className="flex-1 py-3 rounded-2xl text-sm font-medium border border-zinc-200 bg-white text-zinc-700">
-                  Search anywhere
-                </button>
-                <button onClick={() => { setMktRadius(locRadius); setModal('none') }} disabled={!userLat}
+                {locTarget === 'community' && (
+                  <button onClick={() => { setMktRadius('any'); setModal('none') }}
+                    className="flex-1 py-3 rounded-2xl text-sm font-medium border border-zinc-200 bg-white text-zinc-700">
+                    Search anywhere
+                  </button>
+                )}
+                <button onClick={() => { if (locTarget === 'discover') setRadius(locRadius); else setMktRadius(locRadius); setModal('none') }} disabled={!userLat}
                   className="flex-1 py-3 rounded-2xl text-sm font-medium text-white disabled:opacity-50" style={{ background: '#E0533C' }}>
                   Apply
                 </button>
