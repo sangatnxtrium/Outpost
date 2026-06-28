@@ -1537,10 +1537,15 @@ export default function App() {
                           {filtered.map((a: any) => (
                             <a key={a.id} href={a.url} target="_blank" rel="noopener noreferrer"
                               className="block bg-white rounded-2xl border border-zinc-200 p-4 hover:shadow-md transition-all">
-                              {a.image_url && (
+                              {a.image_url ? (
                                 <img src={a.image_url} alt="" loading="lazy"
                                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
                                   className="w-full h-44 object-cover rounded-xl mb-3" />
+                              ) : (
+                                <div className="w-full h-28 rounded-xl mb-3 flex items-center justify-center"
+                                  style={{ background: a.category === 'TCG' ? 'linear-gradient(135deg,#0ea5e9,#6366f1)' : a.category === 'Comics' ? 'linear-gradient(135deg,#ef4444,#f59e0b)' : 'linear-gradient(135deg,#8b5cf6,#ec4899)' }}>
+                                  <span className="text-white font-black text-sm uppercase tracking-wider opacity-90">{a.category}</span>
+                                </div>
                               )}
                               <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                                 {a.source_name && <span className="text-[11px] font-bold px-2 py-0.5 rounded-md" style={{ background: '#F4F4F5', color: '#3f3f46' }}>{a.source_name}</span>}
