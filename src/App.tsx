@@ -273,6 +273,7 @@ export default function App() {
   const [mktPreview, setMktPreview] = useState<string>('')
   const [mktSubmitting, setMktSubmitting] = useState(false)
   const [mktFilter, setMktFilter] = useState('all')
+  const [mktRadius, setMktRadius] = useState<number | 'any'>(50)
   const [mktSection, setMktSection] = useState<'sale' | 'trade'>('sale')
   const [selectedListing, setSelectedListing] = useState<any>(null)
   const [selectedTrade, setSelectedTrade] = useState<any>(null)
@@ -340,9 +341,13 @@ export default function App() {
       s.tags?.some((t: string) => t.toLowerCase().includes(search.toLowerCase())))
   )
 
+  const inRadius = (distance: number | null) =>
+    mktRadius === 'any' || !userLat || !userLng || (distance != null && distance <= mktRadius)
+
   const sortedListings = [...listings]
     .map((l: any) => ({ ...l, distance: userLat && userLng && l.lat && l.lng ? getDistance(userLat, userLng, l.lat, l.lng) : null }))
     .filter((l: any) => mktFilter === 'all' || l.category === mktFilter)
+    .filter((l: any) => inRadius(l.distance))
     .sort((a: any, b: any) => {
       if (a.distance == null && b.distance == null) return 0
       if (a.distance == null) return 1
@@ -351,6 +356,16 @@ export default function App() {
     })
   const myListings = user ? listings.filter((l: any) => l.user_id === user.id) : []
   const myTrades = user ? tradePosts.filter((t: any) => t.user_id === user.id) : []
+
+  const sortedTrades = [...tradePosts]
+    .map((t: any) => ({ ...t, distance: userLat && userLng && t.lat && t.lng ? getDistance(userLat, userLng, t.lat, t.lng) : null }))
+    .filter((t: any) => inRadius(t.distance))
+    .sort((a: any, b: any) => {
+      if (a.distance == null && b.distance == null) return 0
+      if (a.distance == null) return 1
+      if (b.distance == null) return -1
+      return a.distance - b.distance
+    })
 
   const allEvents = allEventsData
   const eventStates = ['all', ...Array.from(new Set(allEventsData.map((ev: any) => ev.state).filter(Boolean))).sort()]
@@ -625,7 +640,7 @@ export default function App() {
     if (!inpOff.trim() || !inpWant.trim() || !user) return
     let imageUrl = ''
     if (mktFile) { const url = await uploadPhoto(mktFile, user.id); if (url) imageUrl = url }
-    await addTradePost(user.id, profile?.username || 'Guest', inpOff, inpWant, imageUrl || null)
+    await addTradePost(user.id, profile?.username || 'Guest', inpOff, inpWant, imageUrl || null, userLat, userLng)
     setInpOff(''); setInpWant(''); setMktFile(null); setMktPreview(''); setModal('none')
   }
 
@@ -1204,6 +1219,21 @@ export default function App() {
                     <Plus className="h-4 w-4" /> {mktSection === 'sale' ? 'List an item' : 'Post a trade'}
                   </button>
                 </div>
+
+                <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                  <span className="text-xs text-zinc-400 flex-shrink-0">Within</span>
+                  {[10, 25, 50, 100, 'any'].map((r: any) => (
+                    <button key={r} onClick={() => setMktRadius(r)}
+                      className="px-3 py-1 rounded-full text-xs font-medium flex-shrink-0 border transition-all"
+                      style={mktRadius === r ? { background: '#18181b', borderColor: '#18181b', color: 'white' } : { background: 'white', borderColor: '#e4e4e7', color: '#52525b' }}>
+                      {r === 'any' ? 'Anywhere' : `${r}mi`}
+                    </button>
+                  ))}
+                </div>
+                {!userLat && mktRadius !== 'any' && (
+                  <p className="text-xs text-zinc-400">Enable location to see items near you, or pick “Anywhere”.</p>
+                )}
+
               {mktSection === 'sale' ? (
               <>
 
@@ -1257,7 +1287,7 @@ export default function App() {
               </>
               ) : (
               <>
-                {tradePosts.length === 0 ? (
+                {sortedTrades.length === 0 ? (
                   <div className="text-center py-16 text-zinc-400">
                     <ArrowLeftRight className="h-10 w-10 mx-auto mb-3 opacity-20" />
                     <p className="text-sm">No trades posted yet. Put up what you have.</p>
@@ -1266,11 +1296,14 @@ export default function App() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                    {tradePosts.map((p: any) => (
+                    {sortedTrades.map((p: any) => (
                       <button key={p.id} onClick={() => { setSelectedTrade(p); setModal('tradedetail') }}
                         className="w-full text-left bg-white rounded-2xl border border-zinc-200 p-4 hover:shadow-md transition-all">
-                        <p className="text-xs text-zinc-400 mb-3">@{p.username}</p>
-                        {p.image_url && <img src={p.image_url} alt="" className="w-full h-32 object-cover rounded-xl mb-3" />}
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-xs text-zinc-400">@{p.username}</p>
+                          {p.distance != null && <span className="text-[11px] text-zinc-400">{p.distance.toFixed(1)} mi</span>}
+                        </div>
+                        {p.image_url && <img src={p.image_url} alt="" loading="lazy" className="w-full h-32 object-cover rounded-xl mb-3" />}
                         <div className="space-y-2">
                           <div className="flex gap-2 items-start">
                             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 mt-0.5" style={{ background: '#F0FDF4', color: '#166534' }}>HAS</span>
@@ -2048,7 +2081,7 @@ export default function App() {
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
           <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl shadow-2xl max-h-[92vh] overflow-y-auto" style={{ background: '#FAF9F5' }}>
             <div className="px-5 py-4 flex items-center justify-between border-b border-zinc-100">
-              <p className="font-semibold text-zinc-900">Trade · @{selectedTrade.username}</p>
+              <p className="font-semibold text-zinc-900">Trade · @{selectedTrade.username}{selectedTrade.distance != null ? ` · ${selectedTrade.distance.toFixed(1)} mi` : ''}</p>
               <button onClick={() => setModal('none')}><X className="h-5 w-5 text-zinc-400" /></button>
             </div>
             <div className="p-5 space-y-3">
