@@ -146,6 +146,19 @@ function ShopThumb({ s, className = '' }: { s: any, className?: string }) {
   return <div className={`${className} bg-zinc-100 flex items-center justify-center text-zinc-400`}><Store className="h-6 w-6" /></div>
 }
 
+// Reduce precision so a poster's exact location is never stored or shown.
+// Rounding to 2 decimals snaps to a ~0.7 mi grid (neighborhood level).
+function fuzzCoord(n: number | null | undefined): number | null {
+  if (typeof n !== 'number' || Number.isNaN(n)) return null
+  return Math.round(n * 100) / 100
+}
+
+function fmtDist(d: number | null | undefined): string {
+  if (d == null) return ''
+  if (d < 1) return '< 1 mi'
+  return `~${Math.round(d)} mi`
+}
+
 function getDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 3959
   const dLat = (lat2 - lat1) * Math.PI / 180
@@ -699,7 +712,7 @@ export default function App() {
     if (!inpOff.trim() || !inpWant.trim() || !user) return
     let imageUrl = ''
     if (mktFile) { const url = await uploadPhoto(mktFile, user.id); if (url) imageUrl = url }
-    await addTradePost(user.id, profile?.username || 'Guest', inpOff, inpWant, imageUrl || null, userLat, userLng)
+    await addTradePost(user.id, profile?.username || 'Guest', inpOff, inpWant, imageUrl || null, fuzzCoord(userLat), fuzzCoord(userLng))
     setInpOff(''); setInpWant(''); setMktFile(null); setMktPreview(''); setModal('none')
   }
 
@@ -833,8 +846,8 @@ export default function App() {
       condition: mktCondition,
       image_url: imageUrl,
       contact: mktContact,
-      lat: userLat,
-      lng: userLng,
+      lat: fuzzCoord(userLat),
+      lng: fuzzCoord(userLng),
       status: 'active',
     })
     setMktSubmitting(false)
@@ -1390,7 +1403,7 @@ export default function App() {
                           <h3 className="text-[14px] text-zinc-900 leading-snug truncate mt-0.5">{item.title}</h3>
                           <div className="flex items-center gap-1.5 text-[12px] text-zinc-500 mt-1">
                             {item.condition && <span className="bg-zinc-100 px-1.5 py-0.5 rounded">{item.condition}</span>}
-                            {item.distance != null && <span>· {item.distance.toFixed(1)} mi</span>}
+                            {item.distance != null && <span>· {fmtDist(item.distance)}</span>}
                           </div>
                         </div>
                       </div>
@@ -1414,7 +1427,7 @@ export default function App() {
                         className="w-full text-left bg-white rounded-2xl border border-zinc-200 p-4 hover:shadow-md transition-all">
                         <div className="flex items-center justify-between mb-3">
                           <p className="text-xs text-zinc-400">@{p.username}</p>
-                          {p.distance != null && <span className="text-[11px] text-zinc-400">{p.distance.toFixed(1)} mi</span>}
+                          {p.distance != null && <span className="text-[11px] text-zinc-400">{fmtDist(p.distance)}</span>}
                         </div>
                         {p.image_url && <img src={p.image_url} alt="" loading="lazy" className="w-full h-32 object-cover rounded-xl mb-3" />}
                         <div className="space-y-2">
@@ -2078,7 +2091,7 @@ export default function App() {
                 <div className="flex items-center gap-2 text-[13px] text-zinc-500 mt-1 flex-wrap">
                   {selectedListing.condition && <span className="bg-zinc-100 px-2 py-0.5 rounded-full">{selectedListing.condition}</span>}
                   {selectedListing.category && <span className="bg-zinc-100 px-2 py-0.5 rounded-full capitalize">{selectedListing.category}</span>}
-                  {selectedListing.distance != null && <span>· {selectedListing.distance.toFixed(1)} mi away</span>}
+                  {selectedListing.distance != null && <span>· {fmtDist(selectedListing.distance)} away</span>}
                 </div>
               </div>
               {selectedListing.description && <p className="text-sm text-zinc-600 whitespace-pre-wrap">{selectedListing.description}</p>}
@@ -2246,7 +2259,7 @@ export default function App() {
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
           <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl shadow-2xl max-h-[92vh] overflow-y-auto" style={{ background: '#FAF9F5' }}>
             <div className="px-5 py-4 flex items-center justify-between border-b border-zinc-100">
-              <p className="font-semibold text-zinc-900">Trade · @{selectedTrade.username}{selectedTrade.distance != null ? ` · ${selectedTrade.distance.toFixed(1)} mi` : ''}</p>
+              <p className="font-semibold text-zinc-900">Trade · @{selectedTrade.username}{selectedTrade.distance != null ? ` · ${fmtDist(selectedTrade.distance)}` : ''}</p>
               <button onClick={() => setModal('none')}><X className="h-5 w-5 text-zinc-400" /></button>
             </div>
             <div className="p-5 space-y-3">
