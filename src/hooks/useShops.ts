@@ -98,7 +98,30 @@ export function useTradePosts() {
     return { error: error?.message || null }
   }
 
-  return { tradePosts, addTradePost }
+  async function deleteTradePost(id: string) {
+    await supabase.from('trade_posts').delete().eq('id', id)
+    setTradePosts(prev => prev.filter((t: any) => t.id !== id))
+  }
+
+  async function fetchTradeComments(tradeId: string) {
+    const { data } = await supabase
+      .from('trade_comments')
+      .select('*')
+      .eq('trade_id', tradeId)
+      .order('created_at', { ascending: true })
+    return data || []
+  }
+
+  async function addTradeComment(payload: any) {
+    const { error } = await supabase.from('trade_comments').insert(payload)
+    return { error: error?.message || null }
+  }
+
+  async function deleteTradeComment(id: string) {
+    await supabase.from('trade_comments').delete().eq('id', id)
+  }
+
+  return { tradePosts, addTradePost, deleteTradePost, fetchTradeComments, addTradeComment, deleteTradeComment }
 }
 
 export function useVault(userId: string | null) {

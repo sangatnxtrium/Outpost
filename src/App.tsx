@@ -8,7 +8,7 @@ import { startCheckout } from './lib/stripe'
 import { supabase } from './lib/supabase'
 
 type TabType = 'discover' | 'map' | 'classifieds' | 'marketplace' | 'fcbd' | 'profile'
-type ModalType = 'none' | 'sub' | 'auth' | 'notifications' | 'shop' | 'menu' | 'claim' | 'additem' | 'submit' | 'listsale' | 'listingdetail' | 'posttrade' | 'editprofile'
+type ModalType = 'none' | 'sub' | 'auth' | 'notifications' | 'shop' | 'menu' | 'claim' | 'additem' | 'submit' | 'listsale' | 'listingdetail' | 'posttrade' | 'tradedetail' | 'editprofile'
 
 function DropBanner({ shops }: { shops: any[] }) {
   const [idx, setIdx] = useState(0)
@@ -197,7 +197,7 @@ export default function App() {
   const selectedShop = shops.find((s: any) => s.id === selectedShopId) || null
   const { reviews, addReview } = useReviews(selectedShop?.id || '')
   const { checkinCount, userCheckedIn, checkIn } = useCheckins(selectedShop?.id || '')
-  const { tradePosts, addTradePost } = useTradePosts()
+  const { tradePosts, addTradePost, deleteTradePost, fetchTradeComments, addTradeComment, deleteTradeComment } = useTradePosts()
   const { events: allEventsData } = useEvents()
   const { listings, uploadPhoto, createListing, deleteListing, fetchComments, addComment, deleteComment } = useListings()
   const { items: notifications, unread: unreadCount, refetch: refetchNotifs, markAllRead } = useNotifications(user?.id || null)
@@ -271,6 +271,8 @@ export default function App() {
   const [mktFilter, setMktFilter] = useState('all')
   const [mktSection, setMktSection] = useState<'sale' | 'trade'>('sale')
   const [selectedListing, setSelectedListing] = useState<any>(null)
+  const [selectedTrade, setSelectedTrade] = useState<any>(null)
+  const [tradeComments, setTradeComments] = useState<any[]>([])
   const [showContact, setShowContact] = useState(false)
   const [listingComments, setListingComments] = useState<any[]>([])
   const [qBody, setQBody] = useState('')
@@ -608,6 +610,38 @@ export default function App() {
       setListingComments([])
     }
   }, [modal, selectedListing])
+
+  useEffect(() => {
+    if (modal === 'tradedetail' && selectedTrade) {
+      fetchTradeComments(selectedTrade.id).then(setTradeComments)
+    } else {
+      setTradeComments([])
+    }
+  }, [modal, selectedTrade])
+
+  async function handlePostTradeComment() {
+    if (!qBody.trim() || !user || !selectedTrade) return
+    setQPosting(true)
+    let imageUrl = ''
+    if (qFile) { const url = await uploadPhoto(qFile, user.id); if (url) imageUrl = url }
+    const { error } = await addTradeComment({
+      trade_id: selectedTrade.id,
+      user_id: user.id,
+      username: profile?.username || 'user',
+      body: qBody.trim(),
+      image_url: imageUrl || null,
+    })
+    setQPosting(false)
+    if (!error) {
+      setQBody(''); setQFile(null); setQPreview('')
+      setTradeComments(await fetchTradeComments(selectedTrade.id))
+    }
+  }
+
+  async function handleDeleteTradeComment(id: string) {
+    await deleteTradeComment(id)
+    setTradeComments(prev => prev.filter((x: any) => x.id !== id))
+  }
 
   function onPickQPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
@@ -1193,7 +1227,8 @@ export default function App() {
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                     {tradePosts.map((p: any) => (
-                      <div key={p.id} className="bg-white rounded-2xl border border-zinc-200 p-4">
+                      <button key={p.id} onClick={() => { setSelectedTrade(p); setModal('tradedetail') }}
+                        className="w-full text-left bg-white rounded-2xl border border-zinc-200 p-4 hover:shadow-md transition-all">
                         <p className="text-xs text-zinc-400 mb-3">@{p.username}</p>
                         <div className="space-y-2">
                           <div className="flex gap-2 items-start">
@@ -1205,7 +1240,7 @@ export default function App() {
                             <p className="text-[13px] font-medium" style={{ color: '#E0533C' }}>{p.look_for}</p>
                           </div>
                         </div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -1919,6 +1954,78 @@ export default function App() {
                 className="w-full py-3.5 rounded-2xl text-sm font-medium text-white disabled:opacity-60" style={{ background: '#E0533C' }}>
                 {epSaving ? 'Saving…' : 'Save profile'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TRADE DETAIL */}
+      {modal === 'tradedetail' && selectedTrade && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
+          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl shadow-2xl max-h-[92vh] overflow-y-auto" style={{ background: '#FAF9F5' }}>
+            <div className="px-5 py-4 flex items-center justify-between border-b border-zinc-100">
+              <p className="font-semibold text-zinc-900">Trade · @{selectedTrade.username}</p>
+              <button onClick={() => setModal('none')}><X className="h-5 w-5 text-zinc-400" /></button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div className="space-y-2">
+                <div className="flex gap-2 items-start">
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 mt-0.5" style={{ background: '#F0FDF4', color: '#166534' }}>HAS</span>
+                  <p className="text-sm font-medium text-zinc-900">{selectedTrade.offer}</p>
+                </div>
+                <div className="flex gap-2 items-start">
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 mt-0.5" style={{ background: '#FEF2F2', color: '#991B1B' }}>WANTS</span>
+                  <p className="text-sm font-medium" style={{ color: '#E0533C' }}>{selectedTrade.look_for}</p>
+                </div>
+              </div>
+
+              {user?.id === selectedTrade.user_id && (
+                <button onClick={async () => { await deleteTradePost(selectedTrade.id); setModal('none') }}
+                  className="w-full py-2.5 rounded-2xl text-xs font-medium text-red-500 border border-red-100">
+                  Delete this trade
+                </button>
+              )}
+
+              <div className="pt-4 mt-1 border-t border-zinc-100">
+                <p className="font-semibold text-zinc-900 text-sm mb-2">Questions ({tradeComments.length})</p>
+                <div className="space-y-3">
+                  {tradeComments.length === 0 && <p className="text-xs text-zinc-400">No questions yet — ask about this trade below.</p>}
+                  {tradeComments.map((c: any) => (
+                    <div key={c.id} className="flex gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[13px] font-medium text-zinc-900">@{c.username}</span>
+                          {c.user_id === selectedTrade.user_id && <span className="text-[10px] px-1.5 py-0.5 rounded-full text-white" style={{ background: '#E0533C' }}>Owner</span>}
+                        </div>
+                        {c.body && <p className="text-sm text-zinc-700 mt-0.5 whitespace-pre-wrap break-words">{c.body}</p>}
+                        {c.image_url && <img src={c.image_url} alt="" className="mt-1.5 rounded-xl max-h-44 w-auto" />}
+                      </div>
+                      {user?.id === c.user_id && (
+                        <button onClick={() => handleDeleteTradeComment(c.id)} className="text-zinc-300 hover:text-red-500 flex-shrink-0"><X className="h-4 w-4" /></button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {isSignedIn ? (
+                  <div className="mt-3 space-y-2">
+                    {qPreview && <img src={qPreview} alt="" className="rounded-xl max-h-32 w-auto" />}
+                    <div className="flex items-end gap-2">
+                      <textarea value={qBody} onChange={e => setQBody(e.target.value)} rows={1} placeholder="Ask a question…"
+                        className="flex-1 bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none resize-none" />
+                      <label className="h-10 w-10 rounded-full bg-zinc-100 flex items-center justify-center cursor-pointer flex-shrink-0">
+                        <Plus className="h-4 w-4 text-zinc-500" />
+                        <input type="file" accept="image/*" onChange={onPickQPhoto} className="hidden" />
+                      </label>
+                      <button onClick={handlePostTradeComment} disabled={qPosting || !qBody.trim()}
+                        className="h-10 w-10 rounded-full flex items-center justify-center text-white flex-shrink-0 disabled:opacity-50" style={{ background: '#E0533C' }}>
+                        <Send className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button onClick={() => setModal('auth')} className="mt-3 text-xs font-medium" style={{ color: '#E0533C' }}>Sign in to ask a question</button>
+                )}
+              </div>
             </div>
           </div>
         </div>
