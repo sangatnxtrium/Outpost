@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react'
 import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { Compass, MapPin, Search, Flame, X, Store, User, Users, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, ShieldCheck, DollarSign, Plus, Check, Phone, Bell, Heart, Star, BookOpen, Send, Globe } from 'lucide-react'
+import { Compass, MapPin, Search, Flame, X, Store, User, Users, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, ShieldCheck, DollarSign, Plus, Check, Phone, Bell, Heart, Star, BookOpen, Send, Globe, Newspaper } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
-import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useListings, useFcbd, useFcbdTitles, useNotifications, useAppSettings } from './hooks/useShops'
+import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useNews, useListings, useFcbd, useFcbdTitles, useNotifications, useAppSettings } from './hooks/useShops'
 import { startCheckout } from './lib/stripe'
 import { supabase } from './lib/supabase'
 
-type TabType = 'discover' | 'map' | 'classifieds' | 'marketplace' | 'fcbd' | 'profile'
+type TabType = 'discover' | 'classifieds' | 'marketplace' | 'news' | 'fcbd' | 'profile'
 type ModalType = 'none' | 'sub' | 'auth' | 'notifications' | 'shop' | 'menu' | 'claim' | 'additem' | 'submit' | 'listsale' | 'listingdetail' | 'posttrade' | 'tradedetail' | 'editprofile' | 'setlocation'
 
 function DropBanner({ shops }: { shops: any[] }) {
@@ -159,6 +159,18 @@ function fmtDist(d: number | null | undefined): string {
   return `~${Math.round(d)} mi`
 }
 
+function timeAgo(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const t = Date.parse(iso)
+  if (isNaN(t)) return ''
+  const s = Math.floor((Date.now() - t) / 1000)
+  if (s < 3600) return `${Math.max(1, Math.floor(s / 60))}m ago`
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`
+  const d = Math.floor(s / 86400)
+  if (d < 7) return `${d}d ago`
+  return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
 const STANDING_STYLE: Record<string, { bg: string; fg: string }> = {
   New:         { bg: '#F4F4F5', fg: '#71717A' },
   Member:      { bg: '#E0F2FE', fg: '#0369A1' },
@@ -206,8 +218,8 @@ function categoryIconColor(cat: string) {
 function Sidebar({ tab, setTab, isSignedIn, profile, setModal, unreadCount }: any) {
   const items = [
     { id: 'discover', icon: Search, label: 'Discover' },
-    { id: 'map', icon: Navigation, label: 'Map' },
     { id: 'marketplace', icon: Users, label: 'Community' },
+    { id: 'news', icon: Newspaper, label: 'News' },
     { id: 'fcbd', icon: BookOpen, label: 'FCBD' },
     { id: 'profile', icon: User, label: 'Profile' },
   ]
@@ -268,6 +280,8 @@ export default function App() {
   const { checkinCount, userCheckedIn, checkIn } = useCheckins(selectedShop?.id || '')
   const { tradePosts, addTradePost, deleteTradePost, fetchTradeComments, addTradeComment, deleteTradeComment } = useTradePosts()
   const { events: allEventsData } = useEvents()
+  const { articles: newsArticles } = useNews()
+  const [newsFilter, setNewsFilter] = useState('All')
   const { listings, uploadPhoto, createListing, deleteListing, fetchComments, addComment, deleteComment } = useListings()
   const { items: notifications, unread: unreadCount, refetch: refetchNotifs, markAllRead } = useNotifications(user?.id || null)
   const { settings: appSettings } = useAppSettings()
@@ -300,6 +314,7 @@ export default function App() {
   const [onbInterest, setOnbInterest] = useState<string | null>(null)
   const [radius, setRadius] = useState(10)
   const [activeSection, setActiveSection] = useState<'shops' | 'events'>('shops')
+  const [discoverView, setDiscoverView] = useState<'list' | 'map'>('list')
   const [eventFilter, setEventFilter] = useState('all')
   const [eventState, setEventState] = useState('all')
   const [userLat, setUserLat] = useState<number | null>(null)
@@ -1116,7 +1131,7 @@ export default function App() {
                 </button>
               </div>
             </div>
-            {(tab === 'discover' || tab === 'map') && (
+            {tab === 'discover' && (
               <div className="mt-3 relative md:hidden">
                 <Search className="absolute left-3.5 top-3 h-4 w-4 text-zinc-400" />
                 <input type="text" placeholder="Search shops, cities, tags"
@@ -1164,7 +1179,7 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Radius selector + view map - only for shops */}
+                {/* Radius selector + List/Map view toggle - only for shops */}
                 {activeSection === 'shops' && (
                   <div className="flex items-center gap-2 px-0.5">
                     <button onClick={() => { setLocTarget('discover'); setLocRadius(radius); setModal('setlocation') }}
@@ -1173,11 +1188,19 @@ export default function App() {
                       Within {radius} miles
                       <span className="text-xs font-medium" style={{ color: '#E0533C' }}>· Change</span>
                     </button>
-                    <button onClick={() => setTab('map')}
-                      className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-white flex-shrink-0"
-                      style={{ background: '#E0533C' }}>
-                      <Navigation className="h-3.5 w-3.5" /> Map
-                    </button>
+                    <div className="ml-auto inline-flex rounded-full border border-zinc-200 p-0.5 bg-white flex-shrink-0">
+                      <button onClick={() => setDiscoverView('list')}
+                        className="px-3 py-1 rounded-full text-xs font-bold transition-all"
+                        style={discoverView === 'list' ? { background: '#E0533C', color: 'white' } : { color: '#52525b' }}>List</button>
+                      <button onClick={() => setDiscoverView('map')}
+                        className="px-3 py-1 rounded-full text-xs font-bold transition-all"
+                        style={discoverView === 'map' ? { background: '#E0533C', color: 'white' } : { color: '#52525b' }}>Map</button>
+                    </div>
+                  </div>
+                )}
+                {activeSection === 'shops' && discoverView === 'map' && (
+                  <div className="rounded-2xl overflow-hidden border border-zinc-200 h-[56vh] md:h-[64vh]">
+                    <LocalMap shops={filteredShops} onSelect={s => openShop(s)} activeId={hoverShopId} userLat={userLat} userLng={userLng} />
                   </div>
                 )}
                 {activeSection === 'shops' && <DropBanner shops={shops} />}
@@ -1346,82 +1369,6 @@ export default function App() {
               </div>
             )}
 
-            {/* MAP */}
-            {tab === 'map' && (
-              <>
-                {/* Desktop: list + map split */}
-                <div className="hidden md:flex md:h-[calc(100vh-57px)]">
-                  <div className="w-[400px] flex-shrink-0 overflow-y-auto border-r border-zinc-200 p-4 space-y-3">
-                    <div>
-                      <h2 className="text-lg font-semibold text-zinc-900">Shops near you</h2>
-                      <p className="text-xs text-zinc-400 mt-0.5">{filteredShops.length} {filteredShops.length === 1 ? 'shop' : 'shops'}{userLat ? ` · within ${radius} mi` : ''}</p>
-                    </div>
-                    <div className="flex gap-2 overflow-x-auto pb-1">
-                      {[
-                        { id: 'all', label: 'All' },
-                        { id: 'comics', label: 'Comics' },
-                        { id: 'cards', label: 'Cards' },
-                        { id: 'collectibles', label: 'Collectibles' },
-                        { id: 'toys', label: 'Toys' },
-                      ].map(f => (
-                        <button key={f.id} onClick={() => setFilter(f.id)}
-                          className="px-4 py-1.5 rounded-full text-[13px] font-medium border transition-all whitespace-nowrap flex-shrink-0"
-                          style={filter === f.id ? { background: '#E0533C', borderColor: '#E0533C', color: 'white' } : { background: 'white', borderColor: '#e4e4e7', color: '#52525b' }}>
-                          {f.label}
-                        </button>
-                      ))}
-                    </div>
-                    {filteredShops.length === 0 ? (
-                      <div className="text-center py-12 text-zinc-400">
-                        <MapPin className="h-9 w-9 mx-auto mb-2 opacity-20" />
-                        <p className="text-sm">No shops in range. Try a wider radius.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2.5">
-                        {filteredShops.map((s: any) => <ShopCard key={s.id} s={s} />)}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 h-full">
-                    <LocalMap shops={filteredShops} onSelect={s => openShop(s)} activeId={hoverShopId} userLat={userLat} userLng={userLng} />
-                  </div>
-                </div>
-
-                {/* Mobile: map first, then list */}
-                <div className="md:hidden p-4 space-y-3">
-                  <div className="flex gap-2 overflow-x-auto pb-1">
-                    {[
-                      { id: 'all', label: 'All' },
-                      { id: 'comics', label: 'Comics' },
-                      { id: 'cards', label: 'Cards' },
-                      { id: 'collectibles', label: 'Collectibles' },
-                      { id: 'toys', label: 'Toys' },
-                    ].map(f => (
-                      <button key={f.id} onClick={() => setFilter(f.id)}
-                        className="px-4 py-1.5 rounded-full text-[13px] font-medium border transition-all whitespace-nowrap flex-shrink-0"
-                        style={filter === f.id ? { background: '#E0533C', borderColor: '#E0533C', color: 'white' } : { background: 'white', borderColor: '#e4e4e7', color: '#52525b' }}>
-                        {f.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="rounded-2xl overflow-hidden border border-zinc-200 h-[56vh]">
-                    <LocalMap shops={filteredShops} onSelect={s => openShop(s)} userLat={userLat} userLng={userLng} />
-                  </div>
-                  <p className="text-xs text-zinc-400 px-0.5">{filteredShops.length} {filteredShops.length === 1 ? 'shop' : 'shops'} nearby — tap a pin, or browse below</p>
-                  {filteredShops.length === 0 ? (
-                    <div className="text-center py-12 text-zinc-400">
-                      <MapPin className="h-9 w-9 mx-auto mb-2 opacity-20" />
-                      <p className="text-sm">No shops in range. Try a wider radius.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2.5">
-                      {filteredShops.map((s: any) => <ShopCard key={s.id} s={s} />)}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-
             {/* MARKETPLACE */}
             {tab === 'marketplace' && (
               <div className="p-4 space-y-4">
@@ -1554,6 +1501,57 @@ export default function App() {
                 )}
               </>
               )}
+              </div>
+            )}
+
+            {/* NEWS */}
+            {tab === 'news' && (
+              <div className="p-4 space-y-4 max-w-3xl">
+                <div>
+                  <h2 className="font-black text-2xl">News</h2>
+                  <p className="text-sm text-zinc-400 mt-0.5">Collectibles, comics, TCG &amp; pop culture headlines.</p>
+                </div>
+
+                {(() => {
+                  const cats = Array.from(new Set(newsArticles.map((a: any) => a.category).filter(Boolean)))
+                  const filtered = newsFilter === 'All' ? newsArticles : newsArticles.filter((a: any) => a.category === newsFilter)
+                  return (
+                    <>
+                      <div className="flex gap-2 overflow-x-auto pb-1">
+                        {['All', ...cats].map((c: string) => (
+                          <button key={c} onClick={() => setNewsFilter(c)}
+                            className="px-3.5 py-1.5 rounded-full text-xs font-bold flex-shrink-0 border transition-all"
+                            style={newsFilter === c ? { background: '#18181b', borderColor: '#18181b', color: 'white' } : { background: 'white', borderColor: '#e4e4e7', color: '#52525b' }}>
+                            {c}
+                          </button>
+                        ))}
+                      </div>
+
+                      {filtered.length === 0 ? (
+                        <div className="text-center py-16 text-zinc-400">
+                          <Newspaper className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                          <p className="text-sm">No headlines yet. Check back soon.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2.5">
+                          {filtered.map((a: any) => (
+                            <a key={a.id} href={a.url} target="_blank" rel="noopener noreferrer"
+                              className="block bg-white rounded-2xl border border-zinc-200 p-4 hover:shadow-md transition-all">
+                              <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                {a.source_name && <span className="text-[11px] font-bold px-2 py-0.5 rounded-md" style={{ background: '#F4F4F5', color: '#3f3f46' }}>{a.source_name}</span>}
+                                <span className="text-[11px] font-bold px-2 py-0.5 rounded-md" style={{ background: '#FEF3C7', color: '#92400E' }}>{a.category}</span>
+                                <span className="text-[11px] text-zinc-400">{timeAgo(a.published_at)}</span>
+                              </div>
+                              <p className="font-bold text-[15px] leading-snug text-zinc-900">{a.title}</p>
+                              {a.description && <p className="text-xs text-zinc-500 leading-relaxed mt-1.5 line-clamp-2">{a.description}</p>}
+                              <p className="text-[11px] font-medium mt-2" style={{ color: '#E0533C' }}>Read full story →</p>
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )
+                })()}
               </div>
             )}
 
@@ -1857,8 +1855,8 @@ export default function App() {
             style={{ background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(20px)' }}>
             {[
               { id: 'discover', icon: Search, label: 'Discover' },
-              { id: 'map', icon: Navigation, label: 'Map' },
               { id: 'marketplace', icon: Users, label: 'Community' },
+              { id: 'news', icon: Newspaper, label: 'News' },
               { id: 'fcbd', icon: BookOpen, label: 'FCBD' },
               { id: 'profile', icon: User, label: 'Profile' },
             ].map(({ id, icon: Icon, label }) => (
