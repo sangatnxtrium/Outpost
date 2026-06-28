@@ -427,7 +427,7 @@ export default function App() {
     })
     // Record one activity row per day (idempotent) — powers "active days" in standing
     const today = new Date().toISOString().slice(0, 10)
-    supabase.from('user_activity').upsert({ user_id: user.id, day: today }).then(() => {})
+    supabase.from('user_activity').upsert({ user_id: user.id, day: today }, { onConflict: 'user_id,day', ignoreDuplicates: true }).then(() => {})
     return () => { active = false }
   }, [user?.id])
 
@@ -951,6 +951,17 @@ export default function App() {
     }
   }
 
+  useEffect(() => {
+    const ids: (string | null | undefined)[] = [user?.id]
+    sortedListings.forEach((l: any) => ids.push(l.user_id))
+    sortedTrades.forEach((t: any) => ids.push(t.user_id))
+    if (selectedListing?.user_id) ids.push(selectedListing.user_id)
+    if (selectedTrade?.user_id) ids.push(selectedTrade.user_id)
+    if (selectedShop?.owner_id) ids.push(selectedShop.owner_id)
+    loadStanding(ids)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, sortedListings.length, sortedTrades.length, selectedListing?.id, selectedTrade?.id, selectedShopId])
+
   if (authLoading || shopsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f0c29, #302b63)' }}>
@@ -1009,17 +1020,6 @@ export default function App() {
       </div>
     )
   }
-
-  useEffect(() => {
-    const ids: (string | null | undefined)[] = [user?.id]
-    sortedListings.forEach((l: any) => ids.push(l.user_id))
-    sortedTrades.forEach((t: any) => ids.push(t.user_id))
-    if (selectedListing?.user_id) ids.push(selectedListing.user_id)
-    if (selectedTrade?.user_id) ids.push(selectedTrade.user_id)
-    if (selectedShop?.owner_id) ids.push(selectedShop.owner_id)
-    loadStanding(ids)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, sortedListings.length, sortedTrades.length, selectedListing?.id, selectedTrade?.id, selectedShopId])
 
   return (
     <div className="min-h-screen text-[#18191B] font-sans" style={{ background: '#FAFAF9' }}>
