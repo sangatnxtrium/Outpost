@@ -205,6 +205,7 @@ export default function App() {
   const FCBD_YEAR = parseInt(appSettings.fcbd_year || '') || 2027
   const FCBD_DATE = new Date(`${appSettings.fcbd_date || '2027-05-01'}T00:00:00`)
   const FCBD_DATE_LABEL = FCBD_DATE.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+  const FCBD_MONTH = FCBD_DATE.toLocaleDateString('en-US', { month: 'long' })
   const fcbdDaysLeft = Math.max(0, Math.ceil((FCBD_DATE.getTime() - Date.now()) / 86400000))
   const { participants: fcbdShops, upsertParticipation, getMyParticipation } = useFcbd(FCBD_YEAR)
   const fcbdShopIds = new Set(fcbdShops.map((p: any) => p.shop_id))
@@ -1342,7 +1343,7 @@ export default function App() {
                     <div className="text-center py-12 text-zinc-400 bg-white rounded-3xl border border-zinc-100">
                       <BookOpen className="h-10 w-10 mx-auto mb-3 opacity-20" />
                       <p className="text-sm">No shops have signed up yet.</p>
-                      <p className="text-xs mt-1">Check back as May {FCBD_YEAR} approaches.</p>
+                      <p className="text-xs mt-1">Check back as {FCBD_MONTH} {FCBD_YEAR} approaches.</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
