@@ -1710,6 +1710,15 @@ export default function App() {
                     </button>
                   </div>
                 )}
+
+                <div className="pt-2 pb-1 text-center">
+                  <div className="flex items-center justify-center gap-3 text-xs text-zinc-400">
+                    <button onClick={() => window.open('/privacy', '_blank')} className="hover:text-zinc-600 transition-colors">Privacy Policy</button>
+                    <span className="text-zinc-300">·</span>
+                    <button onClick={() => window.open('/terms', '_blank')} className="hover:text-zinc-600 transition-colors">Terms of Service</button>
+                  </div>
+                  <p className="text-[11px] text-zinc-300 mt-2">Outpost · Find collectibles near you</p>
+                </div>
               </div>
             )}
           </main>
