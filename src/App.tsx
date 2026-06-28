@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { Compass, MapPin, Search, Flame, X, Store, User, Users, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, DollarSign, Plus, Check, Phone, Bell, Heart, Star, BookOpen, Send } from 'lucide-react'
+import { Compass, MapPin, Search, Flame, X, Store, User, Users, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, DollarSign, Plus, Check, Phone, Bell, Heart, Star, BookOpen, Send, Globe } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
 import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useListings, useFcbd, useFcbdTitles, useNotifications } from './hooks/useShops'
 import { startCheckout } from './lib/stripe'
@@ -266,6 +266,7 @@ export default function App() {
   const [mktCategory, setMktCategory] = useState('cards')
   const [mktContact, setMktContact] = useState('')
   const [mktFile, setMktFile] = useState<File | null>(null)
+  const [galleryBusy, setGalleryBusy] = useState(false)
   const [mktPreview, setMktPreview] = useState<string>('')
   const [mktSubmitting, setMktSubmitting] = useState(false)
   const [mktFilter, setMktFilter] = useState('all')
@@ -485,6 +486,28 @@ export default function App() {
     if (e.key === 'Backspace' && !authCode[i] && i > 0) codeRefs[i-1].current?.focus()
   }
 
+  async function handleAddShopPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]
+    if (!f || !selectedShop || !user) return
+    const current = (selectedShop as any).gallery || []
+    if (current.length >= 5) return
+    setGalleryBusy(true)
+    const url = await uploadPhoto(f, user.id)
+    if (url) {
+      const next = [...current, url]
+      await updateShop(selectedShop.id, { gallery: next })
+      setSelectedShop({ ...selectedShop, gallery: next })
+    }
+    setGalleryBusy(false)
+  }
+
+  async function handleRemoveShopPhoto(url: string) {
+    if (!selectedShop) return
+    const next = ((selectedShop as any).gallery || []).filter((g: string) => g !== url)
+    await updateShop(selectedShop.id, { gallery: next })
+    setSelectedShop({ ...selectedShop, gallery: next })
+  }
+
   async function handleSaveShopInfo() {
     if (!selectedShop) return
     setSavingInfo(true)
@@ -585,8 +608,10 @@ export default function App() {
   async function handleTradeSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!inpOff.trim() || !inpWant.trim() || !user) return
-    await addTradePost(user.id, profile?.username || 'Guest', inpOff, inpWant)
-    setInpOff(''); setInpWant(''); setModal('none')
+    let imageUrl = ''
+    if (mktFile) { const url = await uploadPhoto(mktFile, user.id); if (url) imageUrl = url }
+    await addTradePost(user.id, profile?.username || 'Guest', inpOff, inpWant, imageUrl || null)
+    setInpOff(''); setInpWant(''); setMktFile(null); setMktPreview(''); setModal('none')
   }
 
   function onPickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -1158,7 +1183,7 @@ export default function App() {
                       className="px-4 py-1.5 rounded-full text-[13px] font-medium transition-all"
                       style={mktSection === 'trade' ? { background: '#E0533C', color: 'white' } : { color: '#52525b' }}>Trades</button>
                   </div>
-                  <button onClick={() => isSignedIn ? setModal(mktSection === 'sale' ? 'listsale' : 'posttrade') : setModal('auth')}
+                  <button onClick={() => isSignedIn ? (setMktFile(null), setMktPreview(''), setModal(mktSection === 'sale' ? 'listsale' : 'posttrade')) : setModal('auth')}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium text-white flex-shrink-0"
                     style={{ background: '#E0533C' }}>
                     <Plus className="h-4 w-4" /> {mktSection === 'sale' ? 'List an item' : 'Post a trade'}
@@ -1187,7 +1212,7 @@ export default function App() {
                   <div className="text-center py-16 text-zinc-400">
                     <Tag className="h-10 w-10 mx-auto mb-3 opacity-20" />
                     <p className="text-sm">No listings yet. Be the first to list something.</p>
-                    <button onClick={() => isSignedIn ? setModal('listsale') : setModal('auth')}
+                    <button onClick={() => isSignedIn ? (setMktFile(null), setMktPreview(''), setModal('listsale')) : setModal('auth')}
                       className="mt-4 px-5 py-2 rounded-full text-sm font-medium text-white" style={{ background: '#E0533C' }}>
                       List an item
                     </button>
@@ -1221,7 +1246,7 @@ export default function App() {
                   <div className="text-center py-16 text-zinc-400">
                     <ArrowLeftRight className="h-10 w-10 mx-auto mb-3 opacity-20" />
                     <p className="text-sm">No trades posted yet. Put up what you have.</p>
-                    <button onClick={() => isSignedIn ? setModal('posttrade') : setModal('auth')}
+                    <button onClick={() => isSignedIn ? (setMktFile(null), setMktPreview(''), setModal('posttrade')) : setModal('auth')}
                       className="mt-4 px-5 py-2 rounded-full text-sm font-medium text-white" style={{ background: '#E0533C' }}>Post a trade</button>
                   </div>
                 ) : (
@@ -1230,6 +1255,7 @@ export default function App() {
                       <button key={p.id} onClick={() => { setSelectedTrade(p); setModal('tradedetail') }}
                         className="w-full text-left bg-white rounded-2xl border border-zinc-200 p-4 hover:shadow-md transition-all">
                         <p className="text-xs text-zinc-400 mb-3">@{p.username}</p>
+                        {p.image_url && <img src={p.image_url} alt="" className="w-full h-32 object-cover rounded-xl mb-3" />}
                         <div className="space-y-2">
                           <div className="flex gap-2 items-start">
                             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 mt-0.5" style={{ background: '#F0FDF4', color: '#166534' }}>HAS</span>
@@ -1531,6 +1557,13 @@ export default function App() {
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-4 md:max-w-2xl md:mx-auto md:w-full">
             <ShopThumb s={selectedShop} className="h-44 w-full rounded-3xl border border-zinc-200" />
+            {(selectedShop as any).gallery?.length > 0 && (
+              <div className="grid grid-cols-3 gap-2">
+                {(selectedShop as any).gallery.map((g: string, i: number) => (
+                  <img key={i} src={g} alt="" className="aspect-square object-cover rounded-2xl border border-zinc-200" />
+                ))}
+              </div>
+            )}
             {typeof (selectedShop as any).lat === 'number' && typeof (selectedShop as any).lng === 'number' && (
               <div className="rounded-3xl overflow-hidden border border-zinc-200">
                 <LocalMap shops={[selectedShop]} onSelect={() => {}} />
@@ -1547,24 +1580,24 @@ export default function App() {
                 <span className="text-sm font-mono text-zinc-400">⏱ {selectedShop.hours}</span>
                 <div className="flex gap-2">
                   <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent((selectedShop as any).address)}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs font-black px-3 py-2 rounded-2xl text-white"
+                    target="_blank" rel="noopener noreferrer" aria-label="Directions"
+                    className="h-11 w-11 flex items-center justify-center rounded-2xl text-white"
                     style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
-                    <Navigation className="h-3.5 w-3.5" /> Directions
+                    <Navigation className="h-4 w-4" />
                   </a>
                   {(selectedShop as any).phone && (
-                    <a href={`tel:${(selectedShop as any).phone}`}
-                      className="inline-flex items-center gap-1.5 text-xs font-black px-3 py-2 rounded-2xl text-white"
+                    <a href={`tel:${(selectedShop as any).phone}`} aria-label="Call"
+                      className="h-11 w-11 flex items-center justify-center rounded-2xl text-white"
                       style={{ background: 'linear-gradient(135deg, #059669, #047857)' }}>
-                      <Phone className="h-3.5 w-3.5" /> Call
+                      <Phone className="h-4 w-4" />
                     </a>
                   )}
                   {(selectedShop as any).website && (
                     <a href={(selectedShop as any).website.startsWith('http') ? (selectedShop as any).website : `https://${(selectedShop as any).website}`}
-                      target="_blank" rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs font-black px-3 py-2 rounded-2xl text-white"
+                      target="_blank" rel="noopener noreferrer" aria-label="Website"
+                      className="h-11 w-11 flex items-center justify-center rounded-2xl text-white"
                       style={{ background: '#27272a' }}>
-                      🌐 Website
+                      <Globe className="h-4 w-4" />
                     </a>
                   )}
                 </div>
@@ -1671,6 +1704,34 @@ export default function App() {
                     {(selectedShop as any).hours && <p>🕑 {(selectedShop as any).hours}</p>}
                   </div>
                 )}
+              </div>
+            )}
+
+            {isMerchant && (selectedShop as any).owner_id === user?.id && (
+              <div className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-black uppercase text-zinc-400">Shop Photos</p>
+                  <span className="text-xs text-zinc-400 font-mono">{((selectedShop as any).gallery || []).length}/5</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {((selectedShop as any).gallery || []).map((g: string, i: number) => (
+                    <div key={i} className="relative aspect-square">
+                      <img src={g} alt="" className="w-full h-full object-cover rounded-2xl border border-zinc-200" />
+                      <button onClick={() => handleRemoveShopPhoto(g)}
+                        className="absolute -top-1.5 -right-1.5 h-6 w-6 rounded-full bg-white shadow border border-zinc-200 flex items-center justify-center">
+                        <X className="h-3.5 w-3.5 text-red-500" />
+                      </button>
+                    </div>
+                  ))}
+                  {((selectedShop as any).gallery || []).length < 5 && (
+                    <label className="aspect-square rounded-2xl border-2 border-dashed border-zinc-200 flex items-center justify-center cursor-pointer">
+                      {galleryBusy
+                        ? <span className="text-[10px] text-zinc-400">Uploading…</span>
+                        : <Plus className="h-5 w-5 text-zinc-400" />}
+                      <input type="file" accept="image/*" onChange={handleAddShopPhoto} className="hidden" disabled={galleryBusy} />
+                    </label>
+                  )}
+                </div>
               </div>
             )}
 
@@ -1968,6 +2029,7 @@ export default function App() {
               <button onClick={() => setModal('none')}><X className="h-5 w-5 text-zinc-400" /></button>
             </div>
             <div className="p-5 space-y-3">
+              {selectedTrade.image_url && <img src={selectedTrade.image_url} alt="" className="w-full rounded-2xl max-h-72 object-cover" />}
               <div className="space-y-2">
                 <div className="flex gap-2 items-start">
                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 mt-0.5" style={{ background: '#F0FDF4', color: '#166534' }}>HAS</span>
@@ -2040,6 +2102,13 @@ export default function App() {
               <button onClick={() => setModal('none')}><X className="h-5 w-5 text-zinc-400" /></button>
             </div>
             <form onSubmit={handleTradeSubmit} className="space-y-3">
+              <label className="block cursor-pointer">
+                <div className="h-32 rounded-2xl border-2 border-dashed border-zinc-200 flex items-center justify-center overflow-hidden bg-white"
+                  style={mktPreview ? { backgroundImage: `url(${mktPreview})`, backgroundSize: 'cover', backgroundPosition: 'center', borderStyle: 'solid' } : {}}>
+                  {!mktPreview && <span className="text-xs text-zinc-400 text-center"><Plus className="h-5 w-5 mx-auto mb-0.5" />Add a photo (optional)</span>}
+                </div>
+                <input type="file" accept="image/*" onChange={onPickPhoto} className="hidden" />
+              </label>
               <div>
                 <label className="block text-xs font-medium text-zinc-400 mb-1.5">You have</label>
                 <input type="text" required value={inpOff} onChange={e => setInpOff(e.target.value)}

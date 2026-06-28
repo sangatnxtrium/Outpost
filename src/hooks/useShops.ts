@@ -88,10 +88,10 @@ export function useTradePosts() {
       .then(({ data }) => setTradePosts(data || []))
   }, [])
 
-  async function addTradePost(userId: string, username: string, offer: string, lookFor: string) {
+  async function addTradePost(userId: string, username: string, offer: string, lookFor: string, imageUrl?: string | null) {
     const { data, error } = await supabase
       .from('trade_posts')
-      .insert({ user_id: userId, username, offer, look_for: lookFor })
+      .insert({ user_id: userId, username, offer, look_for: lookFor, image_url: imageUrl || null })
       .select()
       .single()
     if (data) setTradePosts(prev => [data, ...prev])
