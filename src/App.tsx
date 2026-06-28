@@ -255,6 +255,9 @@ export default function App() {
   const [modal, setModal] = useState<ModalType>('none')
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
+  const [showOnboarding, setShowOnboarding] = useState(false)
+  const [onbStep, setOnbStep] = useState(1)
+  const [onbInterest, setOnbInterest] = useState<string | null>(null)
   const [radius, setRadius] = useState(10)
   const [activeSection, setActiveSection] = useState<'shops' | 'events'>('shops')
   const [eventFilter, setEventFilter] = useState('all')
@@ -360,6 +363,18 @@ export default function App() {
   useEffect(() => {
     requestLocation()
   }, [])
+
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem('outpost_onboarded')) setShowOnboarding(true)
+    } catch { /* localStorage unavailable */ }
+  }, [])
+
+  function finishOnboarding() {
+    try { localStorage.setItem('outpost_onboarded', '1') } catch { /* noop */ }
+    if (onbInterest) { setFilter(onbInterest); setTab('discover'); setActiveSection('shops') }
+    setShowOnboarding(false)
+  }
 
   const sortedShops = locationLoading ? [] : [...shops]
     .map((s: any) => ({ ...s, distance: userLat && userLng ? getDistance(userLat, userLng, s.lat, s.lng) : null }))
@@ -890,6 +905,54 @@ export default function App() {
 
   return (
     <div className="min-h-screen text-[#18191B] font-sans" style={{ background: '#FAFAF9' }}>
+      {showOnboarding && (
+        <div className="fixed inset-0 z-[60] flex flex-col" style={{ background: '#FAF9F5' }}>
+          <div className="flex-1 flex flex-col items-center justify-center px-6 max-w-md mx-auto w-full text-center">
+            {onbStep === 1 ? (
+              <>
+                <img src="/logo.png" alt="Outpost" className="w-44 mb-6" />
+                <h1 className="text-2xl font-black text-zinc-900">Find collectibles near you</h1>
+                <p className="text-sm text-zinc-500 mt-2 leading-relaxed">
+                  Outpost shows card shops, comic stores, drops, and deals around you. Turn on location so we can sort everything by distance.
+                </p>
+                <button onClick={() => { requestLocation(); setOnbStep(2) }}
+                  className="mt-8 w-full py-3.5 rounded-2xl text-sm font-bold text-white flex items-center justify-center gap-2" style={{ background: '#E0533C' }}>
+                  <Navigation className="h-4 w-4" /> Use my location
+                </button>
+                <button onClick={() => setOnbStep(2)} className="mt-3 text-sm text-zinc-400">Not now</button>
+              </>
+            ) : (
+              <>
+                <h1 className="text-2xl font-black text-zinc-900">What do you collect?</h1>
+                <p className="text-sm text-zinc-500 mt-2">Pick one to personalize your feed. You can change it anytime.</p>
+                <div className="grid grid-cols-2 gap-3 w-full mt-8">
+                  {[
+                    { id: 'cards', label: 'Cards' },
+                    { id: 'comics', label: 'Comics' },
+                    { id: 'collectibles', label: 'Collectibles' },
+                    { id: 'toys', label: 'Toys' },
+                  ].map(c => (
+                    <button key={c.id} onClick={() => setOnbInterest(onbInterest === c.id ? null : c.id)}
+                      className="py-4 rounded-2xl text-sm font-bold border-2 transition-all"
+                      style={onbInterest === c.id ? { borderColor: '#E0533C', background: 'rgba(224,83,60,0.06)', color: '#E0533C' } : { borderColor: '#e4e4e7', background: 'white', color: '#52525b' }}>
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={finishOnboarding}
+                  className="mt-8 w-full py-3.5 rounded-2xl text-sm font-bold text-white" style={{ background: '#E0533C' }}>
+                  {onbInterest ? `Explore ${onbInterest}` : 'Explore all shops'}
+                </button>
+                <button onClick={finishOnboarding} className="mt-3 text-sm text-zinc-400">Skip</button>
+              </>
+            )}
+          </div>
+          <div className="flex items-center justify-center gap-2 pb-10">
+            <div className="h-1.5 rounded-full transition-all" style={{ width: onbStep === 1 ? 20 : 8, background: onbStep === 1 ? '#E0533C' : '#d4d4d8' }} />
+            <div className="h-1.5 rounded-full transition-all" style={{ width: onbStep === 2 ? 20 : 8, background: onbStep === 2 ? '#E0533C' : '#d4d4d8' }} />
+          </div>
+        </div>
+      )}
       <div className="flex min-h-screen">
         <Sidebar tab={tab} setTab={setTab} isSignedIn={isSignedIn} profile={profile} setModal={setModal} unreadCount={unreadCount} />
 
