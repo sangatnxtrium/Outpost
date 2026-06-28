@@ -461,12 +461,10 @@ export default function App() {
     })
   const myListings = user ? listings.filter((l: any) => l.user_id === user.id) : []
   const myTrades = user ? tradePosts.filter((t: any) => t.user_id === user.id) : []
-  const todayStart = new Date(new Date().toDateString())
   const myEvents = rsvps
     .map((id: string) => allEventsData.find((e: any) => e.id === id))
     .filter(Boolean)
-    .filter((e: any) => { const d = new Date(e.date); return isNaN(d.getTime()) || d >= todayStart })
-    .sort((a: any, b: any) => { const da = new Date(a.date).getTime(), db = new Date(b.date).getTime(); if (isNaN(da)) return 1; if (isNaN(db)) return -1; return da - db })
+    .sort((a: any, b: any) => String(a.date).localeCompare(String(b.date)))
 
   const sortedTrades = [...tradePosts]
     .map((t: any) => ({ ...t, distance: userLat && userLng && t.lat && t.lng ? getDistance(userLat, userLng, t.lat, t.lng) : null }))
