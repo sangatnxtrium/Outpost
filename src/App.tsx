@@ -390,10 +390,13 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (!user) { setSavedShops([]); return }
+    if (!user) { setSavedShops([]); setRsvps([]); return }
     let active = true
     supabase.from('saved_shops').select('shop_id').eq('user_id', user.id).then(({ data }) => {
       if (active && data) setSavedShops(data.map((r: any) => r.shop_id))
+    })
+    supabase.from('event_rsvps').select('event_id').eq('user_id', user.id).then(({ data }) => {
+      if (active && data) setRsvps(data.map((r: any) => r.event_id))
     })
     return () => { active = false }
   }, [user?.id])
@@ -406,6 +409,17 @@ export default function App() {
       await supabase.from('saved_shops').delete().eq('user_id', user.id).eq('shop_id', shopId)
     } else {
       await supabase.from('saved_shops').upsert({ user_id: user.id, shop_id: shopId })
+    }
+  }
+
+  async function toggleRsvp(eventId: string) {
+    const going = rsvps.includes(eventId)
+    setRsvps(going ? rsvps.filter(id => id !== eventId) : [...rsvps, eventId])
+    if (!user) return
+    if (going) {
+      await supabase.from('event_rsvps').delete().eq('user_id', user.id).eq('event_id', eventId)
+    } else {
+      await supabase.from('event_rsvps').upsert({ user_id: user.id, event_id: eventId })
     }
   }
 
@@ -447,6 +461,12 @@ export default function App() {
     })
   const myListings = user ? listings.filter((l: any) => l.user_id === user.id) : []
   const myTrades = user ? tradePosts.filter((t: any) => t.user_id === user.id) : []
+  const todayStart = new Date(new Date().toDateString())
+  const myEvents = rsvps
+    .map((id: string) => allEventsData.find((e: any) => e.id === id))
+    .filter(Boolean)
+    .filter((e: any) => { const d = new Date(e.date); return isNaN(d.getTime()) || d >= todayStart })
+    .sort((a: any, b: any) => { const da = new Date(a.date).getTime(), db = new Date(b.date).getTime(); if (isNaN(da)) return 1; if (isNaN(db)) return -1; return da - db })
 
   const sortedTrades = [...tradePosts]
     .map((t: any) => ({ ...t, distance: userLat && userLng && t.lat && t.lng ? getDistance(userLat, userLng, t.lat, t.lng) : null }))
@@ -1229,7 +1249,7 @@ export default function App() {
                               </div>
                             </div>
                             {ev.description && <p className="text-xs text-zinc-500 leading-relaxed">{ev.description}</p>}
-                            <button onClick={() => setRsvps(rsvps.includes(ev.id) ? rsvps.filter((id: string) => id !== ev.id) : [...rsvps, ev.id])}
+                            <button onClick={() => toggleRsvp(ev.id)}
                               className="w-full mt-3 py-2.5 rounded-2xl text-xs font-black uppercase border-2 transition-all"
                               style={rsvps.includes(ev.id) ? { background: '#F0FDF4', color: '#166534', borderColor: '#BBF7D0' } : { background: 'white', color: '#9ca3af', borderColor: '#e5e7eb' }}>
                               {rsvps.includes(ev.id) ? '✓ Going' : 'RSVP'}
@@ -1627,6 +1647,27 @@ export default function App() {
                           className="w-full mt-3 py-2.5 rounded-2xl text-sm font-medium text-white disabled:opacity-60" style={{ background: '#E0533C' }}>
                           {fcbdSaving ? 'Saving…' : fcbdSaved ? 'Saved ✓' : 'Save'}
                         </button>
+                      </div>
+                    )}
+
+                    {myEvents.length > 0 && (
+                      <div className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
+                        <p className="text-xs font-black uppercase text-zinc-400 mb-3">Upcoming Events</p>
+                        <div className="space-y-2">
+                          {myEvents.map((ev: any) => (
+                            <button key={ev.id} onClick={() => { setTab('discover'); setActiveSection('events') }}
+                              className="w-full flex items-center justify-between gap-3 p-3 rounded-2xl text-left hover:bg-zinc-50 transition-all" style={{ background: '#F8F7F2' }}>
+                              <div className="min-w-0">
+                                <p className="font-bold text-sm text-zinc-900 truncate">{ev.title}</p>
+                                <p className="text-xs text-zinc-400 truncate">{ev.location || ev.shops?.name || ''}</p>
+                              </div>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <span className="text-xs bg-zinc-200 px-2 py-1 rounded-lg font-mono font-bold">{ev.date}</span>
+                                <span className="text-[10px] font-black uppercase px-2 py-1 rounded-lg" style={{ background: '#F0FDF4', color: '#166534' }}>Going</span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
 
@@ -2029,7 +2070,7 @@ export default function App() {
                       <span className="text-xs bg-zinc-200 px-2 py-0.5 rounded-lg font-mono font-bold mr-2">{ev.date}</span>
                       <span className="text-sm font-bold">{ev.title}</span>
                     </div>
-                    <button onClick={() => setRsvps(rsvps.includes(ev.id) ? rsvps.filter((id: string) => id !== ev.id) : [...rsvps, ev.id])}
+                    <button onClick={() => toggleRsvp(ev.id)}
                       className="text-xs font-black uppercase px-3 py-1.5 rounded-xl border-2"
                       style={rsvps.includes(ev.id) ? { background: '#F0FDF4', color: '#166534', borderColor: '#BBF7D0' } : { background: 'white', color: '#9ca3af', borderColor: '#e5e7eb' }}>
                       {rsvps.includes(ev.id) ? '✓ RSVP' : 'RSVP'}
