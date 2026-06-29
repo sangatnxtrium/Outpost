@@ -692,7 +692,6 @@ export default function App() {
     const url = await uploadPhoto(f, user.id)
     if (url) {
       await updateShop(selectedShop.id, { image_url: url })
-      setSelectedShop({ ...selectedShop, image_url: url })
     }
     setGalleryBusy(false)
   }
@@ -707,7 +706,6 @@ export default function App() {
     if (url) {
       const next = [...current, url]
       await updateShop(selectedShop.id, { gallery: next })
-      setSelectedShop({ ...selectedShop, gallery: next })
     }
     setGalleryBusy(false)
   }
@@ -716,7 +714,6 @@ export default function App() {
     if (!selectedShop) return
     const next = ((selectedShop as any).gallery || []).filter((g: string) => g !== url)
     await updateShop(selectedShop.id, { gallery: next })
-    setSelectedShop({ ...selectedShop, gallery: next })
   }
 
   async function handleSaveShopInfo() {
@@ -731,7 +728,6 @@ export default function App() {
     const { error } = await updateShop(selectedShop.id, fields)
     setSavingInfo(false)
     if (!error) {
-      setSelectedShop({ ...selectedShop, ...fields })
       setEditingInfo(false)
     }
   }
