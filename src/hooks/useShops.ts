@@ -257,7 +257,11 @@ export function useListings() {
     const ext = (compressed.name.split('.').pop() || 'jpg').toLowerCase()
     const path = `${userId}/${Date.now()}.${ext}`
     const { error } = await supabase.storage.from('listings').upload(path, compressed, { upsert: false, contentType: compressed.type })
-    if (error) { console.error('upload:', error.message); return null }
+    if (error) {
+      console.error('upload:', error.message)
+      alert('Photo upload failed: ' + error.message)
+      return null
+    }
     const { data } = supabase.storage.from('listings').getPublicUrl(path)
     return data.publicUrl
   }
