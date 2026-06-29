@@ -212,7 +212,9 @@ export function useListings() {
   // if the browser can't decode it (e.g. some HEIC).
   async function compressImage(file: File, maxEdge = 1600, quality = 0.82): Promise<File> {
     if (!file.type.startsWith('image/')) return file
-    try {
+    // Hard guard: never let compression hang the upload. If anything stalls
+    // (FileReader/Image never firing, HEIC decode, etc.), fall back to original.
+    const compress = async (): Promise<File> => {
       const dataUrl = await new Promise<string>((resolve, reject) => {
         const r = new FileReader()
         r.onload = () => resolve(r.result as string)
@@ -226,6 +228,7 @@ export function useListings() {
         i.src = dataUrl
       })
       let { width, height } = img
+      if (!width || !height) return file
       if (Math.max(width, height) > maxEdge) {
         const scale = maxEdge / Math.max(width, height)
         width = Math.round(width * scale)
@@ -238,12 +241,14 @@ export function useListings() {
       if (!ctx) return file
       ctx.drawImage(img, 0, 0, width, height)
       const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', quality))
-      if (!blob) return file
-      // Only use the compressed version if it's actually smaller.
-      if (blob.size >= file.size) return file
+      if (!blob || blob.size >= file.size) return file
       return new File([blob], (file.name.replace(/\.[^.]+$/, '') || 'photo') + '.jpg', { type: 'image/jpeg' })
+    }
+    const timeout = new Promise<File>(resolve => setTimeout(() => resolve(file), 8000))
+    try {
+      return await Promise.race([compress(), timeout])
     } catch {
-      return file // decode failed (e.g. HEIC) — upload original rather than block
+      return file
     }
   }
 
