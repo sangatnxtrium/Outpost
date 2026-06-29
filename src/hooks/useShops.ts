@@ -206,10 +206,52 @@ export function useListings() {
 
   useEffect(() => { fetchListings() }, [])
 
+  // Downscale + compress in the browser before upload. Phone photos are often
+  // 5-15 MB (and sometimes HEIC); this turns them into ~200-400 KB JPEGs so
+  // uploads are fast and universally viewable. Falls back to the original file
+  // if the browser can't decode it (e.g. some HEIC).
+  async function compressImage(file: File, maxEdge = 1600, quality = 0.82): Promise<File> {
+    if (!file.type.startsWith('image/')) return file
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader()
+        r.onload = () => resolve(r.result as string)
+        r.onerror = () => reject(new Error('read failed'))
+        r.readAsDataURL(file)
+      })
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const i = new Image()
+        i.onload = () => resolve(i)
+        i.onerror = () => reject(new Error('decode failed'))
+        i.src = dataUrl
+      })
+      let { width, height } = img
+      if (Math.max(width, height) > maxEdge) {
+        const scale = maxEdge / Math.max(width, height)
+        width = Math.round(width * scale)
+        height = Math.round(height * scale)
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return file
+      ctx.drawImage(img, 0, 0, width, height)
+      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', quality))
+      if (!blob) return file
+      // Only use the compressed version if it's actually smaller.
+      if (blob.size >= file.size) return file
+      return new File([blob], (file.name.replace(/\.[^.]+$/, '') || 'photo') + '.jpg', { type: 'image/jpeg' })
+    } catch {
+      return file // decode failed (e.g. HEIC) — upload original rather than block
+    }
+  }
+
   async function uploadPhoto(file: File, userId: string): Promise<string | null> {
-    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
+    const compressed = await compressImage(file)
+    const ext = (compressed.name.split('.').pop() || 'jpg').toLowerCase()
     const path = `${userId}/${Date.now()}.${ext}`
-    const { error } = await supabase.storage.from('listings').upload(path, file, { upsert: false, contentType: file.type })
+    const { error } = await supabase.storage.from('listings').upload(path, compressed, { upsert: false, contentType: compressed.type })
     if (error) { console.error('upload:', error.message); return null }
     const { data } = supabase.storage.from('listings').getPublicUrl(path)
     return data.publicUrl
