@@ -360,6 +360,7 @@ export default function App() {
   const [mktContact, setMktContact] = useState('')
   const [mktFile, setMktFile] = useState<File | null>(null)
   const [galleryBusy, setGalleryBusy] = useState(false)
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
   const [mktPreview, setMktPreview] = useState<string>('')
   const [mktSubmitting, setMktSubmitting] = useState(false)
   const [mktFilter, setMktFilter] = useState('all')
@@ -1084,6 +1085,18 @@ export default function App() {
       )}
       <div className="flex min-h-screen">
         <Sidebar tab={tab} setTab={setTab} isSignedIn={isSignedIn} profile={profile} setModal={setModal} unreadCount={unreadCount} />
+
+        {lightboxUrl && (
+          <div onClick={() => setLightboxUrl(null)}
+            className="fixed inset-0 z-[70] bg-black/90 flex items-center justify-center p-4 cursor-zoom-out">
+            <button onClick={() => setLightboxUrl(null)}
+              className="absolute top-4 right-4 h-10 w-10 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors">
+              <X className="h-5 w-5 text-white" />
+            </button>
+            <img src={lightboxUrl} alt="" onClick={(e) => e.stopPropagation()}
+              className="max-w-full max-h-full object-contain rounded-lg cursor-default" />
+          </div>
+        )}
 
         <div className="flex-1 flex flex-col min-h-screen max-w-2xl mx-auto w-full md:max-w-none">
 
@@ -1903,7 +1916,10 @@ export default function App() {
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-4 md:max-w-2xl md:mx-auto md:w-full">
             <div className="relative">
-              <ShopThumb s={selectedShop} className="h-44 w-full rounded-3xl border border-zinc-200" />
+              <div onClick={() => (selectedShop as any).image_url && setLightboxUrl((selectedShop as any).image_url)}
+                className={(selectedShop as any).image_url ? 'cursor-pointer' : ''}>
+                <ShopThumb s={selectedShop} className="h-44 w-full rounded-3xl border border-zinc-200" />
+              </div>
               {isMerchant && (selectedShop as any).owner_id === user?.id && (
                 <label className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white cursor-pointer shadow-lg" style={{ background: 'rgba(0,0,0,0.6)' }}>
                   <Plus className="h-3.5 w-3.5" />{galleryBusy ? 'Uploading…' : 'Change cover'}
@@ -1914,7 +1930,8 @@ export default function App() {
             {(selectedShop as any).gallery?.length > 0 && (
               <div className="grid grid-cols-3 gap-2">
                 {(selectedShop as any).gallery.map((g: string, i: number) => (
-                  <img key={i} src={g} alt="" className="aspect-square object-cover rounded-2xl border border-zinc-200" />
+                  <img key={i} src={g} alt="" onClick={() => setLightboxUrl(g)}
+                    className="aspect-square object-cover rounded-2xl border border-zinc-200 cursor-pointer hover:opacity-90 transition-opacity" />
                 ))}
               </div>
             )}
