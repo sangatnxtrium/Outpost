@@ -226,7 +226,7 @@ function categoryIconColor(cat: string) {
 function Sidebar({ tab, setTab, isSignedIn, profile, setModal, unreadCount }: any) {
   const items = [
     { id: 'discover', icon: Search, label: 'Discover' },
-    { id: 'marketplace', icon: Users, label: 'Community' },
+    { id: 'marketplace', icon: Store, label: 'Marketplace' },
     { id: 'news', icon: Newspaper, label: 'News' },
     { id: 'fcbd', icon: BookOpen, label: 'FCBD' },
     { id: 'profile', icon: User, label: 'Profile' },
@@ -1942,7 +1942,7 @@ export default function App() {
             style={{ background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(20px)' }}>
             {[
               { id: 'discover', icon: Search, label: 'Discover' },
-              { id: 'marketplace', icon: Users, label: 'Community' },
+              { id: 'marketplace', icon: Store, label: 'Marketplace' },
               { id: 'news', icon: Newspaper, label: 'News' },
               { id: 'fcbd', icon: BookOpen, label: 'FCBD' },
               { id: 'profile', icon: User, label: 'Profile' },
