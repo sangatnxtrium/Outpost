@@ -860,7 +860,7 @@ export default function App() {
     setCheckoutLoading(false)
     if (error) { alert(error); return }
     if (upgraded) {
-      alert(`🎉 You're now on the ${tier === 'elite' ? 'Elite' : 'Verified Store'} plan — free for 6 months!`)
+      alert(`🎉 You're now on the ${tier === 'elite' ? 'Elite' : 'Verified Store'} plan — free until 2028!`)
       setModal('none')
       window.location.reload()
     }
@@ -2849,8 +2849,8 @@ export default function App() {
             <div className="mb-4 p-3 rounded-2xl flex items-center gap-2" style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)" }}>
               <span className="text-lg">🎉</span>
               <div>
-                <p className="text-xs font-black text-emerald-700">Free for Your First 6 Months</p>
-                <p className="text-xs text-emerald-600 mt-0.5">All plans are free for 6 months from when you signed up. No credit card needed.</p>
+                <p className="text-xs font-black text-emerald-700">Free Until 2028</p>
+                <p className="text-xs text-emerald-600 mt-0.5">All plans are free until January 2028 — for everyone, no matter when you sign up. No credit card needed.</p>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

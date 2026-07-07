@@ -7,27 +7,21 @@ const PAYMENT_LINKS: Record<PriceTier, string> = {
   store: 'https://buy.stripe.com/5kQ6oJ3vFcld7WGb9p2go03',
 }
 
+// Everyone gets Elite/Store free until this date, regardless of when they
+// signed up (previously this was 6 months from each user's own signup date —
+// changed 2026-07 to a fixed cutoff instead, to prioritize growing supply
+// before introducing payment friction, matching the "free while building
+// critical mass" approach other marketplaces have used). To extend the free
+// period later, just move this date forward.
+const FREE_UNTIL = new Date('2028-01-01T00:00:00Z')
+
 export async function startCheckout(
   tier: PriceTier,
   customerEmail: string,
   userId: string
 ): Promise<{ error: string | null, upgraded?: boolean }> {
 
-  // Get the user's signup date
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('created_at')
-    .eq('id', userId)
-    .single()
-
-  let isFreeWindow = false
-
-  if (profile?.created_at) {
-    const signupDate = new Date(profile.created_at)
-    const sixMonthsLater = new Date(signupDate)
-    sixMonthsLater.setMonth(sixMonthsLater.getMonth() + 6)
-    isFreeWindow = new Date() < sixMonthsLater
-  }
+  const isFreeWindow = new Date() < FREE_UNTIL
 
   if (isFreeWindow) {
     const { error } = await supabase
@@ -42,7 +36,7 @@ export async function startCheckout(
     return { error: null, upgraded: true }
   }
 
-  // After 6 months — redirect to Stripe
+  // After the free window — redirect to Stripe
   const link = PAYMENT_LINKS[tier]
   if (!link) return { error: 'Payment link not configured' }
 
