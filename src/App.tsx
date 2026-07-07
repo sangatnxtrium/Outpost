@@ -10,6 +10,14 @@ import { supabase } from './lib/supabase'
 type TabType = 'discover' | 'classifieds' | 'marketplace' | 'news' | 'fcbd' | 'profile'
 type ModalType = 'none' | 'sub' | 'auth' | 'notifications' | 'shop' | 'menu' | 'claim' | 'additem' | 'submit' | 'listsale' | 'listingdetail' | 'posttrade' | 'tradedetail' | 'editprofile' | 'setlocation'
 
+// Turns a city_slug like "san-francisco" back into "San Francisco" for display.
+// It's a display-only heuristic (there's no stored "proper" city name) so it
+// can lose punctuation a real city name has (e.g. "st-marys" -> "St Marys",
+// not "St. Marys") — acceptable for a page heading, not used for matching.
+function unslugCity(slug: string) {
+  return slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+}
+
 function DropBanner({ shops }: { shops: any[] }) {
   const [idx, setIdx] = useState(0)
   const [fade, setFade] = useState(true)
@@ -314,6 +322,8 @@ export default function App() {
   const [onbInterest, setOnbInterest] = useState<string | null>(null)
   const [radius, setRadius] = useState(10)
   const [activeSection, setActiveSection] = useState<'shops' | 'events'>('shops')
+  const [urlCity, setUrlCity] = useState<string | null>(null)
+  const initialRouteHandled = useRef(false)
   const [discoverView, setDiscoverView] = useState<'list' | 'map'>('list')
   const [eventFilter, setEventFilter] = useState('all')
   const [eventState, setEventState] = useState('all')
@@ -510,7 +520,14 @@ export default function App() {
     })
     .slice(0, 50)
 
-  const filteredShops = sortedShops.filter((s: any) =>
+  // On a /city/:citySlug page, show every shop in that city regardless of
+  // the visitor's own location/radius (a city landing page shouldn't be
+  // empty just because geolocation hasn't resolved yet, or filtered by
+  // someone else's radius preference).
+  const cityShops = urlCity ? shops.filter((s: any) => s.city_slug === urlCity) : null
+  const discoverReady = urlCity ? true : !locationLoading
+
+  const filteredShops = (cityShops ?? sortedShops).filter((s: any) =>
     (filter === 'all' || s.category === filter || (s.categories && s.categories.includes(filter))) &&
     (s.name.toLowerCase().includes(search.toLowerCase()) ||
       s.tags?.some((t: string) => t.toLowerCase().includes(search.toLowerCase())))
@@ -587,7 +604,50 @@ export default function App() {
     setFcbdSaved(true)
   }
 
-  function openShop(s: any) { setSelectedShopId(s.id); setModal('shop') }
+  function openShop(s: any) {
+    setSelectedShopId(s.id); setModal('shop')
+    if (s.city_slug && s.name_slug) {
+      window.history.pushState({}, '', `/shop/${s.city_slug}/${s.name_slug}`)
+    }
+  }
+
+  function closeShop() {
+    setModal('none')
+    window.history.pushState({}, '', urlCity ? `/city/${urlCity}` : '/')
+  }
+
+  function applyRouteFromPath(path: string, shopList: any[]) {
+    const parts = path.split('/').filter(Boolean)
+    if (parts[0] === 'shop' && parts[1] && parts[2]) {
+      const match = shopList.find((s: any) => s.city_slug === parts[1] && s.name_slug === parts[2])
+      if (match) {
+        setUrlCity(parts[1]); setSelectedShopId(match.id); setModal('shop')
+        setTab('discover'); setActiveSection('shops')
+      }
+    } else if (parts[0] === 'city' && parts[1]) {
+      setUrlCity(parts[1]); setModal('none')
+      setTab('discover'); setActiveSection('shops')
+    } else {
+      setUrlCity(null); setModal('none')
+    }
+  }
+
+  // Open the shop/city the URL points to once shops have loaded. Only runs
+  // once on initial load — after that, in-app navigation (openShop/closeShop)
+  // and the popstate listener below own the URL <-> state sync.
+  useEffect(() => {
+    if (initialRouteHandled.current) return
+    if (shopsLoading || shops.length === 0) return
+    initialRouteHandled.current = true
+    applyRouteFromPath(window.location.pathname, shops)
+  }, [shops, shopsLoading])
+
+  // Browser back/forward
+  useEffect(() => {
+    function onPopState() { applyRouteFromPath(window.location.pathname, shops) }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [shops])
 
 
   async function searchEbay(query: string) {
@@ -1207,26 +1267,40 @@ export default function App() {
                     </div>
                   </div>
                 )}
+                {activeSection === 'shops' && urlCity && (
+                  <div className="flex items-center justify-between gap-3 px-0.5">
+                    <p className="text-sm text-zinc-600">
+                      Showing shops in <span className="font-bold">{unslugCity(urlCity)}</span>
+                    </p>
+                    <button
+                      onClick={() => { setUrlCity(null); window.history.pushState({}, '', '/') }}
+                      className="text-xs font-medium underline flex-shrink-0" style={{ color: '#E0533C' }}>
+                      View all shops
+                    </button>
+                  </div>
+                )}
                 {activeSection === 'shops' && discoverView === 'map' && (
                   <div className="rounded-2xl overflow-hidden border border-zinc-200 h-[56vh] md:h-[64vh]">
                     <LocalMap shops={filteredShops} onSelect={s => openShop(s)} activeId={hoverShopId} userLat={userLat} userLng={userLng} />
                   </div>
                 )}
-                {activeSection === 'shops' && <DropBanner shops={shops} />}
-                {activeSection === 'shops' && locationLoading && (
+                {activeSection === 'shops' && !urlCity && <DropBanner shops={shops} />}
+                {activeSection === 'shops' && !discoverReady && (
                   <div className="text-center py-12">
                     <div className="h-8 w-8 rounded-full border-2 border-zinc-200 border-t-zinc-500 animate-spin mx-auto mb-3" />
                     <p className="text-sm text-zinc-400 font-mono">Finding shops near you...</p>
                   </div>
                 )}
-                {activeSection === 'shops' && !locationLoading && filteredShops.length === 0 && !locationDenied && (
+                {activeSection === 'shops' && discoverReady && filteredShops.length === 0 && !locationDenied && (
                   <div className="text-center py-12 text-zinc-400">
                     <MapPin className="h-10 w-10 mx-auto mb-2 opacity-20" />
-                    <p className="text-sm font-mono">No shops found within {radius} miles</p>
-                    <p className="text-xs mt-1">Try increasing your radius</p>
+                    <p className="text-sm font-mono">
+                      {urlCity ? `No shops found in ${unslugCity(urlCity)}` : `No shops found within ${radius} miles`}
+                    </p>
+                    {!urlCity && <p className="text-xs mt-1">Try increasing your radius</p>}
                   </div>
                 )}
-                {activeSection === 'shops' && !locationLoading && filteredShops.length > 0 && (
+                {activeSection === 'shops' && discoverReady && filteredShops.length > 0 && (
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                     {filteredShops.map((s: any) => <ShopCard key={s.id} s={s} />)}
                   </div>
@@ -1890,7 +1964,7 @@ export default function App() {
       {modal === 'shop' && selectedShop && (
         <div className="fixed inset-0 z-50 flex flex-col overflow-hidden md:inset-y-0 md:right-0 md:left-56" style={{ background: '#F0EFE9' }}>
           <div className="px-4 pt-12 md:pt-4 pb-4 flex items-center gap-3 flex-shrink-0" style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
-            <button onClick={() => setModal('none')} className="h-9 w-9 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.15)' }}>
+            <button onClick={closeShop} className="h-9 w-9 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.15)' }}>
               <X className="h-4 w-4 text-white" />
             </button>
             <div className="flex-1 min-w-0">
