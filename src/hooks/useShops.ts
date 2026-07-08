@@ -19,6 +19,8 @@ export function useShops() {
         .from('shops')
         .select('id, name, address, category, categories, hot_find, rating, tags, lat, lng, hours, description, phone, website, owner_id, image_url, gallery, city_slug, name_slug')
         .order('rating', { ascending: false })
+        .order('id', { ascending: true }) // stable tiebreaker — without this, rows with tied ratings
+        // (very common here) can land in more than one page and get fetched/rendered twice
         .range(from, from + batchSize - 1)
       if (error) { setError(error.message); break }
       if (!data || data.length === 0) break
