@@ -9,6 +9,9 @@ import { supabase } from './lib/supabase'
 
 type TabType = 'discover' | 'classifieds' | 'marketplace' | 'news' | 'fcbd' | 'profile'
 type ModalType = 'none' | 'sub' | 'auth' | 'notifications' | 'shop' | 'menu' | 'claim' | 'additem' | 'submit' | 'listsale' | 'listingdetail' | 'posttrade' | 'tradedetail' | 'editprofile' | 'setlocation'
+// A photo slot in the listing/trade forms is either a URL already on the
+// post (editing) or a freshly picked File waiting to be uploaded on submit.
+type MktPhoto = { kind: 'existing'; url: string } | { kind: 'new'; file: File; preview: string }
 
 // Turns a city_slug like "san-francisco" back into "San Francisco" for display.
 // It's a display-only heuristic (there's no stored "proper" city name) so it
@@ -328,11 +331,11 @@ export default function App() {
   const selectedShop = shops.find((s: any) => s.id === selectedShopId) || null
   const { reviews, addReview } = useReviews(selectedShop?.id || '')
   const { checkinCount, userCheckedIn, checkIn } = useCheckins(selectedShop?.id || '')
-  const { tradePosts, loading: tradePostsLoading, addTradePost, deleteTradePost, fetchTradeComments, addTradeComment, deleteTradeComment } = useTradePosts()
+  const { tradePosts, loading: tradePostsLoading, addTradePost, updateTradePost, deleteTradePost, fetchTradeComments, addTradeComment, deleteTradeComment } = useTradePosts()
   const { events: allEventsData } = useEvents()
   const { articles: newsArticles } = useNews()
   const [newsFilter, setNewsFilter] = useState('All')
-  const { listings, loading: listingsLoading, uploadPhoto, createListing, deleteListing, fetchComments, addComment, deleteComment } = useListings()
+  const { listings, loading: listingsLoading, uploadPhoto, createListing, updateListing, deleteListing, fetchComments, addComment, deleteComment } = useListings()
   const { items: notifications, unread: unreadCount, refetch: refetchNotifs, markAllRead } = useNotifications(user?.id || null)
   const { settings: appSettings } = useAppSettings()
   const FCBD_YEAR = parseInt(appSettings.fcbd_year || '') || 2027
@@ -410,10 +413,12 @@ export default function App() {
   const [mktCondition, setMktCondition] = useState('Raw')
   const [mktCategory, setMktCategory] = useState('cards')
   const [mktContact, setMktContact] = useState('')
-  const [mktFiles, setMktFiles] = useState<File[]>([])
+  const [mktPhotos, setMktPhotos] = useState<MktPhoto[]>([])
+  const mktPreviewUrls = mktPhotos.map(p => p.kind === 'existing' ? p.url : p.preview)
+  const [editingListingId, setEditingListingId] = useState<string | null>(null)
+  const [editingTradeId, setEditingTradeId] = useState<string | null>(null)
   const [galleryBusy, setGalleryBusy] = useState(false)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
-  const [mktPreviews, setMktPreviews] = useState<string[]>([])
   const [mktSubmitting, setMktSubmitting] = useState(false)
   const [mktFilter, setMktFilter] = useState('all')
   const [mktSearch, setMktSearch] = useState('')
@@ -974,24 +979,51 @@ export default function App() {
     e.preventDefault()
     if (!inpOff.trim() || !inpWant.trim() || !user) return
     const urls: string[] = []
-    for (const f of mktFiles) { const url = await uploadPhoto(f, user.id); if (url) urls.push(url) }
-    await addTradePost(user.id, profile?.username || 'Guest', inpOff, inpWant, urls[0] || null, fuzzCoord(userLat), fuzzCoord(userLng), urls.slice(1))
-    setInpOff(''); setInpWant(''); setMktFiles([]); setMktPreviews([]); setModal('none')
+    for (const p of mktPhotos) {
+      if (p.kind === 'existing') { urls.push(p.url); continue }
+      const url = await uploadPhoto(p.file, user.id)
+      if (url) urls.push(url)
+    }
+    if (editingTradeId) {
+      await updateTradePost(editingTradeId, { offer: inpOff, look_for: inpWant, image_url: urls[0] || null, gallery: urls.slice(1) })
+      setEditingTradeId(null)
+    } else {
+      await addTradePost(user.id, profile?.username || 'Guest', inpOff, inpWant, urls[0] || null, fuzzCoord(userLat), fuzzCoord(userLng), urls.slice(1))
+    }
+    setInpOff(''); setInpWant(''); setMktPhotos([]); setModal('none')
   }
 
   function onPickPhotos(e: React.ChangeEvent<HTMLInputElement>) {
     const picked = Array.from(e.target.files || [])
     if (picked.length === 0) return
-    const room = 3 - mktFiles.length
+    const room = 3 - mktPhotos.length
     const accepted = picked.slice(0, room)
-    setMktFiles(prev => [...prev, ...accepted])
-    setMktPreviews(prev => [...prev, ...accepted.map(f => URL.createObjectURL(f))])
+    setMktPhotos(prev => [...prev, ...accepted.map(file => ({ kind: 'new' as const, file, preview: URL.createObjectURL(file) }))])
     e.target.value = ''
   }
 
   function removeMktPhoto(i: number) {
-    setMktFiles(prev => prev.filter((_, idx) => idx !== i))
-    setMktPreviews(prev => prev.filter((_, idx) => idx !== i))
+    setMktPhotos(prev => prev.filter((_, idx) => idx !== i))
+  }
+
+  function openListingEdit(item: any) {
+    setEditingListingId(item.id)
+    setMktTitle(item.title || ''); setMktPrice(String(item.price ?? ''))
+    setMktDesc(item.description || ''); setMktCondition(item.condition || 'Raw')
+    setMktCategory(item.category || 'cards'); setMktContact(item.contact || '')
+    const existing: MktPhoto[] = [item.image_url, ...(item.gallery || [])]
+      .filter(Boolean).map((url: string) => ({ kind: 'existing' as const, url }))
+    setMktPhotos(existing)
+    setModal('listsale')
+  }
+
+  function openTradeEdit(item: any) {
+    setEditingTradeId(item.id)
+    setInpOff(item.offer || ''); setInpWant(item.look_for || '')
+    const existing: MktPhoto[] = [item.image_url, ...(item.gallery || [])]
+      .filter(Boolean).map((url: string) => ({ kind: 'existing' as const, url }))
+    setMktPhotos(existing)
+    setModal('posttrade')
   }
 
   useEffect(() => {
@@ -1103,13 +1135,12 @@ export default function App() {
     if (!mktTitle || !mktPrice || !user) return
     setMktSubmitting(true)
     const urls: string[] = []
-    for (const f of mktFiles) {
-      const url = await uploadPhoto(f, user.id)
+    for (const p of mktPhotos) {
+      if (p.kind === 'existing') { urls.push(p.url); continue }
+      const url = await uploadPhoto(p.file, user.id)
       if (url) urls.push(url)
     }
-    const ok = await createListing({
-      user_id: user.id,
-      username: profile?.username || 'seller',
+    const fields = {
       title: mktTitle,
       description: mktDesc,
       price: parseFloat(mktPrice),
@@ -1118,14 +1149,22 @@ export default function App() {
       image_url: urls[0] || '',
       gallery: urls.slice(1),
       contact: mktContact,
-      lat: fuzzCoord(userLat),
-      lng: fuzzCoord(userLng),
-      status: 'active',
-    })
+    }
+    const ok = editingListingId
+      ? await updateListing(editingListingId, fields)
+      : await createListing({
+          ...fields,
+          user_id: user.id,
+          username: profile?.username || 'seller',
+          lat: fuzzCoord(userLat),
+          lng: fuzzCoord(userLng),
+          status: 'active',
+        })
     setMktSubmitting(false)
     if (ok) {
+      setEditingListingId(null)
       setMktTitle(''); setMktPrice(''); setMktDesc(''); setMktContact('')
-      setMktFiles([]); setMktPreviews([]); setModal('none')
+      setMktPhotos([]); setModal('none')
     }
   }
 
@@ -1570,7 +1609,7 @@ export default function App() {
                       className="px-4 py-1.5 rounded-full text-[13px] font-medium transition-all"
                       style={mktSection === 'trade' ? { background: '#E0533C', color: 'white' } : { color: '#52525b' }}>Trades</button>
                   </div>
-                  <button onClick={() => isSignedIn ? (setMktFiles([]), setMktPreviews([]), setModal(mktSection === 'sale' ? 'listsale' : 'posttrade')) : setModal('auth')}
+                  <button onClick={() => isSignedIn ? (setMktPhotos([]), setEditingListingId(null), setEditingTradeId(null), setModal(mktSection === 'sale' ? 'listsale' : 'posttrade')) : setModal('auth')}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium text-white flex-shrink-0"
                     style={{ background: '#E0533C' }}>
                     <Plus className="h-4 w-4" /> {mktSection === 'sale' ? 'List an item' : 'Post a trade'}
@@ -1624,7 +1663,7 @@ export default function App() {
                   <div className="text-center py-16 text-zinc-400">
                     <Tag className="h-10 w-10 mx-auto mb-3 opacity-20" />
                     <p className="text-sm">No listings yet. Be the first to list something.</p>
-                    <button onClick={() => isSignedIn ? (setMktFiles([]), setMktPreviews([]), setModal('listsale')) : setModal('auth')}
+                    <button onClick={() => isSignedIn ? (setMktPhotos([]), setEditingListingId(null), setModal('listsale')) : setModal('auth')}
                       className="mt-4 px-5 py-2 rounded-full text-sm font-medium text-white" style={{ background: '#E0533C' }}>
                       List an item
                     </button>
@@ -1658,7 +1697,7 @@ export default function App() {
                   <div className="text-center py-16 text-zinc-400">
                     <ArrowLeftRight className="h-10 w-10 mx-auto mb-3 opacity-20" />
                     <p className="text-sm">No trades posted yet. Put up what you have.</p>
-                    <button onClick={() => isSignedIn ? (setMktFiles([]), setMktPreviews([]), setModal('posttrade')) : setModal('auth')}
+                    <button onClick={() => isSignedIn ? (setMktPhotos([]), setEditingTradeId(null), setModal('posttrade')) : setModal('auth')}
                       className="mt-4 px-5 py-2 rounded-full text-sm font-medium text-white" style={{ background: '#E0533C' }}>Post a trade</button>
                   </div>
                 ) : (
@@ -2401,11 +2440,11 @@ export default function App() {
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
           <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl p-5 pb-10 shadow-2xl max-h-[92vh] overflow-y-auto" style={{ background: '#FAF9F5' }}>
             <div className="flex justify-between items-center mb-5">
-              <h3 className="font-semibold text-lg">List an item</h3>
-              <button onClick={() => setModal('none')}><X className="h-5 w-5 text-zinc-400" /></button>
+              <h3 className="font-semibold text-lg">{editingListingId ? 'Edit listing' : 'List an item'}</h3>
+              <button onClick={() => { setEditingListingId(null); setMktPhotos([]); setModal('none') }}><X className="h-5 w-5 text-zinc-400" /></button>
             </div>
             <form onSubmit={handleListingSubmit} className="space-y-3">
-              <PhotoSlots previews={mktPreviews} onAdd={onPickPhotos} onRemove={removeMktPhoto} label="Add photos" />
+              <PhotoSlots previews={mktPreviewUrls} onAdd={onPickPhotos} onRemove={removeMktPhoto} label="Add photos" />
               <input type="text" required value={mktTitle} onChange={e => setMktTitle(e.target.value)}
                 placeholder="What are you selling?" className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-sm focus:outline-none" />
               <div className="relative">
@@ -2429,7 +2468,7 @@ export default function App() {
                 placeholder="How buyers reach you (phone, email, IG…)" className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-sm focus:outline-none" />
               <button type="submit" disabled={mktSubmitting}
                 className="w-full text-white font-medium py-3.5 rounded-2xl text-sm disabled:opacity-60" style={{ background: '#E0533C' }}>
-                {mktSubmitting ? 'Posting…' : 'Post listing'}
+                {mktSubmitting ? 'Saving…' : (editingListingId ? 'Save changes' : 'Post listing')}
               </button>
             </form>
           </div>
@@ -2472,10 +2511,16 @@ export default function App() {
                 </button>
               )}
               {user?.id === selectedListing.user_id ? (
-                <button onClick={() => { deleteListing(selectedListing.id); closeListing() }}
-                  className="w-full py-3 rounded-2xl text-sm font-medium border border-red-200 text-red-600">
-                  Delete listing
-                </button>
+                <div className="flex gap-2">
+                  <button onClick={() => openListingEdit(selectedListing)}
+                    className="flex-1 py-3 rounded-2xl text-sm font-medium border border-zinc-200 text-zinc-700">
+                    Edit listing
+                  </button>
+                  <button onClick={() => { deleteListing(selectedListing.id); closeListing() }}
+                    className="flex-1 py-3 rounded-2xl text-sm font-medium border border-red-200 text-red-600">
+                    Delete listing
+                  </button>
+                </div>
               ) : showContact ? (
                 <div className="rounded-2xl bg-zinc-50 border border-zinc-200 p-4 text-center">
                   <p className="text-xs text-zinc-400 mb-1">Contact the seller</p>
@@ -2664,10 +2709,16 @@ export default function App() {
               </div>
 
               {user?.id === selectedTrade.user_id && (
-                <button onClick={async () => { await deleteTradePost(selectedTrade.id); closeTrade() }}
-                  className="w-full py-2.5 rounded-2xl text-xs font-medium text-red-500 border border-red-100">
-                  Delete this trade
-                </button>
+                <div className="flex gap-2">
+                  <button onClick={() => openTradeEdit(selectedTrade)}
+                    className="flex-1 py-2.5 rounded-2xl text-xs font-medium text-zinc-600 border border-zinc-200">
+                    Edit trade
+                  </button>
+                  <button onClick={async () => { await deleteTradePost(selectedTrade.id); closeTrade() }}
+                    className="flex-1 py-2.5 rounded-2xl text-xs font-medium text-red-500 border border-red-100">
+                    Delete this trade
+                  </button>
+                </div>
               )}
 
               <div className="pt-4 mt-1 border-t border-zinc-100">
@@ -2720,11 +2771,11 @@ export default function App() {
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
           <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl p-5 pb-10 shadow-2xl" style={{ background: '#FAF9F5' }}>
             <div className="flex justify-between items-center mb-5">
-              <h3 className="font-semibold text-lg">Post a trade</h3>
-              <button onClick={() => setModal('none')}><X className="h-5 w-5 text-zinc-400" /></button>
+              <h3 className="font-semibold text-lg">{editingTradeId ? 'Edit trade' : 'Post a trade'}</h3>
+              <button onClick={() => { setEditingTradeId(null); setMktPhotos([]); setModal('none') }}><X className="h-5 w-5 text-zinc-400" /></button>
             </div>
             <form onSubmit={handleTradeSubmit} className="space-y-3">
-              <PhotoSlots previews={mktPreviews} onAdd={onPickPhotos} onRemove={removeMktPhoto} label="Add photos (optional)" />
+              <PhotoSlots previews={mktPreviewUrls} onAdd={onPickPhotos} onRemove={removeMktPhoto} label="Add photos (optional)" />
               <div>
                 <label className="block text-xs font-medium text-zinc-400 mb-1.5">You have</label>
                 <input type="text" required value={inpOff} onChange={e => setInpOff(e.target.value)}
@@ -2737,7 +2788,7 @@ export default function App() {
               </div>
               <button type="submit" disabled={!isSignedIn}
                 className="w-full text-white font-medium py-3.5 rounded-2xl text-sm disabled:opacity-50" style={{ background: '#E0533C' }}>
-                {isSignedIn ? 'Post trade' : 'Sign in to post'}
+                {!isSignedIn ? 'Sign in to post' : editingTradeId ? 'Save changes' : 'Post trade'}
               </button>
             </form>
           </div>

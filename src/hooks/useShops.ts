@@ -106,6 +106,13 @@ export function useTradePosts() {
     setTradePosts(prev => prev.filter((t: any) => t.id !== id))
   }
 
+  async function updateTradePost(id: string, fields: any): Promise<boolean> {
+    const { data, error } = await supabase.from('trade_posts').update(fields).eq('id', id).select().single()
+    if (error) { console.error('updateTradePost:', error.message); return false }
+    if (data) setTradePosts(prev => prev.map((t: any) => t.id === id ? data : t))
+    return true
+  }
+
   async function fetchTradeComments(tradeId: string) {
     const { data } = await supabase
       .from('trade_comments')
@@ -124,7 +131,7 @@ export function useTradePosts() {
     await supabase.from('trade_comments').delete().eq('id', id)
   }
 
-  return { tradePosts, loading, addTradePost, deleteTradePost, fetchTradeComments, addTradeComment, deleteTradeComment }
+  return { tradePosts, loading, addTradePost, updateTradePost, deleteTradePost, fetchTradeComments, addTradeComment, deleteTradeComment }
 }
 
 export function useCheckins(shopId: string) {
@@ -281,6 +288,13 @@ export function useListings() {
     if (!error) fetchListings()
   }
 
+  async function updateListing(id: string, fields: any): Promise<boolean> {
+    const { error } = await supabase.from('listings').update(fields).eq('id', id)
+    if (error) { console.error('updateListing:', error.message); return false }
+    fetchListings()
+    return true
+  }
+
   async function fetchComments(listingId: string) {
     const { data } = await supabase
       .from('listing_comments')
@@ -299,7 +313,7 @@ export function useListings() {
     await supabase.from('listing_comments').delete().eq('id', id)
   }
 
-  return { listings, loading, uploadPhoto, createListing, deleteListing, refetch: fetchListings, fetchComments, addComment, deleteComment }
+  return { listings, loading, uploadPhoto, createListing, updateListing, deleteListing, refetch: fetchListings, fetchComments, addComment, deleteComment }
 }
 
 export function useFcbd(year: number) {
