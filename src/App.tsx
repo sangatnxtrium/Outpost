@@ -394,7 +394,6 @@ export default function App() {
   const { articles: newsArticles } = useNews()
   const [newsFilter, setNewsFilter] = useState('All')
   const { listings, loading: listingsLoading, uploadPhoto, createListing, updateListing, deleteListing, fetchComments, addComment, deleteComment } = useListings()
-  const { offers, makeOffer, sellerRespond, buyerRespondToCounter, withdrawOffer } = useListingOffers(selectedListing?.id || '', user?.id || null)
   const { items: notifications, unread: unreadCount, refetch: refetchNotifs, markAllRead } = useNotifications(user?.id || null)
   const { settings: appSettings } = useAppSettings()
   const FCBD_YEAR = parseInt(appSettings.fcbd_year || '') || 2027
@@ -498,6 +497,7 @@ export default function App() {
   const [locTarget, setLocTarget] = useState<'community' | 'discover'>('community')
   const [mktSection, setMktSection] = useState<'sale' | 'trade'>('sale')
   const [selectedListing, setSelectedListing] = useState<any>(null)
+  const { offers, makeOffer, sellerRespond, buyerRespondToCounter, withdrawOffer } = useListingOffers(selectedListing?.id || '', user?.id || null)
   const [selectedTrade, setSelectedTrade] = useState<any>(null)
   const [tradeComments, setTradeComments] = useState<any[]>([])
   const [showContact, setShowContact] = useState(false)
