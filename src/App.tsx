@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { Compass, MapPin, Search, Flame, X, Store, User, Users, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, ShieldCheck, DollarSign, Plus, Check, Phone, Bell, Heart, Star, BookOpen, Send, Globe, Newspaper } from 'lucide-react'
+import { Compass, MapPin, Search, Flame, X, Store, User, Users, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, ShieldCheck, DollarSign, Plus, Check, Phone, Bell, Heart, Star, BookOpen, Send, Globe, Newspaper, Share2 } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
 import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useNews, useListings, useFcbd, useFcbdTitles, useNotifications, useAppSettings } from './hooks/useShops'
 import { startCheckout } from './lib/stripe'
@@ -248,6 +248,29 @@ function StandingBadge({ standing, verified, size = 'sm' }: { standing?: string 
   )
 }
 
+function RatingBadge({ avgRating, count }: { avgRating?: number | null; count?: number | null }) {
+  if (!avgRating || !count) return null
+  return (
+    <span className="inline-flex items-center gap-0.5 align-middle text-[11px] font-semibold text-zinc-500">
+      <Star className="h-3 w-3" style={{ fill: '#F59E0B', color: '#F59E0B' }} />
+      {avgRating.toFixed(1)} <span className="font-normal text-zinc-400">({count})</span>
+    </span>
+  )
+}
+
+function StarPicker({ value, onChange, size = 'md' }: { value: number; onChange: (n: number) => void; size?: 'sm' | 'md' }) {
+  const cls = size === 'sm' ? 'h-5 w-5' : 'h-7 w-7'
+  return (
+    <div className="flex items-center gap-1">
+      {[1, 2, 3, 4, 5].map(n => (
+        <button key={n} type="button" onClick={() => onChange(n)} aria-label={`${n} star`}>
+          <Star className={cls} style={n <= value ? { fill: '#F59E0B', color: '#F59E0B' } : { color: '#d4d4d8' }} />
+        </button>
+      ))}
+    </div>
+  )
+}
+
 function getDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 3959
   const dLat = (lat2 - lat1) * Math.PI / 180
@@ -356,6 +379,14 @@ export default function App() {
   const [tab, setTab] = useState<TabType>('discover')
   const [hoverShopId, setHoverShopId] = useState<string | null>(null)
   const [savedShops, setSavedShops] = useState<string[]>([])
+  const [savedListings, setSavedListings] = useState<string[]>([])
+  const [savedTrades, setSavedTrades] = useState<string[]>([])
+  const [myRating, setMyRating] = useState<number | null>(null)
+  const [ratingDraft, setRatingDraft] = useState(0)
+  const [buyerPickerOpen, setBuyerPickerOpen] = useState(false)
+  const [myTradeRating, setMyTradeRating] = useState<number | null>(null)
+  const [tradeRatingDraft, setTradeRatingDraft] = useState(0)
+  const [tradePartnerPickerOpen, setTradePartnerPickerOpen] = useState(false)
   const [standingMap, setStandingMap] = useState<Record<string, any>>({})
   const [showStandingInfo, setShowStandingInfo] = useState(false)
   const [reportedIds, setReportedIds] = useState<string[]>([])
@@ -490,10 +521,16 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (!user) { setSavedShops([]); setRsvps([]); return }
+    if (!user) { setSavedShops([]); setSavedListings([]); setSavedTrades([]); setRsvps([]); return }
     let active = true
     supabase.from('saved_shops').select('shop_id').eq('user_id', user.id).then(({ data }) => {
       if (active && data) setSavedShops(data.map((r: any) => r.shop_id))
+    })
+    supabase.from('saved_listings').select('listing_id').eq('user_id', user.id).then(({ data }) => {
+      if (active && data) setSavedListings(data.map((r: any) => r.listing_id))
+    })
+    supabase.from('saved_trades').select('trade_id').eq('user_id', user.id).then(({ data }) => {
+      if (active && data) setSavedTrades(data.map((r: any) => r.trade_id))
     })
     supabase.from('event_rsvps').select('event_id').eq('user_id', user.id).then(({ data }) => {
       if (active && data) setRsvps(data.map((r: any) => r.event_id))
@@ -509,7 +546,7 @@ export default function App() {
     if (missing.length === 0) return
     const { data } = await supabase
       .from('user_standing')
-      .select('user_id, standing, is_verified_seller, score, member_since')
+      .select('user_id, standing, is_verified_seller, score, member_since, avg_rating, ratings_count')
       .in('user_id', missing)
     setStandingMap(prev => {
       const next = { ...prev }
@@ -539,6 +576,41 @@ export default function App() {
     } else {
       await supabase.from('saved_shops').upsert({ user_id: user.id, shop_id: shopId })
     }
+  }
+
+  async function toggleSaveListing(listingId: string) {
+    if (!user) { setModal('auth'); return }
+    const isSaved = savedListings.includes(listingId)
+    setSavedListings(isSaved ? savedListings.filter(id => id !== listingId) : [...savedListings, listingId])
+    if (isSaved) {
+      await supabase.from('saved_listings').delete().eq('user_id', user.id).eq('listing_id', listingId)
+    } else {
+      await supabase.from('saved_listings').upsert({ user_id: user.id, listing_id: listingId })
+    }
+  }
+
+  async function toggleSaveTrade(tradeId: string) {
+    if (!user) { setModal('auth'); return }
+    const isSaved = savedTrades.includes(tradeId)
+    setSavedTrades(isSaved ? savedTrades.filter(id => id !== tradeId) : [...savedTrades, tradeId])
+    if (isSaved) {
+      await supabase.from('saved_trades').delete().eq('user_id', user.id).eq('trade_id', tradeId)
+    } else {
+      await supabase.from('saved_trades').upsert({ user_id: user.id, trade_id: tradeId })
+    }
+  }
+
+  const [shareCopied, setShareCopied] = useState(false)
+  async function shareUrl(path: string, title: string) {
+    const url = `https://www.getoutpost.net${path}`
+    if (navigator.share) {
+      try { await navigator.share({ title, url }); return } catch { /* user cancelled — fall through to nothing */ return }
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      setShareCopied(true)
+      setTimeout(() => setShareCopied(false), 2000)
+    } catch { /* clipboard unavailable — nothing more we can do */ }
   }
 
   async function toggleRsvp(eventId: string) {
@@ -1007,10 +1079,59 @@ export default function App() {
     setMktPhotos(prev => prev.filter((_, idx) => idx !== i))
   }
 
+  useEffect(() => {
+    setRatingDraft(0)
+    setBuyerPickerOpen(false)
+    if (!user || !selectedListing?.id) { setMyRating(null); return }
+    let active = true
+    supabase.from('user_ratings').select('rating').eq('rater_id', user.id).eq('listing_id', selectedListing.id).maybeSingle()
+      .then(({ data }: any) => { if (active) setMyRating(data?.rating ?? null) })
+    return () => { active = false }
+  }, [selectedListing?.id, user?.id])
+
+  useEffect(() => {
+    setTradeRatingDraft(0)
+    setTradePartnerPickerOpen(false)
+    if (!user || !selectedTrade?.id) { setMyTradeRating(null); return }
+    let active = true
+    supabase.from('user_ratings').select('rating').eq('rater_id', user.id).eq('trade_id', selectedTrade.id).maybeSingle()
+      .then(({ data }: any) => { if (active) setMyTradeRating(data?.rating ?? null) })
+    return () => { active = false }
+  }, [selectedTrade?.id, user?.id])
+
+  async function submitRating(ratedUserId: string, target: { listingId?: string; tradeId?: string }, rating: number) {
+    if (!user || !ratedUserId) return
+    const payload: any = { rater_id: user.id, rated_user_id: ratedUserId, rating }
+    if (target.listingId) payload.listing_id = target.listingId
+    if (target.tradeId) payload.trade_id = target.tradeId
+    const onConflict = target.listingId ? 'rater_id,listing_id' : 'rater_id,trade_id'
+    const { error } = await supabase.from('user_ratings').upsert(payload, { onConflict })
+    if (!error) {
+      if (target.listingId) setMyRating(rating); else setMyTradeRating(rating)
+      setStandingMap(prev => { const next = { ...prev }; delete next[ratedUserId]; return next })
+      loadStanding([ratedUserId])
+    }
+  }
+
   async function toggleListingSold(item: any) {
-    const nextStatus = item.status === 'sold' ? 'active' : 'sold'
-    await updateListing(item.id, { status: nextStatus })
-    setSelectedListing({ ...item, status: nextStatus })
+    if (item.status === 'sold') {
+      await updateListing(item.id, { status: 'active', buyer_id: null })
+      setSelectedListing({ ...item, status: 'active', buyer_id: null })
+    } else {
+      setBuyerPickerOpen(true)
+    }
+  }
+
+  async function confirmListingSold(item: any, buyerId: string | null) {
+    await updateListing(item.id, { status: 'sold', buyer_id: buyerId })
+    setSelectedListing({ ...item, status: 'sold', buyer_id: buyerId })
+    setBuyerPickerOpen(false)
+  }
+
+  async function confirmTradeCompleted(item: any, partnerId: string | null) {
+    await updateTradePost(item.id, { completed_with: partnerId })
+    setSelectedTrade({ ...item, completed_with: partnerId })
+    setTradePartnerPickerOpen(false)
   }
 
   function openListingEdit(item: any) {
@@ -1297,6 +1418,12 @@ export default function App() {
       )}
       <div className="flex min-h-screen">
         <Sidebar tab={tab} setTab={goTab} isSignedIn={isSignedIn} profile={profile} setModal={setModal} unreadCount={unreadCount} />
+
+        {shareCopied && (
+          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[80] bg-zinc-900 text-white text-xs font-medium px-4 py-2 rounded-full shadow-lg">
+            Link copied!
+          </div>
+        )}
 
         {lightboxUrl && (
           <div onClick={() => setLightboxUrl(null)}
@@ -1910,6 +2037,7 @@ export default function App() {
                           <button onClick={() => setShowStandingInfo(v => !v)} className="text-xs font-medium" style={{ color: '#E0533C' }}>How it works</button>
                         </div>
                         <StandingBadge standing={standingMap[user.id]?.standing || 'New'} verified={standingMap[user.id]?.is_verified_seller} size="lg" />
+                        <RatingBadge avgRating={standingMap[user.id]?.avg_rating} count={standingMap[user.id]?.ratings_count} />
                         {showStandingInfo && (
                           <div className="mt-3 pt-3 border-t border-zinc-100 space-y-2 text-xs text-zinc-500 leading-relaxed">
                             <p>Your standing shows how established you are on Outpost. It's a sign of real participation — not a guarantee about any deal. Always meet in a safe, public place.</p>
@@ -2493,6 +2621,16 @@ export default function App() {
               {selectedListing.image_url
                 ? <img src={selectedListing.image_url} alt={selectedListing.title} onClick={() => setLightboxUrl(selectedListing.image_url)} className="w-full aspect-square object-cover cursor-zoom-in" />
                 : <div className="w-full aspect-square bg-zinc-100 flex items-center justify-center text-zinc-300"><Package className="h-12 w-12" /></div>}
+              <div className="absolute top-3 left-3 flex gap-2">
+                <button onClick={() => toggleSaveListing(selectedListing.id)} aria-label="Save"
+                  className="h-9 w-9 rounded-full bg-white/90 flex items-center justify-center shadow">
+                  <Heart className="h-4 w-4" style={savedListings.includes(selectedListing.id) ? { fill: '#E0533C', color: '#E0533C' } : { color: '#52525b' }} />
+                </button>
+                <button onClick={() => shareUrl(`/marketplace/${selectedListing.slug}`, selectedListing.title)} aria-label="Share"
+                  className="h-9 w-9 rounded-full bg-white/90 flex items-center justify-center shadow">
+                  <Share2 className="h-4 w-4 text-zinc-600" />
+                </button>
+              </div>
               <button onClick={closeListing} className="absolute top-3 right-3 h-9 w-9 rounded-full bg-white/90 flex items-center justify-center shadow"><X className="h-5 w-5 text-zinc-600" /></button>
             </div>
             {selectedListing.gallery?.length > 0 && (
@@ -2518,7 +2656,7 @@ export default function App() {
                 </div>
               </div>
               {selectedListing.description && <p className="text-sm text-zinc-600 whitespace-pre-wrap">{selectedListing.description}</p>}
-              <p className="text-xs text-zinc-400 flex items-center gap-1.5 flex-wrap">Listed by @{selectedListing.username} <StandingBadge standing={standingMap[selectedListing.user_id]?.standing} verified={standingMap[selectedListing.user_id]?.is_verified_seller} /></p>
+              <p className="text-xs text-zinc-400 flex items-center gap-1.5 flex-wrap">Listed by @{selectedListing.username} <StandingBadge standing={standingMap[selectedListing.user_id]?.standing} verified={standingMap[selectedListing.user_id]?.is_verified_seller} /> <RatingBadge avgRating={standingMap[selectedListing.user_id]?.avg_rating} count={standingMap[selectedListing.user_id]?.ratings_count} /></p>
               {user && selectedListing.user_id && selectedListing.user_id !== user.id && (
                 <button onClick={() => reportSeller(selectedListing.user_id)} disabled={reportedIds.includes(selectedListing.user_id)}
                   className="text-[11px] text-zinc-400 hover:text-red-500 transition-colors mt-1 disabled:text-zinc-300">
@@ -2532,6 +2670,26 @@ export default function App() {
                     style={{ background: selectedListing.status === 'sold' ? '#52525b' : '#059669' }}>
                     {selectedListing.status === 'sold' ? 'Mark as available' : 'Mark as sold'}
                   </button>
+                  {buyerPickerOpen && (
+                    <div className="rounded-2xl border border-zinc-200 p-3 space-y-1.5">
+                      <p className="text-xs font-medium text-zinc-500 mb-1">Who bought it? (lets you rate each other)</p>
+                      {Array.from(new Map(listingComments.filter((c: any) => c.user_id && c.user_id !== selectedListing.user_id).map((c: any) => [c.user_id, c])).values()).map((c: any) => (
+                        <button key={c.user_id} onClick={() => confirmListingSold(selectedListing, c.user_id)}
+                          className="w-full text-left px-3 py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 text-sm text-zinc-700">@{c.username}</button>
+                      ))}
+                      <button onClick={() => confirmListingSold(selectedListing, null)} className="w-full text-left px-3 py-2 rounded-xl text-sm text-zinc-400">Skip</button>
+                    </div>
+                  )}
+                  {selectedListing.status === 'sold' && selectedListing.buyer_id && (
+                    myRating ? (
+                      <p className="text-xs text-zinc-400 text-center">You rated the buyer {myRating}★. Thanks!</p>
+                    ) : (
+                      <div className="rounded-2xl bg-zinc-50 border border-zinc-200 p-3 flex flex-col items-center gap-2">
+                        <p className="text-xs font-medium text-zinc-500">Rate the buyer</p>
+                        <StarPicker value={ratingDraft} onChange={n => { setRatingDraft(n); submitRating(selectedListing.buyer_id, { listingId: selectedListing.id }, n) }} />
+                      </div>
+                    )
+                  )}
                   <div className="flex gap-2">
                     <button onClick={() => openListingEdit(selectedListing)}
                       className="flex-1 py-3 rounded-2xl text-sm font-medium border border-zinc-200 text-zinc-700">
@@ -2553,6 +2711,17 @@ export default function App() {
                   className="w-full py-3.5 rounded-2xl text-sm font-medium text-white flex items-center justify-center gap-2" style={{ background: '#E0533C' }}>
                   <Phone className="h-4 w-4" /> Contact seller
                 </button>
+              )}
+
+              {user && selectedListing.buyer_id === user.id && (
+                myRating ? (
+                  <p className="text-xs text-zinc-400 text-center">You rated the seller {myRating}★. Thanks!</p>
+                ) : (
+                  <div className="rounded-2xl bg-zinc-50 border border-zinc-200 p-3 flex flex-col items-center gap-2">
+                    <p className="text-xs font-medium text-zinc-500">Rate the seller</p>
+                    <StarPicker value={ratingDraft} onChange={n => { setRatingDraft(n); submitRating(selectedListing.user_id, { listingId: selectedListing.id }, n) }} />
+                  </div>
+                )
               )}
 
               <div className="pt-4 mt-1 border-t border-zinc-100">
@@ -2700,15 +2869,23 @@ export default function App() {
       {modal === 'tradedetail' && selectedTrade && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
           <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl shadow-2xl max-h-[92vh] overflow-y-auto" style={{ background: '#FAF9F5' }}>
-            <div className="px-5 py-4 flex items-center justify-between border-b border-zinc-100">
-              <p className="font-semibold text-zinc-900 flex items-center gap-1.5 flex-wrap">Trade · @{selectedTrade.username}{selectedTrade.distance != null ? ` · ${fmtDist(selectedTrade.distance)}` : ''} <StandingBadge standing={standingMap[selectedTrade.user_id]?.standing} verified={standingMap[selectedTrade.user_id]?.is_verified_seller} /></p>
-              {user && selectedTrade.user_id && selectedTrade.user_id !== user.id && (
-                <button onClick={() => reportSeller(selectedTrade.user_id)} disabled={reportedIds.includes(selectedTrade.user_id)}
-                  className="text-[11px] text-zinc-400 hover:text-red-500 transition-colors mt-1 disabled:text-zinc-300">
-                  {reportedIds.includes(selectedTrade.user_id) ? '✓ Reported — thanks' : '⚑ Report user'}
+            <div className="px-5 py-4 flex items-center justify-between gap-2 border-b border-zinc-100">
+              <p className="font-semibold text-zinc-900 flex items-center gap-1.5 flex-wrap min-w-0">Trade · @{selectedTrade.username}{selectedTrade.distance != null ? ` · ${fmtDist(selectedTrade.distance)}` : ''} <StandingBadge standing={standingMap[selectedTrade.user_id]?.standing} verified={standingMap[selectedTrade.user_id]?.is_verified_seller} /> <RatingBadge avgRating={standingMap[selectedTrade.user_id]?.avg_rating} count={standingMap[selectedTrade.user_id]?.ratings_count} /></p>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button onClick={() => toggleSaveTrade(selectedTrade.id)} aria-label="Save" className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-zinc-100">
+                  <Heart className="h-4 w-4" style={savedTrades.includes(selectedTrade.id) ? { fill: '#E0533C', color: '#E0533C' } : { color: '#9ca3af' }} />
                 </button>
-              )}
-              <button onClick={closeTrade}><X className="h-5 w-5 text-zinc-400" /></button>
+                <button onClick={() => shareUrl(`/marketplace/trade/${selectedTrade.slug}`, `Trade: ${selectedTrade.offer}`)} aria-label="Share" className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-zinc-100">
+                  <Share2 className="h-4 w-4 text-zinc-500" />
+                </button>
+                {user && selectedTrade.user_id && selectedTrade.user_id !== user.id && (
+                  <button onClick={() => reportSeller(selectedTrade.user_id)} disabled={reportedIds.includes(selectedTrade.user_id)}
+                    className="text-[11px] text-zinc-400 hover:text-red-500 transition-colors disabled:text-zinc-300 px-1">
+                    {reportedIds.includes(selectedTrade.user_id) ? '✓' : '⚑'}
+                  </button>
+                )}
+                <button onClick={closeTrade}><X className="h-5 w-5 text-zinc-400" /></button>
+              </div>
             </div>
             <div className="p-5 space-y-3">
               {selectedTrade.image_url && <img src={selectedTrade.image_url} alt="" onClick={() => setLightboxUrl(selectedTrade.image_url)} className="w-full rounded-2xl max-h-72 object-cover cursor-zoom-in" />}
@@ -2720,6 +2897,9 @@ export default function App() {
                 </div>
               )}
               <div className="space-y-2">
+                {selectedTrade.completed_with && (
+                  <span className="inline-block text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-zinc-800 text-white">Traded</span>
+                )}
                 <div className="flex gap-2 items-start">
                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 mt-0.5" style={{ background: '#F0FDF4', color: '#166534' }}>HAS</span>
                   <p className="text-sm font-medium text-zinc-900">{selectedTrade.offer}</p>
@@ -2730,18 +2910,54 @@ export default function App() {
                 </div>
               </div>
 
-              {user?.id === selectedTrade.user_id && (
-                <div className="flex gap-2">
-                  <button onClick={() => openTradeEdit(selectedTrade)}
-                    className="flex-1 py-2.5 rounded-2xl text-xs font-medium text-zinc-600 border border-zinc-200">
-                    Edit trade
+              {user?.id === selectedTrade.user_id ? (
+                <div className="space-y-2">
+                  <button onClick={() => { if (selectedTrade.completed_with) { confirmTradeCompleted(selectedTrade, null) } else { setTradePartnerPickerOpen(true) } }}
+                    className="w-full py-2.5 rounded-2xl text-xs font-medium text-white"
+                    style={{ background: selectedTrade.completed_with ? '#52525b' : '#059669' }}>
+                    {selectedTrade.completed_with ? 'Undo trade complete' : 'Mark as traded'}
                   </button>
-                  <button onClick={async () => { await deleteTradePost(selectedTrade.id); closeTrade() }}
-                    className="flex-1 py-2.5 rounded-2xl text-xs font-medium text-red-500 border border-red-100">
-                    Delete this trade
-                  </button>
+                  {tradePartnerPickerOpen && (
+                    <div className="rounded-2xl border border-zinc-200 p-3 space-y-1.5">
+                      <p className="text-xs font-medium text-zinc-500 mb-1">Who'd you trade with? (lets you rate each other)</p>
+                      {Array.from(new Map(tradeComments.filter((c: any) => c.user_id && c.user_id !== selectedTrade.user_id).map((c: any) => [c.user_id, c])).values()).map((c: any) => (
+                        <button key={c.user_id} onClick={() => confirmTradeCompleted(selectedTrade, c.user_id)}
+                          className="w-full text-left px-3 py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 text-sm text-zinc-700">@{c.username}</button>
+                      ))}
+                      <button onClick={() => setTradePartnerPickerOpen(false)} className="w-full text-left px-3 py-2 rounded-xl text-sm text-zinc-400">Cancel</button>
+                    </div>
+                  )}
+                  {selectedTrade.completed_with && (
+                    myTradeRating ? (
+                      <p className="text-xs text-zinc-400 text-center">You rated your trade partner {myTradeRating}★. Thanks!</p>
+                    ) : (
+                      <div className="rounded-2xl bg-zinc-50 border border-zinc-200 p-3 flex flex-col items-center gap-2">
+                        <p className="text-xs font-medium text-zinc-500">Rate your trade partner</p>
+                        <StarPicker size="sm" value={tradeRatingDraft} onChange={n => { setTradeRatingDraft(n); submitRating(selectedTrade.completed_with, { tradeId: selectedTrade.id }, n) }} />
+                      </div>
+                    )
+                  )}
+                  <div className="flex gap-2">
+                    <button onClick={() => openTradeEdit(selectedTrade)}
+                      className="flex-1 py-2.5 rounded-2xl text-xs font-medium text-zinc-600 border border-zinc-200">
+                      Edit trade
+                    </button>
+                    <button onClick={async () => { await deleteTradePost(selectedTrade.id); closeTrade() }}
+                      className="flex-1 py-2.5 rounded-2xl text-xs font-medium text-red-500 border border-red-100">
+                      Delete this trade
+                    </button>
+                  </div>
                 </div>
-              )}
+              ) : user && selectedTrade.completed_with === user.id ? (
+                myTradeRating ? (
+                  <p className="text-xs text-zinc-400 text-center">You rated @{selectedTrade.username} {myTradeRating}★. Thanks!</p>
+                ) : (
+                  <div className="rounded-2xl bg-zinc-50 border border-zinc-200 p-3 flex flex-col items-center gap-2">
+                    <p className="text-xs font-medium text-zinc-500">Rate @{selectedTrade.username}</p>
+                    <StarPicker size="sm" value={tradeRatingDraft} onChange={n => { setTradeRatingDraft(n); submitRating(selectedTrade.user_id, { tradeId: selectedTrade.id }, n) }} />
+                  </div>
+                )
+              ) : null}
 
               <div className="pt-4 mt-1 border-t border-zinc-100">
                 <p className="font-semibold text-zinc-900 text-sm mb-2">Questions ({tradeComments.length})</p>

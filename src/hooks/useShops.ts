@@ -134,6 +134,63 @@ export function useTradePosts() {
   return { tradePosts, loading, addTradePost, updateTradePost, deleteTradePost, fetchTradeComments, addTradeComment, deleteTradeComment }
 }
 
+// Offers on a single listing. RLS on listing_offers naturally scopes what
+// comes back: the seller sees every offer on their own listing, a buyer sees
+// only their own (one row per (listing, buyer) — a repeat offer after a
+// decline/withdrawal reuses that same row via upsert instead of a new one).
+export function useListingOffers(listingId: string, userId: string | null) {
+  const [offers, setOffers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchOffers = () => {
+    if (!listingId || !userId) { setOffers([]); setLoading(false); return }
+    setLoading(true)
+    supabase
+      .from('listing_offers')
+      .select('*')
+      .eq('listing_id', listingId)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => { setOffers(data || []); setLoading(false) })
+  }
+
+  useEffect(() => { fetchOffers() }, [listingId, userId])
+
+  async function makeOffer(buyerId: string, amount: number, message: string) {
+    const { error } = await supabase
+      .from('listing_offers')
+      .upsert(
+        { listing_id: listingId, buyer_id: buyerId, amount, message: message || null, status: 'pending', counter_amount: null, counter_message: null },
+        { onConflict: 'listing_id,buyer_id' }
+      )
+    if (!error) fetchOffers()
+    return { error: error?.message || null }
+  }
+
+  async function sellerRespond(offerId: string, action: 'accepted' | 'declined' | 'countered', counterAmount?: number, counterMessage?: string) {
+    const fields: any = { status: action }
+    if (action === 'countered') { fields.counter_amount = counterAmount; fields.counter_message = counterMessage || null }
+    const { error } = await supabase.from('listing_offers').update(fields).eq('id', offerId)
+    if (!error) fetchOffers()
+    return { error: error?.message || null }
+  }
+
+  async function buyerRespondToCounter(offerId: string, accept: boolean) {
+    const offer = offers.find((o: any) => o.id === offerId)
+    const fields: any = accept ? { status: 'accepted', amount: offer?.counter_amount } : { status: 'declined' }
+    const { error } = await supabase.from('listing_offers').update(fields).eq('id', offerId)
+    if (!error) fetchOffers()
+    return { error: error?.message || null }
+  }
+
+  async function withdrawOffer(offerId: string) {
+    const { error } = await supabase.from('listing_offers').update({ status: 'withdrawn' }).eq('id', offerId)
+    if (!error) fetchOffers()
+    return { error: error?.message || null }
+  }
+
+  return { offers, loading, makeOffer, sellerRespond, buyerRespondToCounter, withdrawOffer, refetch: fetchOffers }
+}
+
 export function useCheckins(shopId: string) {
   const [checkinCount, setCheckinCount] = useState(0)
   const [userCheckedIn, setUserCheckedIn] = useState(false)
