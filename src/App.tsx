@@ -18,6 +18,48 @@ function unslugCity(slug: string) {
   return slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 }
 
+// Up-to-3 photo picker used by both the "List an item" and "Post a trade"
+// forms. Filled slots show a thumbnail with a remove button; the next open
+// slot is a tappable "add" tile (multi-select, so someone can pick 2-3 at
+// once); any slots beyond that are just empty placeholders.
+function PhotoSlots({ previews, onAdd, onRemove, label }: {
+  previews: string[]
+  onAdd: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onRemove: (i: number) => void
+  label: string
+}) {
+  return (
+    <div className="flex gap-2">
+      {[0, 1, 2].map(i => {
+        const preview = previews[i]
+        if (preview) {
+          return (
+            <div key={i} className="relative w-full aspect-square rounded-2xl overflow-hidden border border-zinc-200">
+              <img src={preview} alt="" className="w-full h-full object-cover" />
+              <button type="button" onClick={() => onRemove(i)}
+                className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/60 flex items-center justify-center">
+                <X className="h-3.5 w-3.5 text-white" />
+              </button>
+            </div>
+          )
+        }
+        if (i === previews.length) {
+          return (
+            <label key={i} className="w-full aspect-square rounded-2xl border-2 border-dashed border-zinc-200 bg-white flex items-center justify-center cursor-pointer">
+              <div className="text-center text-zinc-400">
+                <Plus className="h-5 w-5 mx-auto mb-0.5" />
+                <span className="text-[10px]">{previews.length === 0 ? label : 'Add more'}</span>
+              </div>
+              <input type="file" accept="image/*" multiple onChange={onAdd} className="hidden" />
+            </label>
+          )
+        }
+        return <div key={i} className="w-full aspect-square rounded-2xl border-2 border-dashed border-zinc-100" />
+      })}
+    </div>
+  )
+}
+
 function DropBanner({ shops }: { shops: any[] }) {
   const [idx, setIdx] = useState(0)
   const [fade, setFade] = useState(true)
@@ -368,10 +410,10 @@ export default function App() {
   const [mktCondition, setMktCondition] = useState('Raw')
   const [mktCategory, setMktCategory] = useState('cards')
   const [mktContact, setMktContact] = useState('')
-  const [mktFile, setMktFile] = useState<File | null>(null)
+  const [mktFiles, setMktFiles] = useState<File[]>([])
   const [galleryBusy, setGalleryBusy] = useState(false)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
-  const [mktPreview, setMktPreview] = useState<string>('')
+  const [mktPreviews, setMktPreviews] = useState<string[]>([])
   const [mktSubmitting, setMktSubmitting] = useState(false)
   const [mktFilter, setMktFilter] = useState('all')
   const [mktSearch, setMktSearch] = useState('')
@@ -931,17 +973,25 @@ export default function App() {
   async function handleTradeSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!inpOff.trim() || !inpWant.trim() || !user) return
-    let imageUrl = ''
-    if (mktFile) { const url = await uploadPhoto(mktFile, user.id); if (url) imageUrl = url }
-    await addTradePost(user.id, profile?.username || 'Guest', inpOff, inpWant, imageUrl || null, fuzzCoord(userLat), fuzzCoord(userLng))
-    setInpOff(''); setInpWant(''); setMktFile(null); setMktPreview(''); setModal('none')
+    const urls: string[] = []
+    for (const f of mktFiles) { const url = await uploadPhoto(f, user.id); if (url) urls.push(url) }
+    await addTradePost(user.id, profile?.username || 'Guest', inpOff, inpWant, urls[0] || null, fuzzCoord(userLat), fuzzCoord(userLng), urls.slice(1))
+    setInpOff(''); setInpWant(''); setMktFiles([]); setMktPreviews([]); setModal('none')
   }
 
-  function onPickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0]
-    if (!f) return
-    setMktFile(f)
-    setMktPreview(URL.createObjectURL(f))
+  function onPickPhotos(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(e.target.files || [])
+    if (picked.length === 0) return
+    const room = 3 - mktFiles.length
+    const accepted = picked.slice(0, room)
+    setMktFiles(prev => [...prev, ...accepted])
+    setMktPreviews(prev => [...prev, ...accepted.map(f => URL.createObjectURL(f))])
+    e.target.value = ''
+  }
+
+  function removeMktPhoto(i: number) {
+    setMktFiles(prev => prev.filter((_, idx) => idx !== i))
+    setMktPreviews(prev => prev.filter((_, idx) => idx !== i))
   }
 
   useEffect(() => {
@@ -1052,10 +1102,10 @@ export default function App() {
     e.preventDefault()
     if (!mktTitle || !mktPrice || !user) return
     setMktSubmitting(true)
-    let imageUrl = ''
-    if (mktFile) {
-      const url = await uploadPhoto(mktFile, user.id)
-      if (url) imageUrl = url
+    const urls: string[] = []
+    for (const f of mktFiles) {
+      const url = await uploadPhoto(f, user.id)
+      if (url) urls.push(url)
     }
     const ok = await createListing({
       user_id: user.id,
@@ -1065,7 +1115,8 @@ export default function App() {
       price: parseFloat(mktPrice),
       category: mktCategory,
       condition: mktCondition,
-      image_url: imageUrl,
+      image_url: urls[0] || '',
+      gallery: urls.slice(1),
       contact: mktContact,
       lat: fuzzCoord(userLat),
       lng: fuzzCoord(userLng),
@@ -1074,7 +1125,7 @@ export default function App() {
     setMktSubmitting(false)
     if (ok) {
       setMktTitle(''); setMktPrice(''); setMktDesc(''); setMktContact('')
-      setMktFile(null); setMktPreview(''); setModal('none')
+      setMktFiles([]); setMktPreviews([]); setModal('none')
     }
   }
 
@@ -1519,7 +1570,7 @@ export default function App() {
                       className="px-4 py-1.5 rounded-full text-[13px] font-medium transition-all"
                       style={mktSection === 'trade' ? { background: '#E0533C', color: 'white' } : { color: '#52525b' }}>Trades</button>
                   </div>
-                  <button onClick={() => isSignedIn ? (setMktFile(null), setMktPreview(''), setModal(mktSection === 'sale' ? 'listsale' : 'posttrade')) : setModal('auth')}
+                  <button onClick={() => isSignedIn ? (setMktFiles([]), setMktPreviews([]), setModal(mktSection === 'sale' ? 'listsale' : 'posttrade')) : setModal('auth')}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium text-white flex-shrink-0"
                     style={{ background: '#E0533C' }}>
                     <Plus className="h-4 w-4" /> {mktSection === 'sale' ? 'List an item' : 'Post a trade'}
@@ -1573,7 +1624,7 @@ export default function App() {
                   <div className="text-center py-16 text-zinc-400">
                     <Tag className="h-10 w-10 mx-auto mb-3 opacity-20" />
                     <p className="text-sm">No listings yet. Be the first to list something.</p>
-                    <button onClick={() => isSignedIn ? (setMktFile(null), setMktPreview(''), setModal('listsale')) : setModal('auth')}
+                    <button onClick={() => isSignedIn ? (setMktFiles([]), setMktPreviews([]), setModal('listsale')) : setModal('auth')}
                       className="mt-4 px-5 py-2 rounded-full text-sm font-medium text-white" style={{ background: '#E0533C' }}>
                       List an item
                     </button>
@@ -1607,7 +1658,7 @@ export default function App() {
                   <div className="text-center py-16 text-zinc-400">
                     <ArrowLeftRight className="h-10 w-10 mx-auto mb-3 opacity-20" />
                     <p className="text-sm">No trades posted yet. Put up what you have.</p>
-                    <button onClick={() => isSignedIn ? (setMktFile(null), setMktPreview(''), setModal('posttrade')) : setModal('auth')}
+                    <button onClick={() => isSignedIn ? (setMktFiles([]), setMktPreviews([]), setModal('posttrade')) : setModal('auth')}
                       className="mt-4 px-5 py-2 rounded-full text-sm font-medium text-white" style={{ background: '#E0533C' }}>Post a trade</button>
                   </div>
                 ) : (
@@ -2354,14 +2405,7 @@ export default function App() {
               <button onClick={() => setModal('none')}><X className="h-5 w-5 text-zinc-400" /></button>
             </div>
             <form onSubmit={handleListingSubmit} className="space-y-3">
-              <label className="block">
-                <div className="aspect-[4/3] rounded-2xl border-2 border-dashed border-zinc-200 bg-white flex items-center justify-center overflow-hidden cursor-pointer">
-                  {mktPreview
-                    ? <img src={mktPreview} alt="" className="w-full h-full object-cover" />
-                    : <div className="text-center text-zinc-400"><Plus className="h-6 w-6 mx-auto mb-1" /><span className="text-xs">Add a photo</span></div>}
-                </div>
-                <input type="file" accept="image/*" onChange={onPickPhoto} className="hidden" />
-              </label>
+              <PhotoSlots previews={mktPreviews} onAdd={onPickPhotos} onRemove={removeMktPhoto} label="Add photos" />
               <input type="text" required value={mktTitle} onChange={e => setMktTitle(e.target.value)}
                 placeholder="What are you selling?" className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-sm focus:outline-none" />
               <div className="relative">
@@ -2398,10 +2442,17 @@ export default function App() {
           <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl shadow-2xl max-h-[92vh] overflow-y-auto bg-white" onClick={e => e.stopPropagation()}>
             <div className="relative">
               {selectedListing.image_url
-                ? <img src={selectedListing.image_url} alt={selectedListing.title} className="w-full aspect-square object-cover" />
+                ? <img src={selectedListing.image_url} alt={selectedListing.title} onClick={() => setLightboxUrl(selectedListing.image_url)} className="w-full aspect-square object-cover cursor-zoom-in" />
                 : <div className="w-full aspect-square bg-zinc-100 flex items-center justify-center text-zinc-300"><Package className="h-12 w-12" /></div>}
               <button onClick={closeListing} className="absolute top-3 right-3 h-9 w-9 rounded-full bg-white/90 flex items-center justify-center shadow"><X className="h-5 w-5 text-zinc-600" /></button>
             </div>
+            {selectedListing.gallery?.length > 0 && (
+              <div className="flex gap-2 px-5 pt-3">
+                {selectedListing.gallery.map((g: string, i: number) => (
+                  <img key={i} src={g} alt="" onClick={() => setLightboxUrl(g)} className="h-16 w-16 rounded-xl object-cover cursor-zoom-in border border-zinc-200" />
+                ))}
+              </div>
+            )}
             <div className="p-5 space-y-3">
               <div>
                 <p className="text-2xl font-semibold" style={{ color: '#E0533C' }}>${Number(selectedListing.price).toLocaleString()}</p>
@@ -2593,7 +2644,14 @@ export default function App() {
               <button onClick={closeTrade}><X className="h-5 w-5 text-zinc-400" /></button>
             </div>
             <div className="p-5 space-y-3">
-              {selectedTrade.image_url && <img src={selectedTrade.image_url} alt="" className="w-full rounded-2xl max-h-72 object-cover" />}
+              {selectedTrade.image_url && <img src={selectedTrade.image_url} alt="" onClick={() => setLightboxUrl(selectedTrade.image_url)} className="w-full rounded-2xl max-h-72 object-cover cursor-zoom-in" />}
+              {selectedTrade.gallery?.length > 0 && (
+                <div className="flex gap-2">
+                  {selectedTrade.gallery.map((g: string, i: number) => (
+                    <img key={i} src={g} alt="" onClick={() => setLightboxUrl(g)} className="h-16 w-16 rounded-xl object-cover cursor-zoom-in border border-zinc-200" />
+                  ))}
+                </div>
+              )}
               <div className="space-y-2">
                 <div className="flex gap-2 items-start">
                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 mt-0.5" style={{ background: '#F0FDF4', color: '#166534' }}>HAS</span>
@@ -2666,13 +2724,7 @@ export default function App() {
               <button onClick={() => setModal('none')}><X className="h-5 w-5 text-zinc-400" /></button>
             </div>
             <form onSubmit={handleTradeSubmit} className="space-y-3">
-              <label className="block cursor-pointer">
-                <div className="h-32 rounded-2xl border-2 border-dashed border-zinc-200 flex items-center justify-center overflow-hidden bg-white"
-                  style={mktPreview ? { backgroundImage: `url(${mktPreview})`, backgroundSize: 'cover', backgroundPosition: 'center', borderStyle: 'solid' } : {}}>
-                  {!mktPreview && <span className="text-xs text-zinc-400 text-center"><Plus className="h-5 w-5 mx-auto mb-0.5" />Add a photo (optional)</span>}
-                </div>
-                <input type="file" accept="image/*" onChange={onPickPhoto} className="hidden" />
-              </label>
+              <PhotoSlots previews={mktPreviews} onAdd={onPickPhotos} onRemove={removeMktPhoto} label="Add photos (optional)" />
               <div>
                 <label className="block text-xs font-medium text-zinc-400 mb-1.5">You have</label>
                 <input type="text" required value={inpOff} onChange={e => setInpOff(e.target.value)}
