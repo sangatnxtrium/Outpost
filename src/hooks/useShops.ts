@@ -81,13 +81,14 @@ export function useReviews(shopId: string) {
 
 export function useTradePosts() {
   const [tradePosts, setTradePosts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     supabase
       .from('trade_posts')
       .select('*')
       .order('created_at', { ascending: false })
-      .then(({ data }) => setTradePosts(data || []))
+      .then(({ data }) => { setTradePosts(data || []); setLoading(false) })
   }, [])
 
   async function addTradePost(userId: string, username: string, offer: string, lookFor: string, imageUrl?: string | null, lat?: number | null, lng?: number | null) {
@@ -123,7 +124,7 @@ export function useTradePosts() {
     await supabase.from('trade_comments').delete().eq('id', id)
   }
 
-  return { tradePosts, addTradePost, deleteTradePost, fetchTradeComments, addTradeComment, deleteTradeComment }
+  return { tradePosts, loading, addTradePost, deleteTradePost, fetchTradeComments, addTradeComment, deleteTradeComment }
 }
 
 export function useCheckins(shopId: string) {

@@ -234,7 +234,7 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal, unreadCount }: an
   return (
     <aside className="hidden md:flex flex-col w-56 border-r border-zinc-200 bg-white h-screen sticky top-0 p-4 gap-1 flex-shrink-0">
       <div className="px-2 py-4 mb-2">
-        <img src="/logo.png" alt="getOutpost.net" onClick={() => setTab('discover')} className="w-40 h-auto cursor-pointer" />
+        <img src="/logo.png" alt="getOutpost.net" onClick={() => goTab('discover')} className="w-40 h-auto cursor-pointer" />
         <p className="text-[11px] text-zinc-400 mt-2 px-1">Every Shop. Every Drop. Near You.</p>
       </div>
       {items.map(({ id, icon: Icon, label }) => (
@@ -286,11 +286,11 @@ export default function App() {
   const selectedShop = shops.find((s: any) => s.id === selectedShopId) || null
   const { reviews, addReview } = useReviews(selectedShop?.id || '')
   const { checkinCount, userCheckedIn, checkIn } = useCheckins(selectedShop?.id || '')
-  const { tradePosts, addTradePost, deleteTradePost, fetchTradeComments, addTradeComment, deleteTradeComment } = useTradePosts()
+  const { tradePosts, loading: tradePostsLoading, addTradePost, deleteTradePost, fetchTradeComments, addTradeComment, deleteTradeComment } = useTradePosts()
   const { events: allEventsData } = useEvents()
   const { articles: newsArticles } = useNews()
   const [newsFilter, setNewsFilter] = useState('All')
-  const { listings, uploadPhoto, createListing, deleteListing, fetchComments, addComment, deleteComment } = useListings()
+  const { listings, loading: listingsLoading, uploadPhoto, createListing, deleteListing, fetchComments, addComment, deleteComment } = useListings()
   const { items: notifications, unread: unreadCount, refetch: refetchNotifs, markAllRead } = useNotifications(user?.id || null)
   const { settings: appSettings } = useAppSettings()
   const FCBD_YEAR = parseInt(appSettings.fcbd_year || '') || 2027
@@ -438,7 +438,7 @@ export default function App() {
 
   function finishOnboarding() {
     try { localStorage.setItem('outpost_onboarded', '1') } catch { /* noop */ }
-    if (onbInterest) { setFilter(onbInterest); setTab('discover'); setActiveSection('shops') }
+    if (onbInterest) { setFilter(onbInterest); goTab('discover'); setActiveSection('shops') }
     setShowOnboarding(false)
   }
 
@@ -604,6 +604,19 @@ export default function App() {
     setFcbdSaved(true)
   }
 
+  const TAB_PATHS: Record<TabType, string> = {
+    discover: '/', classifieds: '/marketplace', marketplace: '/marketplace',
+    news: '/news', fcbd: '/fcbd', profile: '/profile',
+  }
+
+  // Every setTab(...) that represents real user navigation should go through
+  // this instead, so the URL always reflects the visible tab (bookmarking,
+  // sharing, and back/forward all depend on that staying true).
+  function goTab(id: TabType) {
+    setTab(id)
+    window.history.pushState({}, '', TAB_PATHS[id] || '/')
+  }
+
   function openShop(s: any) {
     setSelectedShopId(s.id); setModal('shop')
     if (s.city_slug && s.name_slug) {
@@ -616,38 +629,80 @@ export default function App() {
     window.history.pushState({}, '', urlCity ? `/city/${urlCity}` : '/')
   }
 
-  function applyRouteFromPath(path: string, shopList: any[]) {
+  function openListing(item: any) {
+    setSelectedListing(item); setShowContact(false); setModal('listingdetail')
+    if (item.slug) window.history.pushState({}, '', `/marketplace/${item.slug}`)
+  }
+
+  function closeListing() {
+    setModal('none')
+    window.history.pushState({}, '', '/marketplace')
+  }
+
+  function openTrade(item: any) {
+    setSelectedTrade(item); setModal('tradedetail')
+    if (item.slug) window.history.pushState({}, '', `/marketplace/trade/${item.slug}`)
+  }
+
+  function closeTrade() {
+    setModal('none')
+    window.history.pushState({}, '', '/marketplace')
+  }
+
+  function applyRouteFromPath(path: string, shopList: any[], listingList: any[], tradeList: any[]) {
     const parts = path.split('/').filter(Boolean)
+
     if (parts[0] === 'shop' && parts[1] && parts[2]) {
       const match = shopList.find((s: any) => s.city_slug === parts[1] && s.name_slug === parts[2])
       if (match) {
         setUrlCity(parts[1]); setSelectedShopId(match.id); setModal('shop')
         setTab('discover'); setActiveSection('shops')
       }
-    } else if (parts[0] === 'city' && parts[1]) {
+      return
+    }
+    if (parts[0] === 'city' && parts[1]) {
       setUrlCity(parts[1]); setModal('none')
       setTab('discover'); setActiveSection('shops')
-    } else {
-      setUrlCity(null); setModal('none')
+      return
     }
+    if (parts[0] === 'marketplace' && parts[1] === 'trade' && parts[2]) {
+      const match = tradeList.find((t: any) => t.slug === parts[2])
+      setTab('marketplace'); setMktSection('trade')
+      if (match) { setSelectedTrade(match); setModal('tradedetail') } else { setModal('none') }
+      return
+    }
+    if (parts[0] === 'marketplace' && parts[1]) {
+      const match = listingList.find((l: any) => l.slug === parts[1])
+      setTab('marketplace'); setMktSection('sale')
+      if (match) { setSelectedListing(match); setModal('listingdetail') } else { setModal('none') }
+      return
+    }
+    if (parts[0] === 'marketplace') { setTab('marketplace'); setModal('none'); return }
+    if (parts[0] === 'news') { setTab('news'); setModal('none'); return }
+    if (parts[0] === 'fcbd') { setTab('fcbd'); setModal('none'); return }
+    if (parts[0] === 'profile') { setTab('profile'); setModal('none'); return }
+
+    // '/' or anything unrecognized
+    setUrlCity(null); setModal('none'); setTab('discover')
   }
 
-  // Open the shop/city the URL points to once shops have loaded. Only runs
-  // once on initial load — after that, in-app navigation (openShop/closeShop)
-  // and the popstate listener below own the URL <-> state sync.
+  // Open the tab/item the URL points to once everything routing can match
+  // against has loaded. Only runs once on initial load — after that, in-app
+  // navigation (goTab/openShop/openListing/etc.) and the popstate listener
+  // below own the URL <-> state sync.
   useEffect(() => {
     if (initialRouteHandled.current) return
-    if (shopsLoading || shops.length === 0) return
+    if (shopsLoading || listingsLoading || tradePostsLoading) return
     initialRouteHandled.current = true
-    applyRouteFromPath(window.location.pathname, shops)
-  }, [shops, shopsLoading])
+    applyRouteFromPath(window.location.pathname, shops, listings, tradePosts)
+  }, [shops, shopsLoading, listings, listingsLoading, tradePosts, tradePostsLoading])
 
   // Browser back/forward
   useEffect(() => {
-    function onPopState() { applyRouteFromPath(window.location.pathname, shops) }
+    function onPopState() { applyRouteFromPath(window.location.pathname, shops, listings, tradePosts) }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
-  }, [shops])
+  }, [shops, listings, tradePosts])
 
 
   async function searchEbay(query: string) {
@@ -1144,7 +1199,7 @@ export default function App() {
         </div>
       )}
       <div className="flex min-h-screen">
-        <Sidebar tab={tab} setTab={setTab} isSignedIn={isSignedIn} profile={profile} setModal={setModal} unreadCount={unreadCount} />
+        <Sidebar tab={tab} setTab={goTab} isSignedIn={isSignedIn} profile={profile} setModal={setModal} unreadCount={unreadCount} />
 
         {lightboxUrl && (
           <div onClick={() => setLightboxUrl(null)}
@@ -1164,7 +1219,7 @@ export default function App() {
           <header className="sticky top-0 z-20 px-4 pt-10 pb-3 md:pt-3 md:pb-3 border-b border-zinc-200 bg-white/95 backdrop-blur">
             <div className="flex items-center justify-between gap-2 md:hidden">
               <div className="min-w-0 flex-1">
-                <img src="/logo.png" alt="getOutpost.net" onClick={() => setTab('discover')} className="h-[75px] w-auto cursor-pointer" />
+                <img src="/logo.png" alt="getOutpost.net" onClick={() => goTab('discover')} className="h-[75px] w-auto cursor-pointer" />
                 <p className="text-[15px] mt-0.5 whitespace-nowrap text-zinc-400">Every Shop. Every Drop. Near You.</p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
@@ -1195,7 +1250,7 @@ export default function App() {
                 <button onClick={() => setModal('sub')} className="px-4 py-2 rounded-full text-xs font-medium border border-zinc-200 text-zinc-700 hover:bg-zinc-50 transition-all">
                   {!isSignedIn ? 'Pro' : profile?.tier === 'store' ? 'Store' : profile?.tier === 'elite' ? 'Elite' : isMerchant ? 'Merchant' : 'Pro'}
                 </button>
-                <button onClick={() => isSignedIn ? setTab('profile') : setModal('auth')} className="px-4 py-2 rounded-full text-xs font-medium text-white transition-all" style={{ background: '#E0533C' }}>
+                <button onClick={() => isSignedIn ? goTab('profile') : setModal('auth')} className="px-4 py-2 rounded-full text-xs font-medium text-white transition-all" style={{ background: '#E0533C' }}>
                   {isSignedIn ? `@${profile?.username}` : 'Sign in'}
                 </button>
               </div>
@@ -1526,7 +1581,7 @@ export default function App() {
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                     {sortedListings.map((item: any) => (
-                      <div key={item.id} onClick={() => { setSelectedListing(item); setShowContact(false); setModal('listingdetail') }}
+                      <div key={item.id} onClick={() => openListing(item)}
                         className="bg-white rounded-2xl border border-zinc-200 overflow-hidden cursor-pointer transition-all hover:shadow-md text-left">
                         <div className="aspect-square bg-zinc-100">
                           {item.image_url
@@ -1558,7 +1613,7 @@ export default function App() {
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                     {sortedTrades.map((p: any) => (
-                      <button key={p.id} onClick={() => { setSelectedTrade(p); setModal('tradedetail') }}
+                      <button key={p.id} onClick={() => openTrade(p)}
                         className="w-full text-left bg-white rounded-2xl border border-zinc-200 p-4 hover:shadow-md transition-all">
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-1.5 min-w-0">
@@ -1685,7 +1740,7 @@ export default function App() {
                 {myShop && (
                   <div className="bg-white rounded-2xl border border-zinc-200 p-3 flex items-center gap-2 text-sm text-zinc-500">
                     <BookOpen className="h-4 w-4 flex-shrink-0" style={{ color: '#1d4ed8' }} />
-                    <span>Manage your shop's FCBD participation from your <button onClick={() => setTab('profile')} className="font-medium underline" style={{ color: '#E0533C' }}>Profile</button>.</span>
+                    <span>Manage your shop's FCBD participation from your <button onClick={() => goTab('profile')} className="font-medium underline" style={{ color: '#E0533C' }}>Profile</button>.</span>
                   </div>
                 )}
 
@@ -1828,7 +1883,7 @@ export default function App() {
                         <p className="text-xs font-black uppercase text-zinc-400 mb-3">Upcoming Events</p>
                         <div className="space-y-2">
                           {myEvents.map((ev: any) => (
-                            <button key={ev.id} onClick={() => { setTab('discover'); setActiveSection('events') }}
+                            <button key={ev.id} onClick={() => { goTab('discover'); setActiveSection('events') }}
                               className="w-full flex items-center justify-between gap-3 p-3 rounded-2xl text-left hover:bg-zinc-50 transition-all" style={{ background: '#F8F7F2' }}>
                               <div className="min-w-0">
                                 <p className="font-bold text-sm text-zinc-900 truncate">{ev.title}</p>
@@ -1866,7 +1921,7 @@ export default function App() {
                         {myListings.length > 0 && (
                           <div className="grid grid-cols-3 gap-2 mb-2">
                             {myListings.map((l: any) => (
-                              <button key={l.id} onClick={() => { setSelectedListing(l); setShowContact(false); setModal('listingdetail') }} className="text-left">
+                              <button key={l.id} onClick={() => openListing(l)} className="text-left">
                                 <div className="aspect-square rounded-xl bg-zinc-100 overflow-hidden">
                                   {l.image_url
                                     ? <img src={l.image_url} alt={l.title} className="w-full h-full object-cover" />
@@ -1947,7 +2002,7 @@ export default function App() {
               { id: 'fcbd', icon: BookOpen, label: 'FCBD' },
               { id: 'profile', icon: User, label: 'Profile' },
             ].map(({ id, icon: Icon, label }) => (
-              <button key={id} onClick={() => setTab(id as TabType)}
+              <button key={id} onClick={() => goTab(id as TabType)}
                 className="flex flex-col items-center gap-1 px-2 transition-all">
                 <div className="h-9 w-9 rounded-xl flex items-center justify-center transition-all"
                   style={tab === id ? { background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' } : {}}>
@@ -2339,13 +2394,13 @@ export default function App() {
 
       {/* LISTING DETAIL */}
       {modal === 'listingdetail' && selectedListing && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center" onClick={() => setModal('none')}>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center" onClick={closeListing}>
           <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl shadow-2xl max-h-[92vh] overflow-y-auto bg-white" onClick={e => e.stopPropagation()}>
             <div className="relative">
               {selectedListing.image_url
                 ? <img src={selectedListing.image_url} alt={selectedListing.title} className="w-full aspect-square object-cover" />
                 : <div className="w-full aspect-square bg-zinc-100 flex items-center justify-center text-zinc-300"><Package className="h-12 w-12" /></div>}
-              <button onClick={() => setModal('none')} className="absolute top-3 right-3 h-9 w-9 rounded-full bg-white/90 flex items-center justify-center shadow"><X className="h-5 w-5 text-zinc-600" /></button>
+              <button onClick={closeListing} className="absolute top-3 right-3 h-9 w-9 rounded-full bg-white/90 flex items-center justify-center shadow"><X className="h-5 w-5 text-zinc-600" /></button>
             </div>
             <div className="p-5 space-y-3">
               <div>
@@ -2366,7 +2421,7 @@ export default function App() {
                 </button>
               )}
               {user?.id === selectedListing.user_id ? (
-                <button onClick={() => { deleteListing(selectedListing.id); setModal('none') }}
+                <button onClick={() => { deleteListing(selectedListing.id); closeListing() }}
                   className="w-full py-3 rounded-2xl text-sm font-medium border border-red-200 text-red-600">
                   Delete listing
                 </button>
@@ -2535,7 +2590,7 @@ export default function App() {
                   {reportedIds.includes(selectedTrade.user_id) ? '✓ Reported — thanks' : '⚑ Report user'}
                 </button>
               )}
-              <button onClick={() => setModal('none')}><X className="h-5 w-5 text-zinc-400" /></button>
+              <button onClick={closeTrade}><X className="h-5 w-5 text-zinc-400" /></button>
             </div>
             <div className="p-5 space-y-3">
               {selectedTrade.image_url && <img src={selectedTrade.image_url} alt="" className="w-full rounded-2xl max-h-72 object-cover" />}
@@ -2551,7 +2606,7 @@ export default function App() {
               </div>
 
               {user?.id === selectedTrade.user_id && (
-                <button onClick={async () => { await deleteTradePost(selectedTrade.id); setModal('none') }}
+                <button onClick={async () => { await deleteTradePost(selectedTrade.id); closeTrade() }}
                   className="w-full py-2.5 rounded-2xl text-xs font-medium text-red-500 border border-red-100">
                   Delete this trade
                 </button>

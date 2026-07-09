@@ -19,15 +19,15 @@ function escapeXml(s) {
     .replace(/>/g, '&gt;')
 }
 
-async function fetchAllSlugs() {
-  const sbHeaders = { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` }
+const sbHeaders = { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` }
+
+async function fetchAllPages(pathAndQuery) {
   let all = []
   let from = 0
   const batchSize = 1000
   while (true) {
-    const url = `${SUPABASE_URL}/rest/v1/shops` +
-      `?select=city_slug,name_slug&city_slug=not.is.null&name_slug=not.is.null` +
-      `&order=id&limit=${batchSize}&offset=${from}`
+    const sep = pathAndQuery.includes('?') ? '&' : '?'
+    const url = `${SUPABASE_URL}/rest/v1/${pathAndQuery}${sep}order=id&limit=${batchSize}&offset=${from}`
     const res = await fetch(url, { headers: sbHeaders })
     if (!res.ok) throw new Error(`Supabase read ${res.status}: ${await res.text()}`)
     const rows = await res.json()
@@ -38,14 +38,29 @@ async function fetchAllSlugs() {
   return all
 }
 
+const fetchAllSlugs = () =>
+  fetchAllPages('shops?select=city_slug,name_slug&city_slug=not.is.null&name_slug=not.is.null')
+
+// Only active listings — a sold item's page shouldn't stay indexed/shared
+// once it's off the market.
+const fetchAllListingSlugs = () =>
+  fetchAllPages('listings?select=slug&slug=not.is.null&status=eq.active')
+
+const fetchAllTradeSlugs = () =>
+  fetchAllPages('trade_posts?select=slug&slug=not.is.null')
+
 export default async function handler(req, res) {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
     return res.status(500).send('missing Supabase env vars')
   }
 
-  let shops
+  let shops, listings, trades
   try {
-    shops = await fetchAllSlugs()
+    ;[shops, listings, trades] = await Promise.all([
+      fetchAllSlugs(),
+      fetchAllListingSlugs(),
+      fetchAllTradeSlugs(),
+    ])
   } catch (e) {
     console.error(e)
     return res.status(500).send('sitemap generation failed')
@@ -55,6 +70,9 @@ export default async function handler(req, res) {
 
   const staticUrls = [
     { loc: `${SITE}/`, changefreq: 'daily', priority: '1.0' },
+    { loc: `${SITE}/marketplace`, changefreq: 'daily', priority: '0.8' },
+    { loc: `${SITE}/news`, changefreq: 'daily', priority: '0.5' },
+    { loc: `${SITE}/fcbd`, changefreq: 'weekly', priority: '0.4' },
     { loc: `${SITE}/privacy`, changefreq: 'monthly', priority: '0.3' },
     { loc: `${SITE}/terms`, changefreq: 'monthly', priority: '0.3' },
   ]
@@ -71,7 +89,19 @@ export default async function handler(req, res) {
     priority: '0.6',
   }))
 
-  const all = [...staticUrls, ...cityUrls, ...shopUrls]
+  const listingUrls = listings.map(l => ({
+    loc: `${SITE}/marketplace/${escapeXml(l.slug)}`,
+    changefreq: 'weekly',
+    priority: '0.5',
+  }))
+
+  const tradeUrls = trades.map(t => ({
+    loc: `${SITE}/marketplace/trade/${escapeXml(t.slug)}`,
+    changefreq: 'weekly',
+    priority: '0.5',
+  }))
+
+  const all = [...staticUrls, ...cityUrls, ...shopUrls, ...listingUrls, ...tradeUrls]
 
   const xml =
     `<?xml version="1.0" encoding="UTF-8"?>\n` +
