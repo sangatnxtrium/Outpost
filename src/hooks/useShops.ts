@@ -204,12 +204,15 @@ export function useListings() {
   const [listings, setListings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Fetches every listing regardless of status (active + sold) — the app
+  // filters to active-only for the public browse grid, but a seller's own
+  // "My Listings" view (and a sold item's own detail page/URL) needs to see
+  // sold ones too.
   const fetchListings = () => {
     setLoading(true)
     supabase
       .from('listings')
       .select('*')
-      .eq('status', 'active')
       .order('created_at', { ascending: false })
       .then(({ data }) => { setListings(data || []); setLoading(false) })
   }

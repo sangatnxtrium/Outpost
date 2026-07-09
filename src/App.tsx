@@ -585,6 +585,7 @@ export default function App() {
 
   const mktQuery = mktSearch.trim().toLowerCase()
   const sortedListings = [...listings]
+    .filter((l: any) => l.status === 'active')
     .map((l: any) => ({ ...l, distance: userLat && userLng && l.lat && l.lng ? getDistance(userLat, userLng, l.lat, l.lng) : null }))
     .filter((l: any) => mktFilter === 'all' || l.category === mktFilter)
     .filter((l: any) => inRadius(l.distance))
@@ -1004,6 +1005,12 @@ export default function App() {
 
   function removeMktPhoto(i: number) {
     setMktPhotos(prev => prev.filter((_, idx) => idx !== i))
+  }
+
+  async function toggleListingSold(item: any) {
+    const nextStatus = item.status === 'sold' ? 'active' : 'sold'
+    await updateListing(item.id, { status: nextStatus })
+    setSelectedListing({ ...item, status: nextStatus })
   }
 
   function openListingEdit(item: any) {
@@ -2012,10 +2019,13 @@ export default function App() {
                           <div className="grid grid-cols-3 gap-2 mb-2">
                             {myListings.map((l: any) => (
                               <button key={l.id} onClick={() => openListing(l)} className="text-left">
-                                <div className="aspect-square rounded-xl bg-zinc-100 overflow-hidden">
+                                <div className="relative aspect-square rounded-xl bg-zinc-100 overflow-hidden">
                                   {l.image_url
                                     ? <img src={l.image_url} alt={l.title} className="w-full h-full object-cover" />
                                     : <div className="w-full h-full flex items-center justify-center text-zinc-300"><Package className="h-6 w-6" /></div>}
+                                  {l.status === 'sold' && (
+                                    <span className="absolute top-1 left-1 text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-zinc-800/90 text-white">Sold</span>
+                                  )}
                                 </div>
                                 <p className="text-[11px] font-medium truncate mt-1" style={{ color: '#E0533C' }}>${Number(l.price).toLocaleString()}</p>
                               </button>
@@ -2494,7 +2504,12 @@ export default function App() {
             )}
             <div className="p-5 space-y-3">
               <div>
-                <p className="text-2xl font-semibold" style={{ color: '#E0533C' }}>${Number(selectedListing.price).toLocaleString()}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-2xl font-semibold" style={{ color: '#E0533C' }}>${Number(selectedListing.price).toLocaleString()}</p>
+                  {selectedListing.status === 'sold' && (
+                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-zinc-800 text-white">Sold</span>
+                  )}
+                </div>
                 <h3 className="text-lg font-semibold text-zinc-900 mt-0.5">{selectedListing.title}</h3>
                 <div className="flex items-center gap-2 text-[13px] text-zinc-500 mt-1 flex-wrap">
                   {selectedListing.condition && <span className="bg-zinc-100 px-2 py-0.5 rounded-full">{selectedListing.condition}</span>}
@@ -2511,15 +2526,22 @@ export default function App() {
                 </button>
               )}
               {user?.id === selectedListing.user_id ? (
-                <div className="flex gap-2">
-                  <button onClick={() => openListingEdit(selectedListing)}
-                    className="flex-1 py-3 rounded-2xl text-sm font-medium border border-zinc-200 text-zinc-700">
-                    Edit listing
+                <div className="space-y-2">
+                  <button onClick={() => toggleListingSold(selectedListing)}
+                    className="w-full py-3 rounded-2xl text-sm font-medium text-white"
+                    style={{ background: selectedListing.status === 'sold' ? '#52525b' : '#059669' }}>
+                    {selectedListing.status === 'sold' ? 'Mark as available' : 'Mark as sold'}
                   </button>
-                  <button onClick={() => { deleteListing(selectedListing.id); closeListing() }}
-                    className="flex-1 py-3 rounded-2xl text-sm font-medium border border-red-200 text-red-600">
-                    Delete listing
-                  </button>
+                  <div className="flex gap-2">
+                    <button onClick={() => openListingEdit(selectedListing)}
+                      className="flex-1 py-3 rounded-2xl text-sm font-medium border border-zinc-200 text-zinc-700">
+                      Edit listing
+                    </button>
+                    <button onClick={() => { deleteListing(selectedListing.id); closeListing() }}
+                      className="flex-1 py-3 rounded-2xl text-sm font-medium border border-red-200 text-red-600">
+                      Delete listing
+                    </button>
+                  </div>
                 </div>
               ) : showContact ? (
                 <div className="rounded-2xl bg-zinc-50 border border-zinc-200 p-4 text-center">
