@@ -3,7 +3,7 @@ import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Compass, MapPin, Search, Flame, X, Store, User, Users, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, ShieldCheck, DollarSign, Plus, Check, Phone, Bell, Heart, Star, BookOpen, Send, Globe, Newspaper, Share2 } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
-import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useNews, useListings, useFcbd, useFcbdTitles, useNotifications, useAppSettings } from './hooks/useShops'
+import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useNews, useListings, useFcbd, useFcbdTitles, useNotifications, useAppSettings, useListingOffers } from './hooks/useShops'
 import { startCheckout } from './lib/stripe'
 import { supabase } from './lib/supabase'
 
@@ -271,6 +271,41 @@ function StarPicker({ value, onChange, size = 'md' }: { value: number; onChange:
   )
 }
 
+function SellerOfferRow({ offer, onAccept, onDecline, onCounter }: { offer: any; onAccept: () => void; onDecline: () => void; onCounter: (amount: number, message: string) => void }) {
+  const [counterOpen, setCounterOpen] = useState(false)
+  const [counterAmount, setCounterAmount] = useState('')
+  const [counterMessage, setCounterMessage] = useState('')
+  return (
+    <div className="rounded-2xl border border-zinc-200 p-3 space-y-1.5">
+      <p className="text-sm text-zinc-700">${Number(offer.amount).toLocaleString()} <span className="text-xs text-zinc-400 capitalize">· {offer.status}</span></p>
+      {offer.message && <p className="text-xs text-zinc-500">"{offer.message}"</p>}
+      {offer.status === 'pending' && !counterOpen && (
+        <div className="flex gap-2 pt-1">
+          <button onClick={onAccept} className="flex-1 py-2 rounded-xl text-xs font-medium text-white" style={{ background: '#059669' }}>Accept</button>
+          <button onClick={() => setCounterOpen(true)} className="flex-1 py-2 rounded-xl text-xs font-medium border border-zinc-200 text-zinc-600">Counter</button>
+          <button onClick={onDecline} className="flex-1 py-2 rounded-xl text-xs font-medium border border-red-100 text-red-500">Decline</button>
+        </div>
+      )}
+      {offer.status === 'pending' && counterOpen && (
+        <div className="space-y-1.5 pt-1">
+          <input type="number" min={1} value={counterAmount} onChange={e => setCounterAmount(e.target.value)} placeholder="$ counter amount"
+            className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-xs focus:outline-none" />
+          <input value={counterMessage} onChange={e => setCounterMessage(e.target.value)} placeholder="Message (optional)"
+            className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-xs focus:outline-none" />
+          <div className="flex gap-2">
+            <button onClick={() => { const amt = parseFloat(counterAmount); if (amt > 0) { onCounter(amt, counterMessage); setCounterOpen(false) } }}
+              disabled={!counterAmount} className="flex-1 py-2 rounded-xl text-xs font-medium text-white disabled:opacity-50" style={{ background: '#E0533C' }}>Send counter</button>
+            <button onClick={() => setCounterOpen(false)} className="flex-1 py-2 rounded-xl text-xs font-medium border border-zinc-200 text-zinc-500">Cancel</button>
+          </div>
+        </div>
+      )}
+      {offer.status === 'countered' && <p className="text-xs text-zinc-400">You countered ${Number(offer.counter_amount).toLocaleString()} — waiting on buyer.</p>}
+      {offer.status === 'accepted' && <p className="text-xs text-emerald-600 font-medium">Accepted</p>}
+      {(offer.status === 'declined' || offer.status === 'withdrawn') && <p className="text-xs text-zinc-400 capitalize">{offer.status}</p>}
+    </div>
+  )
+}
+
 function getDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 3959
   const dLat = (lat2 - lat1) * Math.PI / 180
@@ -359,6 +394,7 @@ export default function App() {
   const { articles: newsArticles } = useNews()
   const [newsFilter, setNewsFilter] = useState('All')
   const { listings, loading: listingsLoading, uploadPhoto, createListing, updateListing, deleteListing, fetchComments, addComment, deleteComment } = useListings()
+  const { offers, makeOffer, sellerRespond, buyerRespondToCounter, withdrawOffer } = useListingOffers(selectedListing?.id || '', user?.id || null)
   const { items: notifications, unread: unreadCount, refetch: refetchNotifs, markAllRead } = useNotifications(user?.id || null)
   const { settings: appSettings } = useAppSettings()
   const FCBD_YEAR = parseInt(appSettings.fcbd_year || '') || 2027
@@ -387,6 +423,10 @@ export default function App() {
   const [myTradeRating, setMyTradeRating] = useState<number | null>(null)
   const [tradeRatingDraft, setTradeRatingDraft] = useState(0)
   const [tradePartnerPickerOpen, setTradePartnerPickerOpen] = useState(false)
+  const [offerFormOpen, setOfferFormOpen] = useState(false)
+  const [offerAmount, setOfferAmount] = useState('')
+  const [offerMessage, setOfferMessage] = useState('')
+  const qInputRef = useRef<HTMLTextAreaElement>(null)
   const [standingMap, setStandingMap] = useState<Record<string, any>>({})
   const [showStandingInfo, setShowStandingInfo] = useState(false)
   const [reportedIds, setReportedIds] = useState<string[]>([])
@@ -1082,6 +1122,9 @@ export default function App() {
   useEffect(() => {
     setRatingDraft(0)
     setBuyerPickerOpen(false)
+    setOfferFormOpen(false)
+    setOfferAmount('')
+    setOfferMessage('')
     if (!user || !selectedListing?.id) { setMyRating(null); return }
     let active = true
     supabase.from('user_ratings').select('rating').eq('rater_id', user.id).eq('listing_id', selectedListing.id).maybeSingle()
@@ -2690,6 +2733,17 @@ export default function App() {
                       </div>
                     )
                   )}
+                  {offers.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-zinc-500">Offers</p>
+                      {offers.map((o: any) => (
+                        <SellerOfferRow key={o.id} offer={o}
+                          onAccept={() => sellerRespond(o.id, 'accepted')}
+                          onDecline={() => sellerRespond(o.id, 'declined')}
+                          onCounter={(amt, msg) => sellerRespond(o.id, 'countered', amt, msg)} />
+                      ))}
+                    </div>
+                  )}
                   <div className="flex gap-2">
                     <button onClick={() => openListingEdit(selectedListing)}
                       className="flex-1 py-3 rounded-2xl text-sm font-medium border border-zinc-200 text-zinc-700">
@@ -2712,6 +2766,68 @@ export default function App() {
                   <Phone className="h-4 w-4" /> Contact seller
                 </button>
               )}
+
+              {user?.id !== selectedListing.user_id && selectedListing.status !== 'sold' && (
+                <div className="flex gap-2">
+                  <button onClick={() => { if (!user) { setModal('auth'); return } setTimeout(() => { qInputRef.current?.focus(); qInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }, 50) }}
+                    className="flex-1 py-2.5 rounded-2xl text-sm font-medium border border-zinc-200 text-zinc-700 flex items-center justify-center gap-1.5">
+                    <Send className="h-3.5 w-3.5" /> Ask a Question
+                  </button>
+                  <button onClick={() => { if (!user) { setModal('auth'); return } setOfferFormOpen(v => !v) }}
+                    className="flex-1 py-2.5 rounded-2xl text-sm font-medium text-white flex items-center justify-center gap-1.5" style={{ background: '#E0533C' }}>
+                    <DollarSign className="h-3.5 w-3.5" /> Make an Offer
+                  </button>
+                </div>
+              )}
+
+              {user && user.id !== selectedListing.user_id && (() => {
+                const myOffer = offers.find((o: any) => o.buyer_id === user.id)
+                return (
+                  <div className="space-y-2">
+                    {offerFormOpen && (!myOffer || myOffer.status === 'declined' || myOffer.status === 'withdrawn') && (
+                      <div className="rounded-2xl border border-zinc-200 p-3 space-y-2">
+                        <p className="text-xs font-medium text-zinc-500">Your offer</p>
+                        <input type="number" min={1} value={offerAmount} onChange={e => setOfferAmount(e.target.value)} placeholder="$ amount"
+                          className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:outline-none" />
+                        <textarea value={offerMessage} onChange={e => setOfferMessage(e.target.value)} rows={2} placeholder="Add a message (optional)"
+                          className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:outline-none resize-none" />
+                        <button onClick={async () => {
+                            const amt = parseFloat(offerAmount)
+                            if (!amt || amt <= 0) return
+                            const { error } = await makeOffer(user.id, amt, offerMessage)
+                            if (!error) { setOfferFormOpen(false); setOfferAmount(''); setOfferMessage('') }
+                          }}
+                          disabled={!offerAmount}
+                          className="w-full py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-50" style={{ background: '#E0533C' }}>
+                          Send offer
+                        </button>
+                      </div>
+                    )}
+                    {myOffer && myOffer.status === 'pending' && (
+                      <div className="rounded-2xl bg-zinc-50 border border-zinc-200 p-3 flex items-center justify-between">
+                        <p className="text-sm text-zinc-700">Your offer: <span className="font-semibold">${Number(myOffer.amount).toLocaleString()}</span> · pending</p>
+                        <button onClick={() => withdrawOffer(myOffer.id)} className="text-xs text-red-500 font-medium flex-shrink-0">Withdraw</button>
+                      </div>
+                    )}
+                    {myOffer && myOffer.status === 'countered' && (
+                      <div className="rounded-2xl p-3 space-y-2" style={{ background: '#FFFBEB', border: '1px solid #FDE68A' }}>
+                        <p className="text-sm text-zinc-700">Seller countered: <span className="font-semibold">${Number(myOffer.counter_amount).toLocaleString()}</span></p>
+                        {myOffer.counter_message && <p className="text-xs text-zinc-500">"{myOffer.counter_message}"</p>}
+                        <div className="flex gap-2">
+                          <button onClick={() => buyerRespondToCounter(myOffer.id, true)} className="flex-1 py-2 rounded-xl text-sm font-medium text-white" style={{ background: '#059669' }}>Accept</button>
+                          <button onClick={() => buyerRespondToCounter(myOffer.id, false)} className="flex-1 py-2 rounded-xl text-sm font-medium border border-zinc-200 text-zinc-600">Decline</button>
+                        </div>
+                      </div>
+                    )}
+                    {myOffer && myOffer.status === 'accepted' && (
+                      <p className="text-xs text-emerald-600 text-center font-medium">✓ Offer accepted at ${Number(myOffer.amount).toLocaleString()}</p>
+                    )}
+                    {myOffer && (myOffer.status === 'declined' || myOffer.status === 'withdrawn') && !offerFormOpen && (
+                      <p className="text-xs text-zinc-400 text-center">Your offer was {myOffer.status}. <button onClick={() => setOfferFormOpen(true)} className="underline">Make a new offer</button></p>
+                    )}
+                  </div>
+                )
+              })()}
 
               {user && selectedListing.buyer_id === user.id && (
                 myRating ? (
@@ -2748,7 +2864,7 @@ export default function App() {
                   <div className="mt-3 space-y-2">
                     {qPreview && <img src={qPreview} alt="" className="rounded-xl max-h-32 w-auto" />}
                     <div className="flex items-end gap-2">
-                      <textarea value={qBody} onChange={e => setQBody(e.target.value)} rows={1} placeholder="Ask a question…"
+                      <textarea ref={qInputRef} value={qBody} onChange={e => setQBody(e.target.value)} rows={1} placeholder="Ask a question…"
                         className="flex-1 bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none resize-none" />
                       <label className="h-10 w-10 rounded-full bg-zinc-100 flex items-center justify-center cursor-pointer flex-shrink-0">
                         <Plus className="h-4 w-4 text-zinc-500" />
