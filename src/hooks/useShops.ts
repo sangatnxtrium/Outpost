@@ -502,3 +502,132 @@ export function useAppSettings() {
 
   return { settings, saveSetting, refetch: fetchSettings }
 }
+
+export function useFollows(userId: string | null) {
+  const [following, setFollowing] = useState<string[]>([])
+
+  const fetchFollowing = () => {
+    if (!userId) { setFollowing([]); return }
+    supabase.from('user_follows').select('followed_id').eq('follower_id', userId).then(({ data }) => {
+      setFollowing((data || []).map((r: any) => r.followed_id))
+    })
+  }
+
+  useEffect(() => { fetchFollowing() }, [userId])
+
+  async function toggleFollow(targetUserId: string) {
+    if (!userId || !targetUserId || targetUserId === userId) return
+    const isFollowing = following.includes(targetUserId)
+    setFollowing(prev => isFollowing ? prev.filter(id => id !== targetUserId) : [...prev, targetUserId])
+    if (isFollowing) {
+      const { error } = await supabase.from('user_follows').delete().eq('follower_id', userId).eq('followed_id', targetUserId)
+      if (error) setFollowing(prev => [...prev, targetUserId])
+    } else {
+      const { error } = await supabase.from('user_follows').insert({ follower_id: userId, followed_id: targetUserId })
+      if (error) setFollowing(prev => prev.filter(id => id !== targetUserId))
+    }
+  }
+
+  return { following, toggleFollow, refetch: fetchFollowing }
+}
+
+// Conversation list — derived client-side from the messages table, grouped
+// by counterparty (same "fetch everything relevant, group in JS" approach
+// already used for offers). Fine at this app's message volume.
+export function useConversations(userId: string | null) {
+  const [conversations, setConversations] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchConversations = async () => {
+    if (!userId) { setConversations([]); setLoading(false); return }
+    setLoading(true)
+    const { data } = await supabase
+      .from('messages')
+      .select('*')
+      .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
+      .order('created_at', { ascending: false })
+    const rows = data || []
+    const byCounterparty: Record<string, any> = {}
+    for (const m of rows) {
+      const counterpartyId = m.sender_id === userId ? m.recipient_id : m.sender_id
+      if (!byCounterparty[counterpartyId]) {
+        byCounterparty[counterpartyId] = { counterpartyId, lastMessage: m, unread: 0 }
+      }
+      if (m.recipient_id === userId && !m.read_at) byCounterparty[counterpartyId].unread++
+    }
+    const list = Object.values(byCounterparty)
+    const ids = list.map((c: any) => c.counterpartyId)
+    if (ids.length > 0) {
+      const { data: profs } = await supabase.from('profiles').select('id, username, avatar_url').in('id', ids)
+      const profMap: Record<string, any> = {}
+      ;(profs || []).forEach((p: any) => { profMap[p.id] = p })
+      list.forEach((c: any) => { c.profile = profMap[c.counterpartyId] || null })
+    }
+    setConversations(list)
+    setLoading(false)
+  }
+
+  useEffect(() => { fetchConversations() }, [userId])
+
+  useEffect(() => {
+    if (!userId) return
+    const channel = supabase
+      .channel(`conversations:${userId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `recipient_id=eq.${userId}` },
+        () => fetchConversations())
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [userId])
+
+  const totalUnread = conversations.reduce((sum: number, c: any) => sum + c.unread, 0)
+  return { conversations, loading, totalUnread, refetch: fetchConversations }
+}
+
+export function useMessages(userId: string | null, counterpartyId: string | null) {
+  const [messages, setMessages] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchThread = () => {
+    if (!userId || !counterpartyId) { setMessages([]); setLoading(false); return }
+    setLoading(true)
+    supabase
+      .from('messages')
+      .select('*')
+      .or(`and(sender_id.eq.${userId},recipient_id.eq.${counterpartyId}),and(sender_id.eq.${counterpartyId},recipient_id.eq.${userId})`)
+      .order('created_at', { ascending: true })
+      .then(({ data }) => { setMessages(data || []); setLoading(false) })
+  }
+
+  useEffect(() => { fetchThread() }, [userId, counterpartyId])
+
+  useEffect(() => {
+    if (!userId || !counterpartyId) return
+    const channel = supabase
+      .channel(`thread:${userId}:${counterpartyId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload: any) => {
+        const m = payload.new
+        if ((m.sender_id === userId && m.recipient_id === counterpartyId) || (m.sender_id === counterpartyId && m.recipient_id === userId)) {
+          setMessages(prev => [...prev, m])
+        }
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [userId, counterpartyId])
+
+  useEffect(() => {
+    if (!userId || !counterpartyId) return
+    supabase.from('messages').update({ read_at: new Date().toISOString() })
+      .eq('sender_id', counterpartyId).eq('recipient_id', userId).is('read_at', null).then(() => {})
+  }, [userId, counterpartyId, messages.length])
+
+  async function sendMessage(body: string) {
+    if (!userId || !counterpartyId || !body.trim()) return { error: 'missing fields' }
+    const { data, error } = await supabase.from('messages')
+      .insert({ sender_id: userId, recipient_id: counterpartyId, body: body.trim() })
+      .select().single()
+    if (!error && data) setMessages(prev => (prev.some((m: any) => m.id === data.id) ? prev : [...prev, data]))
+    return { error: error?.message || null }
+  }
+
+  return { messages, loading, sendMessage, refetch: fetchThread }
+}

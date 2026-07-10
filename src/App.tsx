@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react'
 import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { Compass, MapPin, Search, Flame, X, Store, User, Users, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, ShieldCheck, DollarSign, Plus, Check, Phone, Bell, Heart, Star, BookOpen, Send, Globe, Newspaper, Share2 } from 'lucide-react'
+import { Compass, MapPin, Search, Flame, X, Store, User, Users, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, ShieldCheck, DollarSign, Plus, Check, Phone, Bell, Heart, Star, BookOpen, Send, Globe, Newspaper, Share2, MessageCircle, ArrowLeft } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
-import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useNews, useListings, useFcbd, useFcbdTitles, useNotifications, useAppSettings, useListingOffers } from './hooks/useShops'
+import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useNews, useListings, useFcbd, useFcbdTitles, useNotifications, useAppSettings, useListingOffers, useFollows, useConversations, useMessages } from './hooks/useShops'
 import { startCheckout } from './lib/stripe'
 import { supabase } from './lib/supabase'
 
-type TabType = 'discover' | 'classifieds' | 'marketplace' | 'news' | 'fcbd' | 'profile'
-type ModalType = 'none' | 'sub' | 'auth' | 'notifications' | 'shop' | 'menu' | 'claim' | 'additem' | 'submit' | 'listsale' | 'listingdetail' | 'posttrade' | 'tradedetail' | 'editprofile' | 'setlocation'
+type TabType = 'discover' | 'classifieds' | 'marketplace' | 'news' | 'fcbd' | 'profile' | 'messages'
+type ModalType = 'none' | 'sub' | 'auth' | 'notifications' | 'shop' | 'menu' | 'claim' | 'additem' | 'submit' | 'listsale' | 'listingdetail' | 'posttrade' | 'tradedetail' | 'editprofile' | 'setlocation' | 'userprofile'
 // A photo slot in the listing/trade forms is either a URL already on the
 // post (editing) or a freshly picked File waiting to be uploaded on submit.
 type MktPhoto = { kind: 'existing'; url: string } | { kind: 'new'; file: File; preview: string }
@@ -326,10 +326,11 @@ function categoryIconColor(cat: string) {
   return '#7C3AED'
 }
 
-function Sidebar({ tab, setTab, isSignedIn, profile, setModal, unreadCount }: any) {
+function Sidebar({ tab, setTab, isSignedIn, profile, setModal, unreadCount, unreadMessages }: any) {
   const items = [
     { id: 'discover', icon: Search, label: 'Discover' },
     { id: 'marketplace', icon: Store, label: 'Marketplace' },
+    { id: 'messages', icon: MessageCircle, label: 'Messages' },
     { id: 'news', icon: Newspaper, label: 'News' },
     { id: 'fcbd', icon: BookOpen, label: 'FCBD' },
     { id: 'profile', icon: User, label: 'Profile' },
@@ -346,6 +347,10 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal, unreadCount }: an
           style={tab === id ? { background: '#E0533C', color: 'white' } : { color: '#52525b' }}>
           <Icon className="h-4 w-4 flex-shrink-0" />
           {label}
+          {id === 'messages' && unreadMessages > 0 && (
+            <span className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold text-white flex items-center justify-center"
+              style={{ background: tab === id ? 'rgba(255,255,255,0.3)' : '#E0533C' }}>{unreadMessages > 9 ? '9+' : unreadMessages}</span>
+          )}
         </button>
       ))}
       <div className="mt-auto space-y-2">
@@ -395,6 +400,8 @@ export default function App() {
   const [newsFilter, setNewsFilter] = useState('All')
   const { listings, loading: listingsLoading, uploadPhoto, createListing, updateListing, deleteListing, fetchComments, addComment, deleteComment } = useListings()
   const { items: notifications, unread: unreadCount, refetch: refetchNotifs, markAllRead } = useNotifications(user?.id || null)
+  const { following, toggleFollow } = useFollows(user?.id || null)
+  const { conversations, loading: conversationsLoading, totalUnread: unreadMessages, refetch: refetchConversations } = useConversations(user?.id || null)
   const { settings: appSettings } = useAppSettings()
   const FCBD_YEAR = parseInt(appSettings.fcbd_year || '') || 2027
   const FCBD_DATE = new Date(`${appSettings.fcbd_date || '2027-05-01'}T00:00:00`)
@@ -498,6 +505,13 @@ export default function App() {
   const [mktSection, setMktSection] = useState<'sale' | 'trade'>('sale')
   const [selectedListing, setSelectedListing] = useState<any>(null)
   const { offers, makeOffer, sellerRespond, buyerRespondToCounter, withdrawOffer } = useListingOffers(selectedListing?.id || '', user?.id || null)
+  const [viewedProfileUserId, setViewedProfileUserId] = useState<string | null>(null)
+  const [viewedProfile, setViewedProfile] = useState<any>(null)
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
+  const [messageDraft, setMessageDraft] = useState('')
+  const { messages: threadMessages, loading: threadLoading, sendMessage: sendThreadMessage } = useMessages(user?.id || null, activeConversationId)
+  const [quickMsgDraft, setQuickMsgDraft] = useState('')
+  const [quickMsgSent, setQuickMsgSent] = useState(false)
   const [selectedTrade, setSelectedTrade] = useState<any>(null)
   const [tradeComments, setTradeComments] = useState<any[]>([])
   const [showContact, setShowContact] = useState(false)
@@ -766,7 +780,7 @@ export default function App() {
 
   const TAB_PATHS: Record<TabType, string> = {
     discover: '/', classifieds: '/marketplace', marketplace: '/marketplace',
-    news: '/news', fcbd: '/fcbd', profile: '/profile',
+    news: '/news', fcbd: '/fcbd', profile: '/profile', messages: '/messages',
   }
 
   // Every setTab(...) that represents real user navigation should go through
@@ -841,6 +855,7 @@ export default function App() {
     if (parts[0] === 'news') { setTab('news'); setModal('none'); return }
     if (parts[0] === 'fcbd') { setTab('fcbd'); setModal('none'); return }
     if (parts[0] === 'profile') { setTab('profile'); setModal('none'); return }
+    if (parts[0] === 'messages') { setTab('messages'); setModal('none'); return }
 
     // '/' or anything unrecognized
     setUrlCity(null); setModal('none'); setTab('discover')
@@ -1125,6 +1140,8 @@ export default function App() {
     setOfferFormOpen(false)
     setOfferAmount('')
     setOfferMessage('')
+    setQuickMsgSent(false)
+    setQuickMsgDraft(selectedListing ? `Hi! Is the "${selectedListing.title}" still available?` : '')
     if (!user || !selectedListing?.id) { setMyRating(null); return }
     let active = true
     supabase.from('user_ratings').select('rating').eq('rater_id', user.id).eq('listing_id', selectedListing.id).maybeSingle()
@@ -1135,12 +1152,50 @@ export default function App() {
   useEffect(() => {
     setTradeRatingDraft(0)
     setTradePartnerPickerOpen(false)
+    setQuickMsgSent(false)
+    setQuickMsgDraft(selectedTrade ? `Hi! Is "${selectedTrade.offer}" still available to trade?` : '')
     if (!user || !selectedTrade?.id) { setMyTradeRating(null); return }
     let active = true
     supabase.from('user_ratings').select('rating').eq('rater_id', user.id).eq('trade_id', selectedTrade.id).maybeSingle()
       .then(({ data }: any) => { if (active) setMyTradeRating(data?.rating ?? null) })
     return () => { active = false }
   }, [selectedTrade?.id, user?.id])
+
+  useEffect(() => {
+    if (!viewedProfileUserId) { setViewedProfile(null); return }
+    let active = true
+    supabase.from('profiles').select('id, username, display_name, avatar_url, banner_url').eq('id', viewedProfileUserId).maybeSingle()
+      .then(({ data }: any) => { if (active) setViewedProfile(data) })
+    loadStanding([viewedProfileUserId])
+    return () => { active = false }
+  }, [viewedProfileUserId])
+
+  function openUserProfile(userId: string) {
+    if (!userId) return
+    setViewedProfileUserId(userId)
+    setModal('userprofile')
+  }
+
+  function closeUserProfile() {
+    setModal('none')
+    setViewedProfileUserId(null)
+  }
+
+  async function sendQuickMessage(recipientId: string, body: string) {
+    if (!user) { setModal('auth'); return }
+    if (!recipientId || recipientId === user.id || !body.trim()) return
+    const { error } = await supabase.from('messages').insert({ sender_id: user.id, recipient_id: recipientId, body: body.trim() })
+    if (!error) { setQuickMsgSent(true); refetchConversations() }
+  }
+
+  function messageSeller(recipientId: string, draft?: string) {
+    if (!user) { setModal('auth'); return }
+    if (!recipientId || recipientId === user.id) return
+    setActiveConversationId(recipientId)
+    setMessageDraft(draft || '')
+    setModal('none')
+    goTab('messages')
+  }
 
   async function submitRating(ratedUserId: string, target: { listingId?: string; tradeId?: string }, rating: number) {
     if (!user || !ratedUserId) return
@@ -1460,7 +1515,7 @@ export default function App() {
         </div>
       )}
       <div className="flex min-h-screen">
-        <Sidebar tab={tab} setTab={goTab} isSignedIn={isSignedIn} profile={profile} setModal={setModal} unreadCount={unreadCount} />
+        <Sidebar tab={tab} setTab={goTab} isSignedIn={isSignedIn} profile={profile} setModal={setModal} unreadCount={unreadCount} unreadMessages={unreadMessages} />
 
         {shareCopied && (
           <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[80] bg-zinc-900 text-white text-xs font-medium px-4 py-2 rounded-full shadow-lg">
@@ -2049,6 +2104,83 @@ export default function App() {
             )}
 
             {/* PROFILE */}
+            {tab === 'messages' && (
+              <div className="max-w-lg">
+                {!isSignedIn ? (
+                  <div className="p-4 text-center text-sm text-zinc-400 pt-10">Sign in to see your messages.</div>
+                ) : activeConversationId ? (
+                  <div className="flex flex-col" style={{ height: 'calc(100vh - 64px)' }}>
+                    <div className="px-4 py-3 flex items-center gap-3 border-b border-zinc-100 flex-shrink-0">
+                      <button onClick={() => setActiveConversationId(null)}><ArrowLeft className="h-5 w-5 text-zinc-500" /></button>
+                      {(() => {
+                        const conv = conversations.find((c: any) => c.counterpartyId === activeConversationId)
+                        return (
+                          <button onClick={() => openUserProfile(activeConversationId)} className="flex items-center gap-2">
+                            <div className="h-8 w-8 rounded-full overflow-hidden bg-zinc-100 flex items-center justify-center flex-shrink-0">
+                              {conv?.profile?.avatar_url
+                                ? <img src={conv.profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                                : <User className="h-4 w-4 text-zinc-400" />}
+                            </div>
+                            <span className="font-semibold text-sm text-zinc-900">@{conv?.profile?.username || '…'}</span>
+                          </button>
+                        )
+                      })()}
+                    </div>
+                    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+                      {threadLoading && <p className="text-xs text-zinc-400 text-center">Loading…</p>}
+                      {!threadLoading && threadMessages.length === 0 && <p className="text-xs text-zinc-400 text-center pt-8">Say hello 👋</p>}
+                      {threadMessages.map((m: any) => (
+                        <div key={m.id} className={`flex ${m.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
+                          <div className="max-w-[75%] rounded-2xl px-3.5 py-2 text-sm"
+                            style={m.sender_id === user?.id ? { background: '#E0533C', color: 'white' } : { background: '#f4f4f5', color: '#18181b' }}>
+                            {m.body}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="p-3 border-t border-zinc-100 flex items-center gap-2 flex-shrink-0">
+                      <input value={messageDraft} onChange={e => setMessageDraft(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && messageDraft.trim()) { sendThreadMessage(messageDraft); setMessageDraft('') } }}
+                        placeholder="Message…" className="flex-1 bg-zinc-50 border border-zinc-200 rounded-full px-4 py-2.5 text-sm focus:outline-none" />
+                      <button onClick={() => { if (messageDraft.trim()) { sendThreadMessage(messageDraft); setMessageDraft('') } }}
+                        className="h-10 w-10 rounded-full flex items-center justify-center text-white flex-shrink-0" style={{ background: '#E0533C' }}>
+                        <Send className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4">
+                    <h2 className="text-xl font-semibold text-zinc-900 mb-3">Messages</h2>
+                    {conversationsLoading && <p className="text-xs text-zinc-400">Loading…</p>}
+                    {!conversationsLoading && conversations.length === 0 && (
+                      <p className="text-sm text-zinc-400 pt-6 text-center">No messages yet. Message a seller from a listing to start a conversation.</p>
+                    )}
+                    <div className="space-y-1">
+                      {conversations.map((c: any) => (
+                        <button key={c.counterpartyId} onClick={() => setActiveConversationId(c.counterpartyId)}
+                          className="w-full flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-zinc-50 text-left transition-all">
+                          <div className="h-11 w-11 rounded-full overflow-hidden bg-zinc-100 flex items-center justify-center flex-shrink-0">
+                            {c.profile?.avatar_url
+                              ? <img src={c.profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                              : <User className="h-5 w-5 text-zinc-400" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <p className="font-semibold text-sm text-zinc-900 truncate">@{c.profile?.username || 'user'}</p>
+                              {c.unread > 0 && <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: '#E0533C' }} />}
+                            </div>
+                            <p className={`text-xs truncate ${c.unread > 0 ? 'text-zinc-700 font-medium' : 'text-zinc-400'}`}>
+                              {c.lastMessage.sender_id === user?.id ? 'You: ' : ''}{c.lastMessage.body}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {tab === 'profile' && (
               <div className="p-4 space-y-4 max-w-lg">
                 {isSignedIn ? (
@@ -2269,15 +2401,19 @@ export default function App() {
             {[
               { id: 'discover', icon: Search, label: 'Discover' },
               { id: 'marketplace', icon: Store, label: 'Marketplace' },
+              { id: 'messages', icon: MessageCircle, label: 'Chat' },
               { id: 'news', icon: Newspaper, label: 'News' },
               { id: 'fcbd', icon: BookOpen, label: 'FCBD' },
               { id: 'profile', icon: User, label: 'Profile' },
             ].map(({ id, icon: Icon, label }) => (
               <button key={id} onClick={() => goTab(id as TabType)}
-                className="flex flex-col items-center gap-1 px-2 transition-all">
-                <div className="h-9 w-9 rounded-xl flex items-center justify-center transition-all"
+                className="flex flex-col items-center gap-1 px-2 transition-all relative">
+                <div className="h-9 w-9 rounded-xl flex items-center justify-center transition-all relative"
                   style={tab === id ? { background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' } : {}}>
                   <Icon className="h-4 w-4" style={{ color: tab === id ? 'white' : '#9ca3af' }} />
+                  {id === 'messages' && unreadMessages > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5 rounded-full text-[8px] font-bold text-white flex items-center justify-center" style={{ background: '#E0533C' }}>{unreadMessages > 9 ? '9+' : unreadMessages}</span>
+                  )}
                 </div>
                 <span className="text-[9px] font-bold uppercase" style={{ color: tab === id ? '#E0533C' : '#9ca3af' }}>{label}</span>
               </button>
@@ -2656,6 +2792,95 @@ export default function App() {
         </div>
       )}
 
+      {/* USER PROFILE (public seller profile) */}
+      {modal === 'userprofile' && viewedProfileUserId && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center" onClick={closeUserProfile}>
+          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl shadow-2xl max-h-[92vh] overflow-y-auto bg-white" onClick={e => e.stopPropagation()}>
+            <div className="p-5 space-y-4">
+              <div className="flex items-center justify-end">
+                <button onClick={closeUserProfile}><X className="h-5 w-5 text-zinc-400" /></button>
+              </div>
+              <div className="flex flex-col items-center text-center gap-2 -mt-6">
+                <div className="h-20 w-20 rounded-full overflow-hidden bg-zinc-100 flex items-center justify-center border border-zinc-200">
+                  {viewedProfile?.avatar_url
+                    ? <img src={viewedProfile.avatar_url} alt="" className="h-full w-full object-cover" />
+                    : <User className="h-8 w-8 text-zinc-300" />}
+                </div>
+                <p className="text-lg font-semibold text-zinc-900">@{viewedProfile?.username || '…'}</p>
+                <div className="flex items-center gap-1.5 flex-wrap justify-center">
+                  <StandingBadge standing={standingMap[viewedProfileUserId]?.standing} verified={standingMap[viewedProfileUserId]?.is_verified_seller} />
+                  <RatingBadge avgRating={standingMap[viewedProfileUserId]?.avg_rating} count={standingMap[viewedProfileUserId]?.ratings_count} />
+                </div>
+                {standingMap[viewedProfileUserId]?.member_since && (
+                  <p className="text-xs text-zinc-400">
+                    Joined {new Date(standingMap[viewedProfileUserId].member_since).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  </p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-4 gap-2 py-3 border-y border-zinc-100">
+                {[
+                  ['Sold', standingMap[viewedProfileUserId]?.sold_count],
+                  ['Bought', standingMap[viewedProfileUserId]?.bought_count],
+                  ['Followers', standingMap[viewedProfileUserId]?.followers_count],
+                  ['Following', standingMap[viewedProfileUserId]?.following_count],
+                ].map(([label, val]: any) => (
+                  <div key={label} className="text-center">
+                    <p className="text-lg font-bold text-zinc-900">{val ?? 0}</p>
+                    <p className="text-[11px] text-zinc-400">{label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {user && user.id !== viewedProfileUserId && (
+                <div className="flex gap-2">
+                  <button onClick={() => toggleFollow(viewedProfileUserId)}
+                    className="flex-1 py-2.5 rounded-2xl text-sm font-medium"
+                    style={following.includes(viewedProfileUserId) ? { border: '1px solid #e4e4e7', color: '#52525b' } : { background: '#059669', color: 'white' }}>
+                    {following.includes(viewedProfileUserId) ? 'Following' : 'Follow'}
+                  </button>
+                  <button onClick={() => messageSeller(viewedProfileUserId)}
+                    className="flex-1 py-2.5 rounded-2xl text-sm font-medium text-white" style={{ background: '#E0533C' }}>
+                    Start a chat
+                  </button>
+                </div>
+              )}
+
+              <div>
+                <p className="text-sm font-semibold text-zinc-900 mb-2">Items from this seller</p>
+                {(() => {
+                  const items = [
+                    ...listings.filter((l: any) => l.user_id === viewedProfileUserId && l.status === 'active').map((l: any) => ({ ...l, _kind: 'listing' as const })),
+                    ...tradePosts.filter((t: any) => t.user_id === viewedProfileUserId && !t.completed_with).map((t: any) => ({ ...t, _kind: 'trade' as const })),
+                  ]
+                  if (items.length === 0) return <p className="text-xs text-zinc-400">No active items right now.</p>
+                  return (
+                    <div className="grid grid-cols-2 gap-2">
+                      {items.map((it: any) => (
+                        <button key={`${it._kind}-${it.id}`} onClick={() => { closeUserProfile(); if (it._kind === 'listing') openListing(it); else openTrade(it) }}
+                          className="text-left rounded-2xl border border-zinc-200 overflow-hidden">
+                          <div className="aspect-square bg-zinc-100">
+                            {it.image_url
+                              ? <img src={it.image_url} alt="" className="w-full h-full object-cover" />
+                              : <div className="w-full h-full flex items-center justify-center text-zinc-300"><Package className="h-8 w-8" /></div>}
+                          </div>
+                          <div className="p-2">
+                            {it._kind === 'listing'
+                              ? <p className="text-sm font-semibold" style={{ color: '#E0533C' }}>${Number(it.price).toLocaleString()}</p>
+                              : <p className="text-[11px] font-semibold text-emerald-700">TRADE</p>}
+                            <p className="text-xs text-zinc-700 truncate">{it._kind === 'listing' ? it.title : it.offer}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )
+                })()}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* LISTING DETAIL */}
       {modal === 'listingdetail' && selectedListing && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center" onClick={closeListing}>
@@ -2699,13 +2924,29 @@ export default function App() {
                 </div>
               </div>
               {selectedListing.description && <p className="text-sm text-zinc-600 whitespace-pre-wrap">{selectedListing.description}</p>}
-              <p className="text-xs text-zinc-400 flex items-center gap-1.5 flex-wrap">Listed by @{selectedListing.username} <StandingBadge standing={standingMap[selectedListing.user_id]?.standing} verified={standingMap[selectedListing.user_id]?.is_verified_seller} /> <RatingBadge avgRating={standingMap[selectedListing.user_id]?.avg_rating} count={standingMap[selectedListing.user_id]?.ratings_count} /></p>
+              <p className="text-xs text-zinc-400 flex items-center gap-1.5 flex-wrap">Listed by <button onClick={() => openUserProfile(selectedListing.user_id)} className="hover:underline text-zinc-500 font-medium">@{selectedListing.username}</button> <StandingBadge standing={standingMap[selectedListing.user_id]?.standing} verified={standingMap[selectedListing.user_id]?.is_verified_seller} /> <RatingBadge avgRating={standingMap[selectedListing.user_id]?.avg_rating} count={standingMap[selectedListing.user_id]?.ratings_count} /></p>
               {user && selectedListing.user_id && selectedListing.user_id !== user.id && (
                 <button onClick={() => reportSeller(selectedListing.user_id)} disabled={reportedIds.includes(selectedListing.user_id)}
                   className="text-[11px] text-zinc-400 hover:text-red-500 transition-colors mt-1 disabled:text-zinc-300">
                   {reportedIds.includes(selectedListing.user_id) ? '✓ Reported — thanks' : '⚑ Report seller'}
                 </button>
               )}
+
+              {user?.id !== selectedListing.user_id && selectedListing.status !== 'sold' && (
+                quickMsgSent ? (
+                  <p className="text-xs text-emerald-600 text-center font-medium">✓ Message sent — <button onClick={() => messageSeller(selectedListing.user_id)} className="underline">view conversation</button></p>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <input value={quickMsgDraft} onChange={e => setQuickMsgDraft(e.target.value)} placeholder="Hi! Is this still available?"
+                      className="flex-1 bg-zinc-50 border border-zinc-200 rounded-full px-4 py-2.5 text-sm focus:outline-none" />
+                    <button onClick={() => sendQuickMessage(selectedListing.user_id, quickMsgDraft)} disabled={!quickMsgDraft.trim()}
+                      className="h-10 px-4 rounded-full text-sm font-medium text-white disabled:opacity-50 flex-shrink-0" style={{ background: '#E0533C' }}>
+                      Send
+                    </button>
+                  </div>
+                )
+              )}
+
               {user?.id === selectedListing.user_id ? (
                 <div className="space-y-2">
                   <button onClick={() => toggleListingSold(selectedListing)}
@@ -2848,7 +3089,7 @@ export default function App() {
                     <div key={c.id} className="flex gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[13px] font-medium text-zinc-900">@{c.username}</span>
+                          <button onClick={() => openUserProfile(c.user_id)} className="text-[13px] font-medium text-zinc-900 hover:underline">@{c.username}</button>
                           {c.user_id === selectedListing.user_id && <span className="text-[10px] px-1.5 py-0.5 rounded-full text-white" style={{ background: '#E0533C' }}>Seller</span>}
                         </div>
                         {c.body && <p className="text-sm text-zinc-700 mt-0.5 whitespace-pre-wrap break-words">{c.body}</p>}
@@ -2986,7 +3227,7 @@ export default function App() {
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
           <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl shadow-2xl max-h-[92vh] overflow-y-auto" style={{ background: '#FAF9F5' }}>
             <div className="px-5 py-4 flex items-center justify-between gap-2 border-b border-zinc-100">
-              <p className="font-semibold text-zinc-900 flex items-center gap-1.5 flex-wrap min-w-0">Trade · @{selectedTrade.username}{selectedTrade.distance != null ? ` · ${fmtDist(selectedTrade.distance)}` : ''} <StandingBadge standing={standingMap[selectedTrade.user_id]?.standing} verified={standingMap[selectedTrade.user_id]?.is_verified_seller} /> <RatingBadge avgRating={standingMap[selectedTrade.user_id]?.avg_rating} count={standingMap[selectedTrade.user_id]?.ratings_count} /></p>
+              <p className="font-semibold text-zinc-900 flex items-center gap-1.5 flex-wrap min-w-0">Trade · <button onClick={() => openUserProfile(selectedTrade.user_id)} className="hover:underline">@{selectedTrade.username}</button>{selectedTrade.distance != null ? ` · ${fmtDist(selectedTrade.distance)}` : ''} <StandingBadge standing={standingMap[selectedTrade.user_id]?.standing} verified={standingMap[selectedTrade.user_id]?.is_verified_seller} /> <RatingBadge avgRating={standingMap[selectedTrade.user_id]?.avg_rating} count={standingMap[selectedTrade.user_id]?.ratings_count} /></p>
               <div className="flex items-center gap-1 flex-shrink-0">
                 <button onClick={() => toggleSaveTrade(selectedTrade.id)} aria-label="Save" className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-zinc-100">
                   <Heart className="h-4 w-4" style={savedTrades.includes(selectedTrade.id) ? { fill: '#E0533C', color: '#E0533C' } : { color: '#9ca3af' }} />
@@ -3012,6 +3253,21 @@ export default function App() {
                   ))}
                 </div>
               )}
+              {user?.id !== selectedTrade.user_id && !selectedTrade.completed_with && (
+                quickMsgSent ? (
+                  <p className="text-xs text-emerald-600 text-center font-medium">✓ Message sent — <button onClick={() => messageSeller(selectedTrade.user_id)} className="underline">view conversation</button></p>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <input value={quickMsgDraft} onChange={e => setQuickMsgDraft(e.target.value)} placeholder="Hi! Is this still available to trade?"
+                      className="flex-1 bg-zinc-50 border border-zinc-200 rounded-full px-4 py-2.5 text-sm focus:outline-none" />
+                    <button onClick={() => sendQuickMessage(selectedTrade.user_id, quickMsgDraft)} disabled={!quickMsgDraft.trim()}
+                      className="h-10 px-4 rounded-full text-sm font-medium text-white disabled:opacity-50 flex-shrink-0" style={{ background: '#E0533C' }}>
+                      Send
+                    </button>
+                  </div>
+                )
+              )}
+
               <div className="space-y-2">
                 {selectedTrade.completed_with && (
                   <span className="inline-block text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-zinc-800 text-white">Traded</span>
@@ -3083,7 +3339,7 @@ export default function App() {
                     <div key={c.id} className="flex gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[13px] font-medium text-zinc-900">@{c.username}</span>
+                          <button onClick={() => openUserProfile(c.user_id)} className="text-[13px] font-medium text-zinc-900 hover:underline">@{c.username}</button>
                           {c.user_id === selectedTrade.user_id && <span className="text-[10px] px-1.5 py-0.5 rounded-full text-white" style={{ background: '#E0533C' }}>Owner</span>}
                         </div>
                         {c.body && <p className="text-sm text-zinc-700 mt-0.5 whitespace-pre-wrap break-words">{c.body}</p>}
