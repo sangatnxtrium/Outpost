@@ -1141,7 +1141,7 @@ export default function App() {
     setOfferAmount('')
     setOfferMessage('')
     setQuickMsgSent(false)
-    setQuickMsgDraft(selectedListing ? `Hi! Is the "${selectedListing.title}" still available?` : '')
+    setQuickMsgDraft('')
     if (!user || !selectedListing?.id) { setMyRating(null); return }
     let active = true
     supabase.from('user_ratings').select('rating').eq('rater_id', user.id).eq('listing_id', selectedListing.id).maybeSingle()
@@ -1153,7 +1153,7 @@ export default function App() {
     setTradeRatingDraft(0)
     setTradePartnerPickerOpen(false)
     setQuickMsgSent(false)
-    setQuickMsgDraft(selectedTrade ? `Hi! Is "${selectedTrade.offer}" still available to trade?` : '')
+    setQuickMsgDraft('')
     if (!user || !selectedTrade?.id) { setMyTradeRating(null); return }
     let active = true
     supabase.from('user_ratings').select('rating').eq('rater_id', user.id).eq('trade_id', selectedTrade.id).maybeSingle()
@@ -2933,11 +2933,15 @@ export default function App() {
               )}
 
               {user?.id !== selectedListing.user_id && selectedListing.status !== 'sold' && (
-                quickMsgSent ? (
+                !isSignedIn ? (
+                  <button onClick={() => setModal('auth')} className="w-full py-2.5 rounded-full text-sm font-medium border border-zinc-200 text-zinc-600">
+                    Sign in to send a message
+                  </button>
+                ) : quickMsgSent ? (
                   <p className="text-xs text-emerald-600 text-center font-medium">✓ Message sent — <button onClick={() => messageSeller(selectedListing.user_id)} className="underline">view conversation</button></p>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <input value={quickMsgDraft} onChange={e => setQuickMsgDraft(e.target.value)} placeholder="Hi! Is this still available?"
+                    <input value={quickMsgDraft} onChange={e => setQuickMsgDraft(e.target.value)} placeholder="Hi, I am interested in this item"
                       className="flex-1 bg-zinc-50 border border-zinc-200 rounded-full px-4 py-2.5 text-sm focus:outline-none" />
                     <button onClick={() => sendQuickMessage(selectedListing.user_id, quickMsgDraft)} disabled={!quickMsgDraft.trim()}
                       className="h-10 px-4 rounded-full text-sm font-medium text-white disabled:opacity-50 flex-shrink-0" style={{ background: '#E0533C' }}>
@@ -2996,6 +3000,24 @@ export default function App() {
                     </button>
                   </div>
                 </div>
+              ) : selectedListing.status !== 'sold' ? (
+                <div className="flex gap-2">
+                  {showContact ? (
+                    <div className="flex-1 rounded-2xl bg-zinc-50 border border-zinc-200 p-3 text-center flex flex-col justify-center">
+                      <p className="text-[11px] text-zinc-400 mb-0.5">Contact</p>
+                      <p className="text-xs font-medium text-zinc-900 break-words">{selectedListing.contact || 'No contact info provided.'}</p>
+                    </div>
+                  ) : (
+                    <button onClick={() => setShowContact(true)}
+                      className="flex-1 py-3 rounded-2xl text-sm font-medium text-white flex items-center justify-center gap-2" style={{ background: '#E0533C' }}>
+                      <Phone className="h-4 w-4" /> Contact seller
+                    </button>
+                  )}
+                  <button onClick={() => { if (!user) { setModal('auth'); return } setOfferFormOpen(v => !v) }}
+                    className="flex-1 py-3 rounded-2xl text-sm font-medium text-white flex items-center justify-center gap-1.5" style={{ background: '#E0533C' }}>
+                    <DollarSign className="h-3.5 w-3.5" /> Make an Offer
+                  </button>
+                </div>
               ) : showContact ? (
                 <div className="rounded-2xl bg-zinc-50 border border-zinc-200 p-4 text-center">
                   <p className="text-xs text-zinc-400 mb-1">Contact the seller</p>
@@ -3006,19 +3028,6 @@ export default function App() {
                   className="w-full py-3.5 rounded-2xl text-sm font-medium text-white flex items-center justify-center gap-2" style={{ background: '#E0533C' }}>
                   <Phone className="h-4 w-4" /> Contact seller
                 </button>
-              )}
-
-              {user?.id !== selectedListing.user_id && selectedListing.status !== 'sold' && (
-                <div className="flex gap-2">
-                  <button onClick={() => { if (!user) { setModal('auth'); return } setTimeout(() => { qInputRef.current?.focus(); qInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }, 50) }}
-                    className="flex-1 py-2.5 rounded-2xl text-sm font-medium border border-zinc-200 text-zinc-700 flex items-center justify-center gap-1.5">
-                    <Send className="h-3.5 w-3.5" /> Ask a Question
-                  </button>
-                  <button onClick={() => { if (!user) { setModal('auth'); return } setOfferFormOpen(v => !v) }}
-                    className="flex-1 py-2.5 rounded-2xl text-sm font-medium text-white flex items-center justify-center gap-1.5" style={{ background: '#E0533C' }}>
-                    <DollarSign className="h-3.5 w-3.5" /> Make an Offer
-                  </button>
-                </div>
               )}
 
               {user && user.id !== selectedListing.user_id && (() => {
@@ -3254,11 +3263,15 @@ export default function App() {
                 </div>
               )}
               {user?.id !== selectedTrade.user_id && !selectedTrade.completed_with && (
-                quickMsgSent ? (
+                !isSignedIn ? (
+                  <button onClick={() => setModal('auth')} className="w-full py-2.5 rounded-full text-sm font-medium border border-zinc-200 text-zinc-600">
+                    Sign in to send a message
+                  </button>
+                ) : quickMsgSent ? (
                   <p className="text-xs text-emerald-600 text-center font-medium">✓ Message sent — <button onClick={() => messageSeller(selectedTrade.user_id)} className="underline">view conversation</button></p>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <input value={quickMsgDraft} onChange={e => setQuickMsgDraft(e.target.value)} placeholder="Hi! Is this still available to trade?"
+                    <input value={quickMsgDraft} onChange={e => setQuickMsgDraft(e.target.value)} placeholder="Hi, I am interested in this item"
                       className="flex-1 bg-zinc-50 border border-zinc-200 rounded-full px-4 py-2.5 text-sm focus:outline-none" />
                     <button onClick={() => sendQuickMessage(selectedTrade.user_id, quickMsgDraft)} disabled={!quickMsgDraft.trim()}
                       className="h-10 px-4 rounded-full text-sm font-medium text-white disabled:opacity-50 flex-shrink-0" style={{ background: '#E0533C' }}>
