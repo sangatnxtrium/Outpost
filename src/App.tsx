@@ -3,7 +3,7 @@ import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Compass, MapPin, Search, Flame, X, Store, User, Users, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, ShieldCheck, DollarSign, Plus, Check, Phone, Bell, Heart, Star, BookOpen, Send, Globe, Newspaper, Share2, MessageCircle, ArrowLeft } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
-import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useNews, useListings, useFcbd, useFcbdTitles, useNotifications, useAppSettings, useListingOffers, useFollows, useConversations, useMessages } from './hooks/useShops'
+import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useNews, useListings, useFcbd, useFcbdTitles, useNotifications, useAppSettings, useListingOffers, useFollows, useConversations, useMessages, useItemMessages } from './hooks/useShops'
 import { startCheckout } from './lib/stripe'
 import { supabase } from './lib/supabase'
 
@@ -306,6 +306,63 @@ function SellerOfferRow({ offer, onAccept, onDecline, onCounter }: { offer: any;
   )
 }
 
+function ItemMessages({ threads, loading, isOwner, currentUserId, isSignedIn, draft, setDraft, onSend, onOpenConversation, onSignIn, onOpenProfile }: any) {
+  return (
+    <div className="pt-4 mt-1 border-t border-zinc-100">
+      <p className="font-semibold text-zinc-900 text-sm mb-2">Messages</p>
+      {!isSignedIn ? (
+        <button onClick={onSignIn} className="text-xs font-medium" style={{ color: '#E0533C' }}>Sign in to send a message</button>
+      ) : isOwner ? (
+        <>
+          {loading && <p className="text-xs text-zinc-400">Loading…</p>}
+          {!loading && threads.length === 0 && <p className="text-xs text-zinc-400">No messages yet.</p>}
+          <div className="space-y-1">
+            {threads.map((t: any) => (
+              <button key={t.counterpartyId} onClick={() => onOpenConversation(t.counterpartyId)}
+                className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-zinc-50 text-left transition-all">
+                <div className="h-8 w-8 rounded-full overflow-hidden bg-zinc-100 flex items-center justify-center flex-shrink-0">
+                  {t.profile?.avatar_url
+                    ? <img src={t.profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                    : <User className="h-4 w-4 text-zinc-400" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-zinc-900 truncate">@{t.profile?.username || 'user'}</p>
+                  <p className="text-xs text-zinc-400 truncate">{t.messages[t.messages.length - 1]?.body}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          {loading && <p className="text-xs text-zinc-400 mb-2">Loading…</p>}
+          {!loading && (!threads[0] || threads[0].messages.length === 0) && <p className="text-xs text-zinc-400 mb-2">No messages yet.</p>}
+          {threads[0]?.messages.length > 0 && (
+            <div className="space-y-2 mb-3">
+              {threads[0].messages.map((m: any) => (
+                <div key={m.id} className={`flex ${m.sender_id === currentUserId ? 'justify-end' : 'justify-start'}`}>
+                  <div className="max-w-[80%] rounded-2xl px-3 py-1.5 text-sm"
+                    style={m.sender_id === currentUserId ? { background: '#E0533C', color: 'white' } : { background: '#f4f4f5', color: '#18181b' }}>
+                    {m.body}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <input value={draft} onChange={(e: any) => setDraft(e.target.value)} placeholder="Hi, I am interested in this item"
+              className="flex-1 bg-zinc-50 border border-zinc-200 rounded-full px-4 py-2.5 text-sm focus:outline-none" />
+            <button onClick={() => { if (draft.trim()) { onSend(draft); setDraft('') } }} disabled={!draft.trim()}
+              className="h-10 px-4 rounded-full text-sm font-medium text-white disabled:opacity-50 flex-shrink-0" style={{ background: '#E0533C' }}>
+              Send
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 function getDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 3959
   const dLat = (lat2 - lat1) * Math.PI / 180
@@ -394,11 +451,11 @@ export default function App() {
   const selectedShop = shops.find((s: any) => s.id === selectedShopId) || null
   const { reviews, addReview } = useReviews(selectedShop?.id || '')
   const { checkinCount, userCheckedIn, checkIn } = useCheckins(selectedShop?.id || '')
-  const { tradePosts, loading: tradePostsLoading, addTradePost, updateTradePost, deleteTradePost, fetchTradeComments, addTradeComment, deleteTradeComment } = useTradePosts()
+  const { tradePosts, loading: tradePostsLoading, addTradePost, updateTradePost, deleteTradePost } = useTradePosts()
   const { events: allEventsData } = useEvents()
   const { articles: newsArticles } = useNews()
   const [newsFilter, setNewsFilter] = useState('All')
-  const { listings, loading: listingsLoading, uploadPhoto, createListing, updateListing, deleteListing, fetchComments, addComment, deleteComment } = useListings()
+  const { listings, loading: listingsLoading, uploadPhoto, createListing, updateListing, deleteListing } = useListings()
   const { items: notifications, unread: unreadCount, refetch: refetchNotifs, markAllRead } = useNotifications(user?.id || null)
   const { following, followingProfiles, toggleFollow } = useFollows(user?.id || null)
   const { conversations, loading: conversationsLoading, totalUnread: unreadMessages, refetch: refetchConversations } = useConversations(user?.id || null)
@@ -432,7 +489,6 @@ export default function App() {
   const [offerFormOpen, setOfferFormOpen] = useState(false)
   const [offerAmount, setOfferAmount] = useState('')
   const [offerMessage, setOfferMessage] = useState('')
-  const qInputRef = useRef<HTMLTextAreaElement>(null)
   const [standingMap, setStandingMap] = useState<Record<string, any>>({})
   const [showStandingInfo, setShowStandingInfo] = useState(false)
   const [reportedIds, setReportedIds] = useState<string[]>([])
@@ -510,16 +566,11 @@ export default function App() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   const [messageDraft, setMessageDraft] = useState('')
   const { messages: threadMessages, loading: threadLoading, sendMessage: sendThreadMessage } = useMessages(user?.id || null, activeConversationId)
-  const [quickMsgDraft, setQuickMsgDraft] = useState('')
-  const [quickMsgSent, setQuickMsgSent] = useState(false)
+  const [itemMsgDraft, setItemMsgDraft] = useState('')
   const [selectedTrade, setSelectedTrade] = useState<any>(null)
-  const [tradeComments, setTradeComments] = useState<any[]>([])
+  const { threads: listingMsgThreads, loading: listingMsgLoading, sendItemMessage: sendListingItemMessage } = useItemMessages(user?.id || null, selectedListing?.id || null, 'listing')
+  const { threads: tradeMsgThreads, loading: tradeMsgLoading, sendItemMessage: sendTradeItemMessage } = useItemMessages(user?.id || null, selectedTrade?.id || null, 'trade')
   const [showContact, setShowContact] = useState(false)
-  const [listingComments, setListingComments] = useState<any[]>([])
-  const [qBody, setQBody] = useState('')
-  const [qFile, setQFile] = useState<File | null>(null)
-  const [qPreview, setQPreview] = useState('')
-  const [qPosting, setQPosting] = useState(false)
   const [epName, setEpName] = useState('')
   const [epAvatarFile, setEpAvatarFile] = useState<File | null>(null)
   const [epAvatarPreview, setEpAvatarPreview] = useState('')
@@ -1140,8 +1191,7 @@ export default function App() {
     setOfferFormOpen(false)
     setOfferAmount('')
     setOfferMessage('')
-    setQuickMsgSent(false)
-    setQuickMsgDraft('')
+    setItemMsgDraft('')
     if (!user || !selectedListing?.id) { setMyRating(null); return }
     let active = true
     supabase.from('user_ratings').select('rating').eq('rater_id', user.id).eq('listing_id', selectedListing.id).maybeSingle()
@@ -1152,8 +1202,7 @@ export default function App() {
   useEffect(() => {
     setTradeRatingDraft(0)
     setTradePartnerPickerOpen(false)
-    setQuickMsgSent(false)
-    setQuickMsgDraft('')
+    setItemMsgDraft('')
     if (!user || !selectedTrade?.id) { setMyTradeRating(null); return }
     let active = true
     supabase.from('user_ratings').select('rating').eq('rater_id', user.id).eq('trade_id', selectedTrade.id).maybeSingle()
@@ -1179,13 +1228,6 @@ export default function App() {
   function closeUserProfile() {
     setModal('none')
     setViewedProfileUserId(null)
-  }
-
-  async function sendQuickMessage(recipientId: string, body: string) {
-    if (!user) { setModal('auth'); return }
-    if (!recipientId || recipientId === user.id || !body.trim()) return
-    const { error } = await supabase.from('messages').insert({ sender_id: user.id, recipient_id: recipientId, body: body.trim() })
-    if (!error) { setQuickMsgSent(true); refetchConversations() }
   }
 
   function messageSeller(recipientId: string, draft?: string) {
@@ -1258,77 +1300,6 @@ export default function App() {
       markAllRead()
     }
   }, [modal])
-
-  useEffect(() => {
-    if (modal === 'listingdetail' && selectedListing) {
-      fetchComments(selectedListing.id).then(setListingComments)
-    } else {
-      setListingComments([])
-    }
-  }, [modal, selectedListing])
-
-  useEffect(() => {
-    if (modal === 'tradedetail' && selectedTrade) {
-      fetchTradeComments(selectedTrade.id).then(setTradeComments)
-    } else {
-      setTradeComments([])
-    }
-  }, [modal, selectedTrade])
-
-  async function handlePostTradeComment() {
-    if (!qBody.trim() || !user || !selectedTrade) return
-    setQPosting(true)
-    let imageUrl = ''
-    if (qFile) { const url = await uploadPhoto(qFile, user.id); if (url) imageUrl = url }
-    const { error } = await addTradeComment({
-      trade_id: selectedTrade.id,
-      user_id: user.id,
-      username: profile?.username || 'user',
-      body: qBody.trim(),
-      image_url: imageUrl || null,
-    })
-    setQPosting(false)
-    if (!error) {
-      setQBody(''); setQFile(null); setQPreview('')
-      setTradeComments(await fetchTradeComments(selectedTrade.id))
-    }
-  }
-
-  async function handleDeleteTradeComment(id: string) {
-    await deleteTradeComment(id)
-    setTradeComments(prev => prev.filter((x: any) => x.id !== id))
-  }
-
-  function onPickQPhoto(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0]
-    if (!f) return
-    setQFile(f)
-    setQPreview(URL.createObjectURL(f))
-  }
-
-  async function handlePostComment() {
-    if (!qBody.trim() || !user || !selectedListing) return
-    setQPosting(true)
-    let imageUrl = ''
-    if (qFile) { const url = await uploadPhoto(qFile, user.id); if (url) imageUrl = url }
-    const { error } = await addComment({
-      listing_id: selectedListing.id,
-      user_id: user.id,
-      username: profile?.username || 'user',
-      body: qBody.trim(),
-      image_url: imageUrl || null,
-    })
-    setQPosting(false)
-    if (!error) {
-      setQBody(''); setQFile(null); setQPreview('')
-      setListingComments(await fetchComments(selectedListing.id))
-    }
-  }
-
-  async function handleDeleteComment(id: string) {
-    await deleteComment(id)
-    setListingComments(prev => prev.filter((x: any) => x.id !== id))
-  }
 
   function openEditProfile() {
     setEpName(profile?.display_name || '')
@@ -2968,25 +2939,6 @@ export default function App() {
                 </button>
               )}
 
-              {user?.id !== selectedListing.user_id && selectedListing.status !== 'sold' && (
-                !isSignedIn ? (
-                  <button onClick={() => setModal('auth')} className="w-full py-2.5 rounded-full text-sm font-medium border border-zinc-200 text-zinc-600">
-                    Sign in to send a message
-                  </button>
-                ) : quickMsgSent ? (
-                  <p className="text-xs text-emerald-600 text-center font-medium">✓ Message sent — <button onClick={() => messageSeller(selectedListing.user_id)} className="underline">view conversation</button></p>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <input value={quickMsgDraft} onChange={e => setQuickMsgDraft(e.target.value)} placeholder="Hi, I am interested in this item"
-                      className="flex-1 bg-zinc-50 border border-zinc-200 rounded-full px-4 py-2.5 text-sm focus:outline-none" />
-                    <button onClick={() => sendQuickMessage(selectedListing.user_id, quickMsgDraft)} disabled={!quickMsgDraft.trim()}
-                      className="h-10 px-4 rounded-full text-sm font-medium text-white disabled:opacity-50 flex-shrink-0" style={{ background: '#E0533C' }}>
-                      Send
-                    </button>
-                  </div>
-                )
-              )}
-
               {user?.id === selectedListing.user_id ? (
                 <div className="space-y-2">
                   <button onClick={() => toggleListingSold(selectedListing)}
@@ -2997,9 +2949,10 @@ export default function App() {
                   {buyerPickerOpen && (
                     <div className="rounded-2xl border border-zinc-200 p-3 space-y-1.5">
                       <p className="text-xs font-medium text-zinc-500 mb-1">Who bought it? (lets you rate each other)</p>
-                      {Array.from(new Map(listingComments.filter((c: any) => c.user_id && c.user_id !== selectedListing.user_id).map((c: any) => [c.user_id, c])).values()).map((c: any) => (
-                        <button key={c.user_id} onClick={() => confirmListingSold(selectedListing, c.user_id)}
-                          className="w-full text-left px-3 py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 text-sm text-zinc-700">@{c.username}</button>
+                      {listingMsgThreads.length === 0 && <p className="text-xs text-zinc-400 px-3 pb-1">No one has messaged you about this listing yet.</p>}
+                      {listingMsgThreads.map((t: any) => (
+                        <button key={t.counterpartyId} onClick={() => confirmListingSold(selectedListing, t.counterpartyId)}
+                          className="w-full text-left px-3 py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 text-sm text-zinc-700">@{t.profile?.username || 'user'}</button>
                       ))}
                       <button onClick={() => confirmListingSold(selectedListing, null)} className="w-full text-left px-3 py-2 rounded-xl text-sm text-zinc-400">Skip</button>
                     </div>
@@ -3126,46 +3079,14 @@ export default function App() {
                 )
               )}
 
-              <div className="pt-4 mt-1 border-t border-zinc-100">
-                <p className="font-semibold text-zinc-900 text-sm mb-2">Questions ({listingComments.length})</p>
-                <div className="space-y-3">
-                  {listingComments.length === 0 && <p className="text-xs text-zinc-400">No questions yet — ask the seller below.</p>}
-                  {listingComments.map((c: any) => (
-                    <div key={c.id} className="flex gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <button onClick={() => openUserProfile(c.user_id)} className="text-[13px] font-medium text-zinc-900 hover:underline">@{c.username}</button>
-                          {c.user_id === selectedListing.user_id && <span className="text-[10px] px-1.5 py-0.5 rounded-full text-white" style={{ background: '#E0533C' }}>Seller</span>}
-                        </div>
-                        {c.body && <p className="text-sm text-zinc-700 mt-0.5 whitespace-pre-wrap break-words">{c.body}</p>}
-                        {c.image_url && <img src={c.image_url} alt="" className="mt-1.5 rounded-xl max-h-44 w-auto" />}
-                      </div>
-                      {user?.id === c.user_id && (
-                        <button onClick={() => handleDeleteComment(c.id)} className="text-zinc-300 hover:text-red-500 flex-shrink-0"><X className="h-4 w-4" /></button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                {isSignedIn ? (
-                  <div className="mt-3 space-y-2">
-                    {qPreview && <img src={qPreview} alt="" className="rounded-xl max-h-32 w-auto" />}
-                    <div className="flex items-end gap-2">
-                      <textarea ref={qInputRef} value={qBody} onChange={e => setQBody(e.target.value)} rows={1} placeholder="Ask a question…"
-                        className="flex-1 bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none resize-none" />
-                      <label className="h-10 w-10 rounded-full bg-zinc-100 flex items-center justify-center cursor-pointer flex-shrink-0">
-                        <Plus className="h-4 w-4 text-zinc-500" />
-                        <input type="file" accept="image/*" onChange={onPickQPhoto} className="hidden" />
-                      </label>
-                      <button onClick={handlePostComment} disabled={qPosting || !qBody.trim()}
-                        className="h-10 w-10 rounded-full flex items-center justify-center text-white flex-shrink-0 disabled:opacity-50" style={{ background: '#E0533C' }}>
-                        <Send className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button onClick={() => setModal('auth')} className="mt-3 text-xs font-medium" style={{ color: '#E0533C' }}>Sign in to ask a question</button>
-                )}
-              </div>
+              <ItemMessages
+                threads={listingMsgThreads} loading={listingMsgLoading}
+                isOwner={user?.id === selectedListing.user_id} currentUserId={user?.id} isSignedIn={isSignedIn}
+                draft={itemMsgDraft} setDraft={setItemMsgDraft}
+                onSend={(body: string) => sendListingItemMessage(selectedListing.user_id, body)}
+                onOpenConversation={(id: string) => { setActiveConversationId(id); closeListing(); goTab('messages') }}
+                onSignIn={() => setModal('auth')}
+              />
             </div>
           </div>
         </div>
@@ -3298,25 +3219,6 @@ export default function App() {
                   ))}
                 </div>
               )}
-              {user?.id !== selectedTrade.user_id && !selectedTrade.completed_with && (
-                !isSignedIn ? (
-                  <button onClick={() => setModal('auth')} className="w-full py-2.5 rounded-full text-sm font-medium border border-zinc-200 text-zinc-600">
-                    Sign in to send a message
-                  </button>
-                ) : quickMsgSent ? (
-                  <p className="text-xs text-emerald-600 text-center font-medium">✓ Message sent — <button onClick={() => messageSeller(selectedTrade.user_id)} className="underline">view conversation</button></p>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <input value={quickMsgDraft} onChange={e => setQuickMsgDraft(e.target.value)} placeholder="Hi, I am interested in this item"
-                      className="flex-1 bg-zinc-50 border border-zinc-200 rounded-full px-4 py-2.5 text-sm focus:outline-none" />
-                    <button onClick={() => sendQuickMessage(selectedTrade.user_id, quickMsgDraft)} disabled={!quickMsgDraft.trim()}
-                      className="h-10 px-4 rounded-full text-sm font-medium text-white disabled:opacity-50 flex-shrink-0" style={{ background: '#E0533C' }}>
-                      Send
-                    </button>
-                  </div>
-                )
-              )}
-
               <div className="space-y-2">
                 {selectedTrade.completed_with && (
                   <span className="inline-block text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-zinc-800 text-white">Traded</span>
@@ -3341,9 +3243,10 @@ export default function App() {
                   {tradePartnerPickerOpen && (
                     <div className="rounded-2xl border border-zinc-200 p-3 space-y-1.5">
                       <p className="text-xs font-medium text-zinc-500 mb-1">Who'd you trade with? (lets you rate each other)</p>
-                      {Array.from(new Map(tradeComments.filter((c: any) => c.user_id && c.user_id !== selectedTrade.user_id).map((c: any) => [c.user_id, c])).values()).map((c: any) => (
-                        <button key={c.user_id} onClick={() => confirmTradeCompleted(selectedTrade, c.user_id)}
-                          className="w-full text-left px-3 py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 text-sm text-zinc-700">@{c.username}</button>
+                      {tradeMsgThreads.length === 0 && <p className="text-xs text-zinc-400 px-3 pb-1">No one has messaged you about this trade yet.</p>}
+                      {tradeMsgThreads.map((t: any) => (
+                        <button key={t.counterpartyId} onClick={() => confirmTradeCompleted(selectedTrade, t.counterpartyId)}
+                          className="w-full text-left px-3 py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 text-sm text-zinc-700">@{t.profile?.username || 'user'}</button>
                       ))}
                       <button onClick={() => setTradePartnerPickerOpen(false)} className="w-full text-left px-3 py-2 rounded-xl text-sm text-zinc-400">Cancel</button>
                     </div>
@@ -3380,46 +3283,14 @@ export default function App() {
                 )
               ) : null}
 
-              <div className="pt-4 mt-1 border-t border-zinc-100">
-                <p className="font-semibold text-zinc-900 text-sm mb-2">Questions ({tradeComments.length})</p>
-                <div className="space-y-3">
-                  {tradeComments.length === 0 && <p className="text-xs text-zinc-400">No questions yet — ask about this trade below.</p>}
-                  {tradeComments.map((c: any) => (
-                    <div key={c.id} className="flex gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <button onClick={() => openUserProfile(c.user_id)} className="text-[13px] font-medium text-zinc-900 hover:underline">@{c.username}</button>
-                          {c.user_id === selectedTrade.user_id && <span className="text-[10px] px-1.5 py-0.5 rounded-full text-white" style={{ background: '#E0533C' }}>Owner</span>}
-                        </div>
-                        {c.body && <p className="text-sm text-zinc-700 mt-0.5 whitespace-pre-wrap break-words">{c.body}</p>}
-                        {c.image_url && <img src={c.image_url} alt="" className="mt-1.5 rounded-xl max-h-44 w-auto" />}
-                      </div>
-                      {user?.id === c.user_id && (
-                        <button onClick={() => handleDeleteTradeComment(c.id)} className="text-zinc-300 hover:text-red-500 flex-shrink-0"><X className="h-4 w-4" /></button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                {isSignedIn ? (
-                  <div className="mt-3 space-y-2">
-                    {qPreview && <img src={qPreview} alt="" className="rounded-xl max-h-32 w-auto" />}
-                    <div className="flex items-end gap-2">
-                      <textarea value={qBody} onChange={e => setQBody(e.target.value)} rows={1} placeholder="Ask a question…"
-                        className="flex-1 bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none resize-none" />
-                      <label className="h-10 w-10 rounded-full bg-zinc-100 flex items-center justify-center cursor-pointer flex-shrink-0">
-                        <Plus className="h-4 w-4 text-zinc-500" />
-                        <input type="file" accept="image/*" onChange={onPickQPhoto} className="hidden" />
-                      </label>
-                      <button onClick={handlePostTradeComment} disabled={qPosting || !qBody.trim()}
-                        className="h-10 w-10 rounded-full flex items-center justify-center text-white flex-shrink-0 disabled:opacity-50" style={{ background: '#E0533C' }}>
-                        <Send className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button onClick={() => setModal('auth')} className="mt-3 text-xs font-medium" style={{ color: '#E0533C' }}>Sign in to ask a question</button>
-                )}
-              </div>
+              <ItemMessages
+                threads={tradeMsgThreads} loading={tradeMsgLoading}
+                isOwner={user?.id === selectedTrade.user_id} currentUserId={user?.id} isSignedIn={isSignedIn}
+                draft={itemMsgDraft} setDraft={setItemMsgDraft}
+                onSend={(body: string) => sendTradeItemMessage(selectedTrade.user_id, body)}
+                onOpenConversation={(id: string) => { setActiveConversationId(id); closeTrade(); goTab('messages') }}
+                onSignIn={() => setModal('auth')}
+              />
             </div>
           </div>
         </div>

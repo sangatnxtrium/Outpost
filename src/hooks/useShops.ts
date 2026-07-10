@@ -643,3 +643,66 @@ export function useMessages(userId: string | null, counterpartyId: string | null
 
   return { messages, loading, sendMessage, refetch: fetchThread }
 }
+
+// Messages scoped to a single listing or trade — grouped by counterparty
+// (a seller can have several buyers messaging about the same item; RLS
+// already limits a non-owner's view to just their own thread). Powers the
+// "Messages" section on a listing/trade detail page, replacing the old
+// public Q&A comment thread.
+export function useItemMessages(userId: string | null, itemId: string | null, itemType: 'listing' | 'trade') {
+  const [threads, setThreads] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const col = itemType === 'listing' ? 'listing_id' : 'trade_id'
+
+  const fetchThreads = async () => {
+    if (!userId || !itemId) { setThreads([]); setLoading(false); return }
+    setLoading(true)
+    const { data } = await supabase
+      .from('messages')
+      .select('*')
+      .eq(col, itemId)
+      .order('created_at', { ascending: true })
+    const rows = data || []
+    const byCounterparty: Record<string, any> = {}
+    for (const m of rows) {
+      const counterpartyId = m.sender_id === userId ? m.recipient_id : m.sender_id
+      if (!byCounterparty[counterpartyId]) byCounterparty[counterpartyId] = { counterpartyId, messages: [] }
+      byCounterparty[counterpartyId].messages.push(m)
+    }
+    const list = Object.values(byCounterparty)
+    const ids = list.map((t: any) => t.counterpartyId)
+    if (ids.length > 0) {
+      const { data: profs } = await supabase.from('profiles').select('id, username, avatar_url').in('id', ids)
+      const profMap: Record<string, any> = {}
+      ;(profs || []).forEach((p: any) => { profMap[p.id] = p })
+      list.forEach((t: any) => { t.profile = profMap[t.counterpartyId] || null })
+    }
+    setThreads(list)
+    setLoading(false)
+  }
+
+  useEffect(() => { fetchThreads() }, [userId, itemId])
+
+  useEffect(() => {
+    if (!userId || !itemId) return
+    const channel = supabase
+      .channel(`item-msgs:${itemType}:${itemId}:${userId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload: any) => {
+        const m = payload.new
+        if (m[col] === itemId && (m.sender_id === userId || m.recipient_id === userId)) fetchThreads()
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [userId, itemId])
+
+  async function sendItemMessage(recipientId: string, body: string) {
+    if (!userId || !recipientId || !body.trim()) return { error: 'missing fields' }
+    const payload: any = { sender_id: userId, recipient_id: recipientId, body: body.trim() }
+    payload[col] = itemId
+    const { error } = await supabase.from('messages').insert(payload)
+    if (!error) fetchThreads()
+    return { error: error?.message || null }
+  }
+
+  return { threads, loading, sendItemMessage, refetch: fetchThreads }
+}
