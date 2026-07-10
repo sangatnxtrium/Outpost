@@ -400,7 +400,7 @@ export default function App() {
   const [newsFilter, setNewsFilter] = useState('All')
   const { listings, loading: listingsLoading, uploadPhoto, createListing, updateListing, deleteListing, fetchComments, addComment, deleteComment } = useListings()
   const { items: notifications, unread: unreadCount, refetch: refetchNotifs, markAllRead } = useNotifications(user?.id || null)
-  const { following, toggleFollow } = useFollows(user?.id || null)
+  const { following, followingProfiles, toggleFollow } = useFollows(user?.id || null)
   const { conversations, loading: conversationsLoading, totalUnread: unreadMessages, refetch: refetchConversations } = useConversations(user?.id || null)
   const { settings: appSettings } = useAppSettings()
   const FCBD_YEAR = parseInt(appSettings.fcbd_year || '') || 2027
@@ -2220,6 +2220,42 @@ export default function App() {
                             <div className="flex flex-wrap items-center gap-1.5 pt-1">
                               <StandingBadge standing="New" /><StandingBadge standing="Member" /><StandingBadge standing="Established" /><StandingBadge standing="Trusted" />
                             </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {user && (
+                      <div className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100 mb-3">
+                        <div className="grid grid-cols-4 gap-2 pb-3 mb-3 border-b border-zinc-100">
+                          {[
+                            ['Sold', standingMap[user.id]?.sold_count],
+                            ['Bought', standingMap[user.id]?.bought_count],
+                            ['Followers', standingMap[user.id]?.followers_count],
+                            ['Following', standingMap[user.id]?.following_count],
+                          ].map(([label, val]: any) => (
+                            <div key={label} className="text-center">
+                              <p className="text-lg font-bold text-zinc-900">{val ?? 0}</p>
+                              <p className="text-[11px] text-zinc-400">{label}</p>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-xs font-black uppercase text-zinc-400 mb-2">Following</p>
+                        {followingProfiles.length === 0 ? (
+                          <p className="text-xs text-zinc-400">You're not following anyone yet — tap a seller's @username to follow them.</p>
+                        ) : (
+                          <div className="space-y-1">
+                            {followingProfiles.map((p: any) => (
+                              <button key={p.id} onClick={() => openUserProfile(p.id)}
+                                className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-zinc-50 text-left transition-all">
+                                <div className="h-9 w-9 rounded-full overflow-hidden bg-zinc-100 flex items-center justify-center flex-shrink-0">
+                                  {p.avatar_url
+                                    ? <img src={p.avatar_url} alt="" className="h-full w-full object-cover" />
+                                    : <User className="h-4 w-4 text-zinc-400" />}
+                                </div>
+                                <span className="text-sm font-medium text-zinc-900">@{p.username}</span>
+                              </button>
+                            ))}
                           </div>
                         )}
                       </div>

@@ -505,6 +505,7 @@ export function useAppSettings() {
 
 export function useFollows(userId: string | null) {
   const [following, setFollowing] = useState<string[]>([])
+  const [followingProfiles, setFollowingProfiles] = useState<any[]>([])
 
   const fetchFollowing = () => {
     if (!userId) { setFollowing([]); return }
@@ -514,6 +515,17 @@ export function useFollows(userId: string | null) {
   }
 
   useEffect(() => { fetchFollowing() }, [userId])
+
+  // Keep the profile-card list (avatar/username, for the Profile tab's
+  // "Following" section) in sync with the id list above.
+  useEffect(() => {
+    if (following.length === 0) { setFollowingProfiles([]); return }
+    let active = true
+    supabase.from('profiles').select('id, username, avatar_url').in('id', following).then(({ data }) => {
+      if (active) setFollowingProfiles(data || [])
+    })
+    return () => { active = false }
+  }, [following.join(',')])
 
   async function toggleFollow(targetUserId: string) {
     if (!userId || !targetUserId || targetUserId === userId) return
@@ -528,7 +540,7 @@ export function useFollows(userId: string | null) {
     }
   }
 
-  return { following, toggleFollow, refetch: fetchFollowing }
+  return { following, followingProfiles, toggleFollow, refetch: fetchFollowing }
 }
 
 // Conversation list — derived client-side from the messages table, grouped
