@@ -542,6 +542,7 @@ export default function App() {
   const [claimCheckLoading, setClaimCheckLoading] = useState(false)
   const [mktTitle, setMktTitle] = useState('')
   const [mktPrice, setMktPrice] = useState('')
+  const [mktQuantity, setMktQuantity] = useState('1')
   const [mktDesc, setMktDesc] = useState('')
   const [mktCondition, setMktCondition] = useState('Raw')
   const [mktCategory, setMktCategory] = useState('cards')
@@ -1279,6 +1280,7 @@ export default function App() {
     setMktTitle(item.title || ''); setMktPrice(String(item.price ?? ''))
     setMktDesc(item.description || ''); setMktCondition(item.condition || 'Raw')
     setMktCategory(item.category || 'cards'); setMktContact(item.contact || '')
+    setMktQuantity(String(item.quantity ?? 1))
     const existing: MktPhoto[] = [item.image_url, ...(item.gallery || [])]
       .filter(Boolean).map((url: string) => ({ kind: 'existing' as const, url }))
     setMktPhotos(existing)
@@ -1341,6 +1343,7 @@ export default function App() {
       title: mktTitle,
       description: mktDesc,
       price: parseFloat(mktPrice),
+      quantity: parseInt(mktQuantity) || 1,
       category: mktCategory,
       condition: mktCondition,
       image_url: urls[0] || '',
@@ -1360,7 +1363,7 @@ export default function App() {
     setMktSubmitting(false)
     if (ok) {
       setEditingListingId(null)
-      setMktTitle(''); setMktPrice(''); setMktDesc(''); setMktContact('')
+      setMktTitle(''); setMktPrice(''); setMktDesc(''); setMktContact(''); setMktQuantity('1')
       setMktPhotos([]); setModal('none')
     }
   }
@@ -1882,7 +1885,10 @@ export default function App() {
                             : <div className="w-full h-full flex items-center justify-center text-zinc-300"><Package className="h-10 w-10" /></div>}
                         </div>
                         <div className="p-3">
-                          <p className="font-semibold text-zinc-900" style={{ color: '#E0533C' }}>${Number(item.price).toLocaleString()}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-semibold text-zinc-900" style={{ color: '#E0533C' }}>${Number(item.price).toLocaleString()}</p>
+                            {item.quantity > 1 && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-zinc-100 text-zinc-500">Qty: {item.quantity}</span>}
+                          </div>
                           <h3 className="text-[14px] text-zinc-900 leading-snug truncate mt-0.5">{item.title}</h3>
                           <div className="flex items-center gap-1.5 text-[12px] text-zinc-500 mt-1">
                             {item.condition && <span className="bg-zinc-100 px-1.5 py-0.5 rounded">{item.condition}</span>}
@@ -2337,7 +2343,10 @@ export default function App() {
                                     <span className="absolute top-1 left-1 text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-zinc-800/90 text-white">Sold</span>
                                   )}
                                 </div>
-                                <p className="text-[11px] font-medium truncate mt-1" style={{ color: '#E0533C' }}>${Number(l.price).toLocaleString()}</p>
+                                <div className="flex items-center gap-1 mt-1">
+                                  <p className="text-[11px] font-medium truncate" style={{ color: '#E0533C' }}>${Number(l.price).toLocaleString()}</p>
+                                  {l.quantity > 1 && <span className="text-[9px] font-semibold px-1 py-0.5 rounded-full bg-zinc-100 text-zinc-500 shrink-0">x{l.quantity}</span>}
+                                </div>
                               </button>
                             ))}
                           </div>
@@ -2771,10 +2780,14 @@ export default function App() {
               <PhotoSlots previews={mktPreviewUrls} onAdd={onPickPhotos} onRemove={removeMktPhoto} label="Add photos" />
               <input type="text" required value={mktTitle} onChange={e => setMktTitle(e.target.value)}
                 placeholder="What are you selling?" className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-sm focus:outline-none" />
-              <div className="relative">
-                <DollarSign className="absolute left-3.5 top-3.5 h-4 w-4 text-zinc-400" />
-                <input type="number" required value={mktPrice} onChange={e => setMktPrice(e.target.value)}
-                  placeholder="Price" className="w-full bg-white border border-zinc-200 rounded-2xl pl-10 pr-4 py-3 text-sm focus:outline-none" />
+              <div className="flex gap-3">
+                <div className="relative flex-1">
+                  <DollarSign className="absolute left-3.5 top-3.5 h-4 w-4 text-zinc-400" />
+                  <input type="number" required value={mktPrice} onChange={e => setMktPrice(e.target.value)}
+                    placeholder="Price" className="w-full bg-white border border-zinc-200 rounded-2xl pl-10 pr-4 py-3 text-sm focus:outline-none" />
+                </div>
+                <input type="number" min={1} value={mktQuantity} onChange={e => setMktQuantity(e.target.value)}
+                  placeholder="Qty" className="w-24 bg-white border border-zinc-200 rounded-2xl px-3 py-3 text-sm focus:outline-none" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <select value={mktCategory} onChange={e => setMktCategory(e.target.value)}
@@ -2873,7 +2886,10 @@ export default function App() {
                           </div>
                           <div className="p-2">
                             {it._kind === 'listing'
-                              ? <p className="text-sm font-semibold" style={{ color: '#E0533C' }}>${Number(it.price).toLocaleString()}</p>
+                              ? <div className="flex items-center gap-1">
+                                  <p className="text-sm font-semibold" style={{ color: '#E0533C' }}>${Number(it.price).toLocaleString()}</p>
+                                  {it.quantity > 1 && <span className="text-[9px] font-semibold px-1 py-0.5 rounded-full bg-zinc-100 text-zinc-500">Qty: {it.quantity}</span>}
+                                </div>
                               : <p className="text-[11px] font-semibold text-emerald-700">TRADE</p>}
                             <p className="text-xs text-zinc-700 truncate">{it._kind === 'listing' ? it.title : it.offer}</p>
                           </div>
@@ -2919,6 +2935,9 @@ export default function App() {
               <div>
                 <div className="flex items-center gap-2">
                   <p className="text-2xl font-semibold" style={{ color: '#E0533C' }}>${Number(selectedListing.price).toLocaleString()}</p>
+                  {selectedListing.quantity > 1 && (
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-500">Qty: {selectedListing.quantity}</span>
+                  )}
                   {selectedListing.status === 'sold' && (
                     <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-zinc-800 text-white">Sold</span>
                   )}
