@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
-import { Shield, Store, Users, Star, Trash2, Edit2, Check, X, RefreshCw, Search, Flame, BarChart2, MessageSquare, ArrowLeftRight, Calendar, Plus, Package } from 'lucide-react'
+import { Shield, Store, Users, Trash2, Edit2, Check, X, RefreshCw, Search, Flame, BarChart2, MessageSquare, ArrowLeftRight, Calendar, Plus, Package } from 'lucide-react'
+import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend, BarChart, Bar } from 'recharts'
 
 
 class AdminErrorBoundary extends React.Component<{children: any}, {error: string}> {
@@ -159,25 +160,42 @@ export default function Admin() {
     setEventFields({})
   }
 
+    // Supabase caps any single .select() at 1000 rows by default. Every fetch
+    // below used to hit that cap silently (e.g. Shops showed 1000 when there
+    // were 5,800+) — this pages through with .range() until a page comes back
+    // shorter than the page size, so admin always sees every row.
+    async function fetchAllRows(queryFactory: () => any, pageSize = 1000) {
+      let all: any[] = []
+      let from = 0
+      while (true) {
+        const { data, error } = await queryFactory().range(from, from + pageSize - 1)
+        if (error) { console.error('fetchAllRows error', error); break }
+        all = all.concat(data || [])
+        if (!data || data.length < pageSize) break
+        from += pageSize
+      }
+      return all
+    }
+
     async function fetchAll() {
     setLoading(true)
     try {
-      const [s, u, r, t, e, c, ci] = await Promise.all([
-        supabase.from('shops').select('*').order('name'),
-        supabase.from('profiles').select('*').order('created_at', { ascending: false }),
-        supabase.from('reviews').select('*').order('created_at', { ascending: false }),
-        supabase.from('trade_posts').select('*').order('created_at', { ascending: false }),
-        supabase.from('events').select('*, shops(name)').order('date'),
-        supabase.from('shop_claims').select('*').order('created_at', { ascending: false }),
-        supabase.from('checkins').select('*', { count: 'exact', head: true }),
+      const [s, u, r, t, e, c] = await Promise.all([
+        fetchAllRows(() => supabase.from('shops').select('*').order('name')),
+        fetchAllRows(() => supabase.from('profiles').select('*').order('created_at', { ascending: false })),
+        fetchAllRows(() => supabase.from('reviews').select('*').order('created_at', { ascending: false })),
+        fetchAllRows(() => supabase.from('trade_posts').select('*').order('created_at', { ascending: false })),
+        fetchAllRows(() => supabase.from('events').select('*, shops(name)').order('date')),
+        fetchAllRows(() => supabase.from('shop_claims').select('*').order('created_at', { ascending: false })),
       ])
-      setShops(s.data || [])
-      setUsers(u.data || [])
-      setReviews(r.data || [])
-      setTrades(t.data || [])
-      setEvents(e.data || [])
-      setClaims(c.data || [])
-      setCheckins(ci.count || 0)
+      setShops(s)
+      setUsers(u)
+      setReviews(r)
+      setTrades(t)
+      setEvents(e)
+      setClaims(c)
+      const { count: checkinCount } = await supabase.from('checkins').select('*', { count: 'exact', head: true })
+      setCheckins(checkinCount || 0)
       const stg = await supabase.from('app_settings').select('*')
       const sm: Record<string, string> = {}
       ;(stg.data || []).forEach((r: any) => { sm[r.key] = r.value })
@@ -188,8 +206,8 @@ export default function Admin() {
       setFcbdTitles(ft.data || [])
       const fp = await supabase.from('fcbd_participation').select('*, shops(name)').eq('year', yr).eq('participating', true).order('updated_at', { ascending: false })
       setFcbdParticipants(fp.data || [])
-      const li = await supabase.from('listings').select('*').order('created_at', { ascending: false })
-      setMarketItems(li.data || [])
+      const li = await fetchAllRows(() => supabase.from('listings').select('*').order('created_at', { ascending: false }))
+      setMarketItems(li)
     } catch (err) {
       console.error('fetchAll error', err)
     }
@@ -304,6 +322,43 @@ export default function Admin() {
   const eliteCount = users.filter(u => u.tier === 'elite').length
   const storeCount = users.filter(u => u.tier === 'store').length
   const mrr = ((eliteCount * 1.99) + (storeCount * 2.99)).toFixed(0)
+
+  // Week-over-week comparison, used by the Dashboard's line chart + delta
+  // stat cards. Outpost has no payment/order data (sellers arrange payment
+  // themselves), so these track real signals we do have: signups, listings,
+  // trades and reviews created per day.
+  function weeklyCompare(items: any[], dateField = 'created_at') {
+    const days: string[] = []
+    const thisWeek: number[] = []
+    const priorWeek: number[] = []
+    const now = new Date()
+    for (let i = 6; i >= 0; i--) {
+      const dayStart = new Date(now); dayStart.setDate(dayStart.getDate() - i); dayStart.setHours(0, 0, 0, 0)
+      const dayEnd = new Date(dayStart); dayEnd.setDate(dayEnd.getDate() + 1)
+      const priorStart = new Date(dayStart); priorStart.setDate(priorStart.getDate() - 7)
+      const priorEnd = new Date(priorStart); priorEnd.setDate(priorEnd.getDate() + 1)
+      const countIn = (start: Date, end: Date) => items.filter((x: any) => {
+        const t = x[dateField] ? new Date(x[dateField]).getTime() : NaN
+        return t >= start.getTime() && t < end.getTime()
+      }).length
+      days.push(dayStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+      thisWeek.push(countIn(dayStart, dayEnd))
+      priorWeek.push(countIn(priorStart, priorEnd))
+    }
+    const thisTotal = thisWeek.reduce((a, b) => a + b, 0)
+    const priorTotal = priorWeek.reduce((a, b) => a + b, 0)
+    const deltaPct = priorTotal > 0 ? Math.round(((thisTotal - priorTotal) / priorTotal) * 100) : null
+    return { days, thisWeek, priorWeek, thisTotal, priorTotal, deltaPct }
+  }
+
+  const signupsWeek = weeklyCompare(users)
+  const listingsWeek = weeklyCompare(marketItems)
+  const tradesWeek = weeklyCompare(trades)
+  const reviewsWeek = weeklyCompare(reviews)
+
+  const signupsChartData = signupsWeek.days.map((d, i) => ({ day: d, 'This week': signupsWeek.thisWeek[i], 'Prior week': signupsWeek.priorWeek[i] }))
+  const activityChartData = signupsWeek.days.map((d, i) => ({ day: d, Listings: listingsWeek.thisWeek[i], Trades: tradesWeek.thisWeek[i] }))
+  const topListings = [...marketItems].filter((l: any) => l.price != null).sort((a: any, b: any) => Number(b.price) - Number(a.price)).slice(0, 5)
 
   const fShops = shops.filter(s => s.name?.toLowerCase().includes(search.toLowerCase()) || s.address?.toLowerCase().includes(search.toLowerCase()))
   const fUsers = users.filter(u => u.username?.toLowerCase().includes(search.toLowerCase()))
@@ -445,16 +500,38 @@ export default function Admin() {
         {/* DASHBOARD */}
         {tab === 'dashboard' && (
           <div className="space-y-4">
-            <h2 className="font-black text-xl">Dashboard</h2>
-            <div className="grid grid-cols-2 gap-3">
+            <div>
+              <h2 className="font-black text-xl">Dashboard</h2>
+              <p className="text-xs text-zinc-400 mt-0.5">{shops.length.toLocaleString()} shops · {users.length.toLocaleString()} users · last refreshed {new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>
+            </div>
+
+            {/* Hero week-over-week cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label: 'New signups (7d)', value: signupsWeek.thisTotal, deltaPct: signupsWeek.deltaPct },
+                { label: 'New listings (7d)', value: listingsWeek.thisTotal, deltaPct: listingsWeek.deltaPct },
+                { label: 'New trades (7d)', value: tradesWeek.thisTotal, deltaPct: tradesWeek.deltaPct },
+                { label: 'New reviews (7d)', value: reviewsWeek.thisTotal, deltaPct: reviewsWeek.deltaPct },
+              ].map(({ label, value, deltaPct }) => (
+                <div key={label} className="bg-white rounded-2xl p-4 border border-zinc-100 shadow-sm">
+                  <p className="text-xs font-bold text-zinc-400 uppercase tracking-wide">{label}</p>
+                  <p className="text-3xl font-black mt-1">{value.toLocaleString()}</p>
+                  {deltaPct === null ? (
+                    <p className="text-xs text-zinc-400 mt-1">no prior-week data</p>
+                  ) : (
+                    <p className="text-xs font-bold mt-1" style={{ color: deltaPct >= 0 ? '#059669' : '#DC2626' }}>
+                      {deltaPct >= 0 ? '+' : ''}{deltaPct}% vs prior 7d
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Totals row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
                 { label: 'Shops', value: shops.length, color: '#E0533C', icon: Store },
-                { label: 'Users', value: users.length, color: '#7C3AED', icon: Users },
                 { label: 'Check-ins', value: checkins, color: '#059669', icon: BarChart2 },
-                { label: 'Reviews', value: reviews.length, color: '#F59E0B', icon: Star },
-                { label: 'Elite Subs', value: eliteCount, color: '#0284C7', icon: Shield },
-                { label: 'Store Subs', value: storeCount, color: '#D97706', icon: Store },
-                { label: 'Trades', value: trades.length, color: '#E0533C', icon: ArrowLeftRight },
                 { label: 'Est. MRR', value: `$${mrr}`, color: '#059669', icon: BarChart2 },
                 { label: 'Pending Claims', value: pendingClaims, color: '#F59E0B', icon: Shield },
               ].map(({ label, value, color, icon: Icon }) => (
@@ -468,6 +545,71 @@ export default function Admin() {
                   <p className="text-2xl font-black">{value}</p>
                 </div>
               ))}
+            </div>
+
+            {/* Daily signups line chart */}
+            <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4">
+              <p className="font-black text-sm mb-1">Daily new signups — this week vs prior week</p>
+              <div className="h-64 -ml-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={signupsChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" />
+                    <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} width={28} />
+                    <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #f4f4f5', fontSize: 12 }} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Line type="monotone" dataKey="This week" stroke="#E0533C" strokeWidth={2.5} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="Prior week" stroke="#d4d4d8" strokeWidth={2} strokeDasharray="4 3" dot={{ r: 2 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Top listings table */}
+              <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-zinc-100 font-black text-sm">Top listings by price</div>
+                {topListings.length === 0 ? (
+                  <p className="text-center text-zinc-400 py-8 text-sm font-mono">No listings yet</p>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-[10px] font-black uppercase text-zinc-400 border-b border-zinc-50">
+                        <th className="px-4 py-2 font-black">Listing</th>
+                        <th className="px-4 py-2 font-black">Price</th>
+                        <th className="px-4 py-2 font-black">Qty</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {topListings.map((l: any) => (
+                        <tr key={l.id} className="border-b border-zinc-50 last:border-0">
+                          <td className="px-4 py-2.5 truncate max-w-[160px]">{l.title}</td>
+                          <td className="px-4 py-2.5 font-bold" style={{ color: '#E0533C' }}>${Number(l.price).toLocaleString()}</td>
+                          <td className="px-4 py-2.5 text-zinc-400">{l.quantity || 1}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              {/* Listings vs trades stacked bar */}
+              <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4">
+                <p className="font-black text-sm mb-1">New listings vs new trades (7d)</p>
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={activityChartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" />
+                      <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} width={28} />
+                      <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #f4f4f5', fontSize: 12 }} />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
+                      <Bar dataKey="Listings" stackId="a" fill="#E0533C" radius={[0, 0, 0, 0]} />
+                      <Bar dataKey="Trades" stackId="a" fill="#fca997" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
             </div>
 
             <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
