@@ -7,7 +7,7 @@ import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useNews, u
 import { startCheckout } from './lib/stripe'
 import { supabase } from './lib/supabase'
 
-type TabType = 'discover' | 'classifieds' | 'marketplace' | 'news' | 'fcbd' | 'profile' | 'messages'
+type TabType = 'discover' | 'classifieds' | 'marketplace' | 'news' | 'profile' | 'messages'
 type ModalType = 'none' | 'sub' | 'auth' | 'notifications' | 'shop' | 'menu' | 'claim' | 'additem' | 'submit' | 'listsale' | 'listingdetail' | 'posttrade' | 'tradedetail' | 'editprofile' | 'setlocation' | 'userprofile'
 // A photo slot in the listing/trade forms is either a URL already on the
 // post (editing) or a freshly picked File waiting to be uploaded on submit.
@@ -389,7 +389,6 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal, unreadCount, unre
     { id: 'marketplace', icon: Store, label: 'Marketplace' },
     { id: 'messages', icon: MessageCircle, label: 'Messages' },
     { id: 'news', icon: Newspaper, label: 'News' },
-    { id: 'fcbd', icon: BookOpen, label: 'FCBD' },
     { id: 'profile', icon: User, label: 'Profile' },
   ]
   return (
@@ -499,7 +498,7 @@ export default function App() {
   const [onbStep, setOnbStep] = useState(1)
   const [onbInterest, setOnbInterest] = useState<string | null>(null)
   const [radius, setRadius] = useState(10)
-  const [activeSection, setActiveSection] = useState<'shops' | 'events'>('shops')
+  const [activeSection, setActiveSection] = useState<'shops' | 'events' | 'fcbd'>('shops')
   const [urlCity, setUrlCity] = useState<string | null>(null)
   const initialRouteHandled = useRef(false)
   const [discoverView, setDiscoverView] = useState<'list' | 'map'>('list')
@@ -905,7 +904,7 @@ export default function App() {
     }
     if (parts[0] === 'marketplace') { setTab('marketplace'); setModal('none'); return }
     if (parts[0] === 'news') { setTab('news'); setModal('none'); return }
-    if (parts[0] === 'fcbd') { setTab('fcbd'); setModal('none'); return }
+    if (parts[0] === 'fcbd') { setTab('discover'); setActiveSection('fcbd'); setModal('none'); return }
     if (parts[0] === 'profile') { setTab('profile'); setModal('none'); return }
     if (parts[0] === 'messages') { setTab('messages'); setModal('none'); return }
 
@@ -1578,6 +1577,11 @@ export default function App() {
                     style={activeSection === 'events' ? { background: '#E0533C', color: 'white' } : { color: '#52525b' }}>
                     Events
                   </button>
+                  <button onClick={() => setActiveSection('fcbd')}
+                    className="px-4 py-1.5 rounded-full text-[13px] font-medium transition-all"
+                    style={activeSection === 'fcbd' ? { background: '#E0533C', color: 'white' } : { color: '#52525b' }}>
+                    FCBD
+                  </button>
                 </div>
 
                 {/* Category filter pills - shops only */}
@@ -1800,8 +1804,93 @@ export default function App() {
                   <p className="font-black text-sm" style={{ color: '#7C3AED' }}>{activeSection === 'shops' ? 'Submit a Shop or Event' : 'Submit an Event'}</p>
                   <p className="text-xs text-zinc-400 mt-0.5">We'll review and add it to Outpost</p>
                 </button>
+
+            {/* FCBD */}
+            {activeSection === 'fcbd' && (
+              <div className="space-y-4 max-w-3xl">
+                <div className="rounded-3xl p-5 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
+                  <BookOpen className="absolute -right-4 -top-4 h-28 w-28 opacity-10" />
+                  <p className="text-xs uppercase tracking-widest opacity-80">Free Comic Book Day</p>
+                  <h2 className="text-2xl font-bold mt-1">FCBD {FCBD_YEAR}</h2>
+                  <p className="text-sm opacity-90 mt-1">{FCBD_DATE_LABEL} · date tentative</p>
+                  <div className="mt-4 inline-flex items-baseline gap-2 bg-white/20 rounded-full px-4 py-1.5">
+                    <span className="text-xl font-bold">{fcbdDaysLeft}</span>
+                    <span className="text-xs opacity-90">days to go</span>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="font-semibold text-zinc-900 mb-2">Showcased comics {fcbdTitles.length > 0 && `(${fcbdTitles.length})`}</p>
+                  {fcbdTitles.length === 0 ? (
+                    <div className="text-center py-10 text-zinc-400 bg-white rounded-3xl border border-zinc-100">
+                      <BookOpen className="h-9 w-9 mx-auto mb-2 opacity-20" />
+                      <p className="text-sm">The {FCBD_YEAR} lineup hasn't been posted yet.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
+                      {fcbdTitles.map((t: any) => (
+                        <div key={t.id} className="bg-white rounded-2xl border border-zinc-200 overflow-hidden">
+                          <div className="aspect-[2/3] bg-zinc-100">
+                            {t.image_url
+                              ? <img src={t.image_url} alt={t.title} loading="lazy" className="w-full h-full object-cover" />
+                              : <div className="w-full h-full flex items-center justify-center text-zinc-300"><BookOpen className="h-8 w-8" /></div>}
+                          </div>
+                          <div className="p-2">
+                            <p className="text-[12px] font-medium text-zinc-900 leading-tight line-clamp-2">{t.title}</p>
+                            {t.publisher && <p className="text-[11px] text-zinc-400 mt-0.5 truncate">{t.publisher}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {myShop && (
+                  <div className="bg-white rounded-2xl border border-zinc-200 p-3 flex items-center gap-2 text-sm text-zinc-500">
+                    <BookOpen className="h-4 w-4 flex-shrink-0" style={{ color: '#1d4ed8' }} />
+                    <span>Manage your shop's FCBD participation from your <button onClick={() => goTab('profile')} className="font-medium underline" style={{ color: '#E0533C' }}>Profile</button>.</span>
+                  </div>
+                )}
+
+                <div>
+                  <p className="font-semibold text-zinc-900 mb-2">Participating shops {fcbdShops.length > 0 && `(${fcbdShops.length})`}</p>
+                  {fcbdShops.length === 0 ? (
+                    <div className="text-center py-12 text-zinc-400 bg-white rounded-3xl border border-zinc-100">
+                      <BookOpen className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                      <p className="text-sm">No shops have signed up yet.</p>
+                      <p className="text-xs mt-1">Check back as {FCBD_MONTH} {FCBD_YEAR} approaches.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {fcbdShops.map((p: any) => {
+                        const s = p.shops || {}
+                        const dist = userLat && userLng && s.lat && s.lng ? getDistance(userLat, userLng, s.lat, s.lng) : null
+                        return (
+                          <div key={p.id} onClick={() => openShop(shops.find((x: any) => x.id === p.shop_id) || s)}
+                            className="bg-white rounded-2xl border border-zinc-200 overflow-hidden cursor-pointer hover:shadow-md transition-all flex">
+                            <div className="w-24 flex-shrink-0 bg-zinc-100">
+                              {s.image_url
+                                ? <img src={s.image_url} alt={s.name} loading="lazy" className="w-full h-full object-cover" />
+                                : <div className="w-full h-full flex items-center justify-center text-zinc-300"><Store className="h-7 w-7" /></div>}
+                            </div>
+                            <div className="p-3 flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <h3 className="font-semibold text-zinc-900 truncate">{s.name}</h3>
+                                {dist != null && <span className="text-xs text-zinc-400 flex-shrink-0">{dist.toFixed(1)} mi</span>}
+                              </div>
+                              {p.offers && <p className="text-[13px] mt-1 line-clamp-2" style={{ color: '#E0533C' }}><span className="font-medium">Offer: </span>{p.offers}</p>}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
+              </div>
+            )}
+
 
             {/* MARKETPLACE */}
             {tab === 'marketplace' && (
@@ -1993,90 +2082,6 @@ export default function App() {
                     </>
                   )
                 })()}
-              </div>
-            )}
-
-            {/* FCBD */}
-            {tab === 'fcbd' && (
-              <div className="p-4 space-y-4 max-w-3xl">
-                <div className="rounded-3xl p-5 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #E0533C, #ff6b4a)' }}>
-                  <BookOpen className="absolute -right-4 -top-4 h-28 w-28 opacity-10" />
-                  <p className="text-xs uppercase tracking-widest opacity-80">Free Comic Book Day</p>
-                  <h2 className="text-2xl font-bold mt-1">FCBD {FCBD_YEAR}</h2>
-                  <p className="text-sm opacity-90 mt-1">{FCBD_DATE_LABEL} · date tentative</p>
-                  <div className="mt-4 inline-flex items-baseline gap-2 bg-white/20 rounded-full px-4 py-1.5">
-                    <span className="text-xl font-bold">{fcbdDaysLeft}</span>
-                    <span className="text-xs opacity-90">days to go</span>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="font-semibold text-zinc-900 mb-2">Showcased comics {fcbdTitles.length > 0 && `(${fcbdTitles.length})`}</p>
-                  {fcbdTitles.length === 0 ? (
-                    <div className="text-center py-10 text-zinc-400 bg-white rounded-3xl border border-zinc-100">
-                      <BookOpen className="h-9 w-9 mx-auto mb-2 opacity-20" />
-                      <p className="text-sm">The {FCBD_YEAR} lineup hasn't been posted yet.</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
-                      {fcbdTitles.map((t: any) => (
-                        <div key={t.id} className="bg-white rounded-2xl border border-zinc-200 overflow-hidden">
-                          <div className="aspect-[2/3] bg-zinc-100">
-                            {t.image_url
-                              ? <img src={t.image_url} alt={t.title} loading="lazy" className="w-full h-full object-cover" />
-                              : <div className="w-full h-full flex items-center justify-center text-zinc-300"><BookOpen className="h-8 w-8" /></div>}
-                          </div>
-                          <div className="p-2">
-                            <p className="text-[12px] font-medium text-zinc-900 leading-tight line-clamp-2">{t.title}</p>
-                            {t.publisher && <p className="text-[11px] text-zinc-400 mt-0.5 truncate">{t.publisher}</p>}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {myShop && (
-                  <div className="bg-white rounded-2xl border border-zinc-200 p-3 flex items-center gap-2 text-sm text-zinc-500">
-                    <BookOpen className="h-4 w-4 flex-shrink-0" style={{ color: '#1d4ed8' }} />
-                    <span>Manage your shop's FCBD participation from your <button onClick={() => goTab('profile')} className="font-medium underline" style={{ color: '#E0533C' }}>Profile</button>.</span>
-                  </div>
-                )}
-
-                <div>
-                  <p className="font-semibold text-zinc-900 mb-2">Participating shops {fcbdShops.length > 0 && `(${fcbdShops.length})`}</p>
-                  {fcbdShops.length === 0 ? (
-                    <div className="text-center py-12 text-zinc-400 bg-white rounded-3xl border border-zinc-100">
-                      <BookOpen className="h-10 w-10 mx-auto mb-3 opacity-20" />
-                      <p className="text-sm">No shops have signed up yet.</p>
-                      <p className="text-xs mt-1">Check back as {FCBD_MONTH} {FCBD_YEAR} approaches.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {fcbdShops.map((p: any) => {
-                        const s = p.shops || {}
-                        const dist = userLat && userLng && s.lat && s.lng ? getDistance(userLat, userLng, s.lat, s.lng) : null
-                        return (
-                          <div key={p.id} onClick={() => openShop(shops.find((x: any) => x.id === p.shop_id) || s)}
-                            className="bg-white rounded-2xl border border-zinc-200 overflow-hidden cursor-pointer hover:shadow-md transition-all flex">
-                            <div className="w-24 flex-shrink-0 bg-zinc-100">
-                              {s.image_url
-                                ? <img src={s.image_url} alt={s.name} loading="lazy" className="w-full h-full object-cover" />
-                                : <div className="w-full h-full flex items-center justify-center text-zinc-300"><Store className="h-7 w-7" /></div>}
-                            </div>
-                            <div className="p-3 flex-1 min-w-0">
-                              <div className="flex items-center justify-between gap-2">
-                                <h3 className="font-semibold text-zinc-900 truncate">{s.name}</h3>
-                                {dist != null && <span className="text-xs text-zinc-400 flex-shrink-0">{dist.toFixed(1)} mi</span>}
-                              </div>
-                              {p.offers && <p className="text-[13px] mt-1 line-clamp-2" style={{ color: '#E0533C' }}><span className="font-medium">Offer: </span>{p.offers}</p>}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
               </div>
             )}
 
@@ -2419,7 +2424,6 @@ export default function App() {
               { id: 'marketplace', icon: Store, label: 'Marketplace' },
               { id: 'messages', icon: MessageCircle, label: 'Chat' },
               { id: 'news', icon: Newspaper, label: 'News' },
-              { id: 'fcbd', icon: BookOpen, label: 'FCBD' },
               { id: 'profile', icon: User, label: 'Profile' },
             ].map(({ id, icon: Icon, label }) => (
               <button key={id} onClick={() => goTab(id as TabType)}
