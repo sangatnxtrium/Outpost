@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { Compass, MapPin, Search, Flame, X, Store, User, Users, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, ShieldCheck, DollarSign, Plus, Check, Phone, Bell, Heart, Star, BookOpen, Send, Globe, Newspaper, Share2, MessageCircle, ArrowLeft } from 'lucide-react'
+import { Compass, MapPin, Search, Flame, X, Store, User, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, ShieldCheck, DollarSign, Plus, Check, Phone, Bell, Heart, Star, BookOpen, Send, Globe, Newspaper, Share2, MessageCircle, ArrowLeft } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
 import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useNews, useListings, useFcbd, useFcbdTitles, useNotifications, useAppSettings, useListingOffers, useFollows, useConversations, useMessages, useItemMessages } from './hooks/useShops'
 import { startCheckout } from './lib/stripe'
@@ -306,7 +306,7 @@ function SellerOfferRow({ offer, onAccept, onDecline, onCounter }: { offer: any;
   )
 }
 
-function ItemMessages({ threads, loading, isOwner, currentUserId, isSignedIn, draft, setDraft, onSend, onOpenConversation, onSignIn, onOpenProfile }: any) {
+function ItemMessages({ threads, loading, isOwner, currentUserId, isSignedIn, draft, setDraft, onSend, onOpenConversation, onSignIn }: any) {
   return (
     <div className="pt-4 mt-1 border-t border-zinc-100">
       <p className="font-semibold text-zinc-900 text-sm mb-2">Messages</p>
@@ -377,12 +377,6 @@ function categoryStyle(cat: string) {
   return { background: '#EDE9FE', color: '#5B21B6' }
 }
 
-function categoryIconColor(cat: string) {
-  if (cat === 'comics') return '#D97706'
-  if (cat === 'cards') return '#0284C7'
-  return '#7C3AED'
-}
-
 function Sidebar({ tab, setTab, isSignedIn, profile, setModal, unreadCount, unreadMessages }: any) {
   const items = [
     { id: 'discover', icon: Search, label: 'Discover' },
@@ -394,7 +388,7 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal, unreadCount, unre
   return (
     <aside className="hidden md:flex flex-col w-56 border-r border-zinc-200 bg-white h-screen sticky top-0 p-4 gap-1 flex-shrink-0">
       <div className="px-2 py-4 mb-2">
-        <img src="/logo.png" alt="getOutpost.net" onClick={() => goTab('discover')} className="w-40 h-auto cursor-pointer" />
+        <img src="/logo.png" alt="getOutpost.net" onClick={() => setTab('discover')} className="w-40 h-auto cursor-pointer" />
         <p className="text-[11px] text-zinc-400 mt-2 px-1">Every Shop. Every Drop. Near You.</p>
       </div>
       {items.map(({ id, icon: Icon, label }) => (
@@ -457,7 +451,7 @@ export default function App() {
   const { listings, loading: listingsLoading, uploadPhoto, createListing, updateListing, deleteListing } = useListings()
   const { items: notifications, unread: unreadCount, refetch: refetchNotifs, markAllRead } = useNotifications(user?.id || null)
   const { following, followingProfiles, toggleFollow } = useFollows(user?.id || null)
-  const { conversations, loading: conversationsLoading, totalUnread: unreadMessages, refetch: refetchConversations } = useConversations(user?.id || null)
+  const { conversations, loading: conversationsLoading, totalUnread: unreadMessages } = useConversations(user?.id || null)
   const { settings: appSettings } = useAppSettings()
   const FCBD_YEAR = parseInt(appSettings.fcbd_year || '') || 2027
   const FCBD_DATE = new Date(`${appSettings.fcbd_date || '2027-05-01'}T00:00:00`)
@@ -831,7 +825,7 @@ export default function App() {
 
   const TAB_PATHS: Record<TabType, string> = {
     discover: '/', classifieds: '/marketplace', marketplace: '/marketplace',
-    news: '/news', fcbd: '/fcbd', profile: '/profile', messages: '/messages',
+    news: '/news', profile: '/profile', messages: '/messages',
   }
 
   // Every setTab(...) that represents real user navigation should go through

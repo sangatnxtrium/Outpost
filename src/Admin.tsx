@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
-import { Shield, Store, Users, Star, Trash2, Edit2, Check, X, LogOut, RefreshCw, Search, Flame, BarChart2, MessageSquare, ArrowLeftRight, Calendar, Plus, Package } from 'lucide-react'
+import { Shield, Store, Users, Star, Trash2, Edit2, Check, X, RefreshCw, Search, Flame, BarChart2, MessageSquare, ArrowLeftRight, Calendar, Plus, Package } from 'lucide-react'
 
 
 class AdminErrorBoundary extends React.Component<{children: any}, {error: string}> {
@@ -29,7 +29,7 @@ class AdminErrorBoundary extends React.Component<{children: any}, {error: string
 
 const ADMIN_EMAILS = ['sangtruong@gmail.com']
 
-type Tab = 'dashboard' | 'shops' | 'users' | 'reviews' | 'trades' | 'events' | 'claims' | 'marketplace' | 'fcbd' | 'moderation'
+type Tab = 'dashboard' | 'shops' | 'users' | 'reviews' | 'trades' | 'events' | 'claims' | 'marketplace' | 'fcbd'
 
 export default function Admin() {
   const [checking, setChecking] = useState(true)
@@ -58,7 +58,6 @@ export default function Admin() {
   const [savingFcbd, setSavingFcbd] = useState(false)
   const [fcbdTitles, setFcbdTitles] = useState<any[]>([])
   const [fcbdParticipants, setFcbdParticipants] = useState<any[]>([])
-  const [comments, setComments] = useState<any[]>([])
   const [ftTitle, setFtTitle] = useState('')
   const [ftPublisher, setFtPublisher] = useState('')
   const [ftImage, setFtImage] = useState('')
@@ -189,15 +188,8 @@ export default function Admin() {
       setFcbdTitles(ft.data || [])
       const fp = await supabase.from('fcbd_participation').select('*, shops(name)').eq('year', yr).eq('participating', true).order('updated_at', { ascending: false })
       setFcbdParticipants(fp.data || [])
-      const [lc, tc] = await Promise.all([
-        supabase.from('listing_comments').select('*, listings(title)').order('created_at', { ascending: false }).limit(100),
-        supabase.from('trade_comments').select('*, trade_posts(offer)').order('created_at', { ascending: false }).limit(100),
-      ])
-      const combined = [
-        ...(lc.data || []).map((x: any) => ({ ...x, _type: 'listing', _context: x.listings?.title || 'a listing' })),
-        ...(tc.data || []).map((x: any) => ({ ...x, _type: 'trade', _context: x.trade_posts?.offer || 'a trade' })),
-      ].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      setComments(combined)
+      const li = await supabase.from('listings').select('*').order('created_at', { ascending: false })
+      setMarketItems(li.data || [])
     } catch (err) {
       console.error('fetchAll error', err)
     }
@@ -307,14 +299,8 @@ export default function Admin() {
     setClaims(claims.map(c => c.id === id ? { ...c, status: 'rejected' } : c))
   }
 
-  async function deleteCommentMod(c: any) {
-    const table = c._type === 'trade' ? 'trade_comments' : 'listing_comments'
-    await supabase.from(table).delete().eq('id', c.id)
-    setComments(prev => prev.filter((x: any) => x.id !== c.id))
-  }
-
   const pendingClaims = claims.filter(c => c.status === 'pending').length
-  const filteredMarket = (marketItems || []).filter((m: any) => m.name?.toLowerCase().includes(search.toLowerCase()))
+  const filteredMarket = (marketItems || []).filter((m: any) => m.title?.toLowerCase().includes(search.toLowerCase()) || m.username?.toLowerCase().includes(search.toLowerCase()))
   const eliteCount = users.filter(u => u.tier === 'elite').length
   const storeCount = users.filter(u => u.tier === 'store').length
   const mrr = ((eliteCount * 1.99) + (storeCount * 2.99)).toFixed(0)
@@ -334,9 +320,8 @@ export default function Admin() {
     { id: 'trades', icon: ArrowLeftRight, label: `Trades (${trades.length})` },
     { id: 'events', icon: Calendar, label: `Events (${events.length})` },
     { id: 'claims', icon: Shield, label: `Claims (${pendingClaims})` },
-    { id: 'marketplace', icon: Package, label: `Market (${marketItems.length})` },
+    { id: 'marketplace', icon: Package, label: `Listings (${marketItems.length})` },
     { id: 'fcbd', icon: Calendar, label: `FCBD (${fcbdTitles.length})` },
-    { id: 'moderation', icon: MessageSquare, label: `Q&A (${comments.length})` },
   ]
 
   function catStyle(cat: string) {
@@ -758,42 +743,6 @@ export default function Admin() {
         )}
 
         {/* CLAIMS */}
-        {tab === 'moderation' && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="font-black text-xl">Q&amp;A Moderation ({comments.length})</h2>
-              <span className="text-xs text-zinc-400 font-mono">listing + trade questions</span>
-            </div>
-            {comments.map((c: any) => (
-              <div key={`${c._type}-${c.id}`} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-black px-2 py-0.5 rounded-lg" style={c._type === 'trade' ? { background: '#EDE9FE', color: '#5B21B6' } : { background: '#E0F2FE', color: '#0369A1' }}>
-                        {c._type === 'trade' ? 'TRADE' : 'LISTING'}
-                      </span>
-                      <p className="text-xs font-mono text-zinc-400">@{c.username}</p>
-                    </div>
-                    <p className="text-sm text-zinc-800 break-words whitespace-pre-wrap">{c.body}</p>
-                    {c.image_url && <img src={c.image_url} alt="" className="mt-2 rounded-xl max-h-32 w-auto" />}
-                    <p className="text-xs text-zinc-300 mt-1 truncate">on: {c._context}</p>
-                  </div>
-                  <button onClick={() => deleteCommentMod(c)}
-                    className="flex-shrink-0 h-9 w-9 rounded-xl flex items-center justify-center text-red-500 border border-red-100 hover:bg-red-50">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-            {comments.length === 0 && (
-              <div className="text-center text-zinc-400 py-12">
-                <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-20" />
-                <p className="text-sm font-mono">No questions posted yet</p>
-              </div>
-            )}
-          </div>
-        )}
-
         {tab === 'claims' && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -856,47 +805,34 @@ export default function Admin() {
             {/* MARKETPLACE */}
           {tab === 'marketplace' && (
             <div className="space-y-3">
-              <h2 className="font-black text-xl">Vault Items ({filteredMarket.length})</h2>
+              <h2 className="font-black text-xl">Listings ({filteredMarket.length})</h2>
               {filteredMarket.map((item: any) => (
                 <div key={item.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4">
                   <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-black text-sm">{item.name}</p>
-                    {item.description && <p className="text-xs text-zinc-400 mt-0.5 truncate">{item.description}</p>}
-                    <div className="flex items-center gap-2 mt-1">
-                      {item.condition && <span className="text-xs font-bold px-2 py-0.5 rounded-lg" style={{ background: '#F0FDF4', color: '#166634' }}>{item.condition}</span>}
-                      <span className="text-xs font-mono text-zinc-400">${item.est_value}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-mono text-zinc-400 mb-1">@{item.username}</p>
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <p className="font-black text-sm truncate">{item.title}</p>
+                        {item.status === 'sold' && (
+                          <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded-full bg-zinc-800 text-white flex-shrink-0">Sold</span>
+                        )}
+                        {item.quantity > 1 && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-lg bg-zinc-100 text-zinc-500 flex-shrink-0">Qty: {item.quantity}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold" style={{ color: '#E0533C' }}>${Number(item.price).toLocaleString()}</span>
+                        {item.category && <span className="text-xs font-bold px-2 py-0.5 rounded-lg capitalize" style={{ background: '#F0FDF4', color: '#166634' }}>{item.category}</span>}
+                        {item.condition && <span className="text-xs text-zinc-400">{item.condition}</span>}
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex gap-2 flex-shrink-0">
-                    <button onClick={() => { setEditingMarket(item); setMarketFields({ name: item.name, est_value: item.est_value, condition: item.condition }) }}
-                      className="text-zinc-400 hover:text-zinc-700">
-                      <Edit2 className="h-4 w-4" />
-                    </button>
-                    <button onClick={() => deleteItem('vault_items', item.id, setMarketItems, marketItems)} className="text-red-400 hover:text-red-600">
+                    <button onClick={() => deleteItem('listings', item.id, setMarketItems, marketItems)} className="text-red-400 hover:text-red-600 flex-shrink-0">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
-                  </div>
-                {editingMarket?.id === item.id && (
-                  <div className="mt-3 pt-3 border-t border-zinc-100 space-y-2">
-                    <input value={marketFields.name || ''} onChange={e => setMarketFields({...marketFields, name: e.target.value})}
-                      placeholder="Item name" className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
-                    <input type="number" value={marketFields.est_value || ''} onChange={e => setMarketFields({...marketFields, est_value: parseFloat(e.target.value)})}
-                      placeholder="Value" className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
-                    <input value={marketFields.condition || ''} onChange={e => setMarketFields({...marketFields, condition: e.target.value})}
-                      placeholder="Condition" className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
-                    <div className="flex gap-2">
-                      <button onClick={saveMarketItem} className="flex-1 py-2 rounded-xl text-xs font-black text-white flex items-center justify-center gap-1"
-                        style={{ background: '#059669' }}><Check className="h-3 w-3" /> Save</button>
-                      <button onClick={() => { setEditingMarket(null); setMarketFields({}) }}
-                        className="flex-1 py-2 rounded-xl text-xs font-black bg-zinc-100 text-zinc-600">Cancel</button>
-                    </div>
-                  </div>
-                )}
-              </div>
+                </div>
               ))}
-              {filteredMarket.length === 0 && <p className="text-center text-zinc-400 py-8 text-sm font-mono">No vault items yet</p>}
+              {filteredMarket.length === 0 && <p className="text-center text-zinc-400 py-8 text-sm font-mono">No listings yet</p>}
             </div>
           )}
 

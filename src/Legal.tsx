@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { ArrowLeft } from 'lucide-react'
 
 const LAST_UPDATED = 'June 28, 2026'
