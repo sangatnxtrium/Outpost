@@ -28,24 +28,46 @@ export function useAuth() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
-      if (session?.user) fetchProfile(session.user.id)
+      if (session?.user) ensureProfile(session.user)
       setLoading(false)
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
-      if (session?.user) fetchProfile(session.user.id)
+      if (session?.user) ensureProfile(session.user)
       else setProfile(null)
     })
     return () => subscription.unsubscribe()
   }, [])
 
-  async function fetchProfile(userId: string) {
-    const { data } = await supabase
+  // Runs for EVERY valid session, not just the in-app "enter the 6-digit
+  // code" flow. This matters because Supabase can also confirm a brand-new
+  // signup via a clickable email link (depending on how the "Confirm signup"
+  // template is configured in the Supabase dashboard) -- that path never goes
+  // through verifyOtp() below, so without this fallback, a user who clicks
+  // the link instead of entering a code would end up with a valid session
+  // but no row in public.profiles: invisible in Admin, no username, forever.
+  async function ensureProfile(authUser: any) {
+    const { data: existing } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', userId)
-      .single()
-    if (data) setProfile(data)
+      .eq('id', authUser.id)
+      .maybeSingle()
+    if (existing) {
+      setProfile(existing)
+      return
+    }
+    const role = (authUser.user_metadata?.role as UserRole) || 'hunter'
+    const { data: created } = await supabase
+      .from('profiles')
+      .insert({
+        id: authUser.id,
+        username: (authUser.email || '').split('@')[0],
+        role,
+        tier: 'free',
+      })
+      .select('*')
+      .maybeSingle()
+    if (created) setProfile(created)
   }
 
   async function sendOtp(email: string, role: UserRole): Promise<{ error: string | null }> {
@@ -66,22 +88,7 @@ export function useAuth() {
       type: 'email',
     })
     if (error) return { error: error.message }
-    if (data.user) {
-      const { data: existing } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', data.user.id)
-        .maybeSingle()
-      if (!existing) {
-        const role = (data.user.user_metadata?.role as UserRole) || 'hunter'
-        await supabase.from('profiles').insert({
-          id: data.user.id,
-          username: email.split('@')[0],
-          role,
-          tier: 'free',
-        })
-      }
-    }
+    if (data.user) await ensureProfile(data.user)
     return { error: null }
   }
 
