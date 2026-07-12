@@ -518,6 +518,7 @@ export default function App() {
   const [offerMessage, setOfferMessage] = useState('')
   const [standingMap, setStandingMap] = useState<Record<string, any>>({})
   const [showStandingInfo, setShowStandingInfo] = useState(false)
+  const [showRewardsInfo, setShowRewardsInfo] = useState(false)
   const [reportedIds, setReportedIds] = useState<string[]>([])
   const [modal, setModal] = useState<ModalType>('none')
   const [search, setSearch] = useState('')
@@ -2275,13 +2276,13 @@ export default function App() {
                       <button onClick={async () => {
                           const { number, error } = await claimFoundingMember()
                           if (error) alert(error)
-                          else alert(`Welcome, Founding Member #${number}! Lifetime free Elite + a permanent 10% OP bonus.`)
+                          else alert(`Welcome, Founding Member #${number}! Lifetime free ${profile.role === 'merchant' ? 'Store' : 'Elite'}, forever.`)
                         }}
                         className="w-full text-left rounded-3xl p-4 shadow-sm mb-3 text-white relative overflow-hidden"
                         style={{ background: 'linear-gradient(135deg, #7C3AED, #5B21B6)' }}>
                         <p className="text-xs font-black uppercase text-white/60">Limited · 1,000 spots</p>
                         <p className="font-black text-base mt-1">Become a Founding Member</p>
-                        <p className="text-xs text-white/70 mt-1">Lifetime free Elite, a permanent +10% OP on everything you earn, and a serial-numbered badge on your profile — forever.</p>
+                        <p className="text-xs text-white/70 mt-1">Lifetime free {profile.role === 'merchant' ? 'Store tier' : 'Elite'} and a serial-numbered badge on your profile — forever.</p>
                       </button>
                     )}
 
@@ -2290,15 +2291,25 @@ export default function App() {
                         <Shield className="h-8 w-8 flex-shrink-0" />
                         <div>
                           <p className="font-black text-sm">Founding Member #{profile.founding_member_number}</p>
-                          <p className="text-xs text-white/70">Lifetime Elite · +10% OP bonus, forever</p>
+                          <p className="text-xs text-white/70">Lifetime {profile.tier === 'store' ? 'Store' : 'Elite'}, forever</p>
                         </div>
                       </div>
                     )}
 
                     {user && (
                       <div className="rounded-3xl p-4 shadow-sm border border-zinc-100 mb-3 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
-                        <p className="text-xs font-black uppercase text-white/50">Outpost Rewards</p>
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-black uppercase text-white/50">Outpost Rewards</p>
+                          <button onClick={() => setShowRewardsInfo(v => !v)} className="text-[11px] font-bold text-white/60 underline">How it works</button>
+                        </div>
                         <p className="text-3xl font-black mt-1">{opBalance.toLocaleString()} <span className="text-sm font-bold text-white/60">OP</span></p>
+                        {showRewardsInfo && (
+                          <div className="mt-3 pt-3 border-t border-white/10 space-y-1.5 text-xs text-white/70 leading-relaxed">
+                            <p><span className="font-bold text-white">Earning OP:</span> right now, invite friends — you get 500 OP the moment they join with your code, and another 500 OP the first time they check into a shop (we verify they're actually there before it counts).</p>
+                            <p><span className="font-bold text-white">Spending OP:</span> participating shops post their own rewards on their shop page — a free pack, a discount, whatever they choose. Tap Redeem, and you'll get a one-time code to show staff in person.</p>
+                            <p><span className="font-bold text-white">Founding Member:</span> the first 1,000 people to claim it get a lifetime free paid tier (Elite, or Store if you own a shop) and a serial-numbered badge, forever.</p>
+                          </div>
+                        )}
 
                         <div className="mt-4 pt-4 border-t border-white/10">
                           <p className="text-xs font-bold text-white/70 mb-1">Invite a friend — earn 500 OP when they join, another 500 when they visit their first shop</p>
@@ -3955,7 +3966,7 @@ export default function App() {
                 return (
                   <div key={n.id} className="flex items-start gap-3 px-5 py-4" style={{ background: !n.read ? 'rgba(224,83,60,0.04)' : 'white' }}>
                     <div className="h-10 w-10 rounded-2xl flex items-center justify-center flex-shrink-0 text-lg"
-                      style={{ background: !n.read ? 'rgba(224,83,60,0.1)' : '#F3F4F6' }}>{n.type === 'reply' ? '💬' : '❓'}</div>
+                      style={{ background: !n.read ? 'rgba(224,83,60,0.1)' : '#F3F4F6' }}>{n.type === 'reply' ? '💬' : n.type === 'reward' ? '🎁' : '❓'}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
                         <p className="font-black text-sm">{n.title}</p>
