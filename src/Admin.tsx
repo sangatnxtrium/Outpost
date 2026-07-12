@@ -30,7 +30,7 @@ class AdminErrorBoundary extends React.Component<{children: any}, {error: string
 
 const ADMIN_EMAILS = ['sangtruong@gmail.com']
 
-type Tab = 'dashboard' | 'shops' | 'users' | 'reviews' | 'trades' | 'events' | 'claims' | 'marketplace' | 'fcbd'
+type Tab = 'dashboard' | 'shops' | 'users' | 'reviews' | 'trades' | 'events' | 'claims' | 'marketplace' | 'fcbd' | 'rewards'
 
 export default function Admin() {
   const [checking, setChecking] = useState(true)
@@ -53,6 +53,9 @@ export default function Admin() {
   const [events, setEvents] = useState<any[]>([])
   const [claims, setClaims] = useState<any[]>([])
   const [marketItems, setMarketItems] = useState<any[]>([])
+  const [rewardOffers, setRewardOffers] = useState<any[]>([])
+  const [rewardRedemptions, setRewardRedemptions] = useState<any[]>([])
+  const [pointStats, setPointStats] = useState({ issued: 0, redeemed: 0, referralSignups: 0, referralVisits: 0, foundingMembers: 0 })
   const [checkins, setCheckins] = useState(0)
   const [fcbdYear, setFcbdYear] = useState(2027)
   const [fcbdDateStr, setFcbdDateStr] = useState('2027-05-01')
@@ -120,6 +123,12 @@ export default function Admin() {
     const { error } = await supabase.from('fcbd_titles').delete().eq('id', id)
     if (error) { alert(error.message); return }
     setFcbdTitles(fcbdTitles.filter(x => x.id !== id))
+  }
+
+  async function toggleRewardOfferActive(offer: any) {
+    const { error } = await supabase.from('reward_offers').update({ active: !offer.active }).eq('id', offer.id)
+    if (error) { alert(error.message); return }
+    setRewardOffers(rewardOffers.map((o: any) => o.id === offer.id ? { ...o, active: !offer.active } : o))
   }
 
   async function addEvent() {
@@ -208,6 +217,22 @@ export default function Admin() {
       setFcbdParticipants(fp.data || [])
       const li = await fetchAllRows(() => supabase.from('listings').select('*').order('created_at', { ascending: false }))
       setMarketItems(li)
+
+      const [ro, rr, pt, fm] = await Promise.all([
+        fetchAllRows(() => supabase.from('reward_offers').select('*, shops(name)').order('created_at', { ascending: false })),
+        fetchAllRows(() => supabase.from('reward_redemptions').select('*, shops(name), profiles(username)').order('created_at', { ascending: false })),
+        fetchAllRows(() => supabase.from('point_transactions').select('amount, reason')),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('is_founding_member', true),
+      ])
+      setRewardOffers(ro)
+      setRewardRedemptions(rr)
+      setPointStats({
+        issued: pt.filter((t: any) => t.amount > 0).reduce((s: number, t: any) => s + t.amount, 0),
+        redeemed: pt.filter((t: any) => t.amount < 0).reduce((s: number, t: any) => s - t.amount, 0),
+        referralSignups: pt.filter((t: any) => t.reason === 'referral_signup').length,
+        referralVisits: pt.filter((t: any) => t.reason === 'referral_first_visit').length,
+        foundingMembers: fm.count || 0,
+      })
     } catch (err) {
       console.error('fetchAll error', err)
     }
@@ -377,6 +402,7 @@ export default function Admin() {
     { id: 'claims', icon: Shield, label: `Claims (${pendingClaims})` },
     { id: 'marketplace', icon: Package, label: `Listings (${marketItems.length})` },
     { id: 'fcbd', icon: Calendar, label: `FCBD (${fcbdTitles.length})` },
+    { id: 'rewards', icon: Shield, label: `Rewards (${rewardOffers.length})` },
   ]
 
   function catStyle(cat: string) {
@@ -1055,6 +1081,65 @@ export default function Admin() {
                     ))}
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* REWARDS */}
+          {tab === 'rewards' && (
+            <div className="space-y-4">
+              <h2 className="font-black text-xl">Outpost Rewards</h2>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { label: 'OP Issued', value: pointStats.issued.toLocaleString(), color: '#059669' },
+                  { label: 'OP Redeemed', value: pointStats.redeemed.toLocaleString(), color: '#E0533C' },
+                  { label: 'Referral Signups', value: pointStats.referralSignups, color: '#7C3AED' },
+                  { label: 'Referral First Visits', value: pointStats.referralVisits, color: '#0284C7' },
+                  { label: 'Founding Members', value: `${pointStats.foundingMembers} / 1,000`, color: '#7C3AED' },
+                ].map(({ label, value, color }) => (
+                  <div key={label} className="bg-white rounded-2xl p-3 border border-zinc-100 shadow-sm">
+                    <p className="text-xs font-bold text-zinc-400 uppercase">{label}</p>
+                    <p className="text-xl font-black mt-1" style={{ color }}>{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-zinc-100 font-black text-sm">Reward Offers ({rewardOffers.length})</div>
+                {rewardOffers.length === 0 ? (
+                  <p className="text-center text-zinc-400 py-8 text-sm font-mono">No merchant reward offers yet</p>
+                ) : rewardOffers.map((o: any) => (
+                  <div key={o.id} className="px-4 py-3 flex items-center justify-between gap-3 border-b border-zinc-50 last:border-0">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold truncate">{o.title}</p>
+                      <p className="text-xs text-zinc-400">{o.shops?.name} · {o.points_cost.toLocaleString()} OP{o.quantity_available != null ? ` · ${o.quantity_redeemed}/${o.quantity_available} redeemed` : ` · ${o.quantity_redeemed} redeemed`}</p>
+                    </div>
+                    <button onClick={() => toggleRewardOfferActive(o)}
+                      className="text-xs font-black px-2.5 py-1.5 rounded-xl flex-shrink-0"
+                      style={o.active ? { background: '#F0FDF4', color: '#166534' } : { background: '#F3F4F6', color: '#6B7280' }}>
+                      {o.active ? 'Active' : 'Inactive'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-zinc-100 font-black text-sm">Recent Redemptions ({rewardRedemptions.length})</div>
+                {rewardRedemptions.length === 0 ? (
+                  <p className="text-center text-zinc-400 py-8 text-sm font-mono">No redemptions yet</p>
+                ) : rewardRedemptions.slice(0, 30).map((r: any) => (
+                  <div key={r.id} className="px-4 py-3 flex items-center justify-between gap-3 border-b border-zinc-50 last:border-0">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold truncate">@{r.profiles?.username} · {r.shops?.name}</p>
+                      <p className="text-xs text-zinc-400">{r.points_cost.toLocaleString()} OP · {new Date(r.created_at).toLocaleDateString()}</p>
+                    </div>
+                    <span className="text-xs font-black px-2 py-0.5 rounded-lg flex-shrink-0"
+                      style={r.status === 'fulfilled' ? { background: '#F0FDF4', color: '#166534' } : r.status === 'cancelled' ? { background: '#FEF2F2', color: '#991B1B' } : { background: '#FEF3C7', color: '#92400E' }}>
+                      {r.status}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           )}

@@ -204,10 +204,8 @@ export function useCheckins(shopId: string) {
       .then(({ count }) => setCheckinCount(count || 0))
   }, [shopId])
 
-  async function checkIn(userId: string, shopId: string): Promise<{ error: string | null }> {
-    const { error } = await supabase
-      .from('checkins')
-      .insert({ shop_id: shopId, user_id: userId })
+  async function checkIn(lat: number | null, lng: number | null): Promise<{ error: string | null }> {
+    const { error } = await supabase.rpc('check_in', { p_shop_id: shopId, p_lat: lat, p_lng: lng })
     if (!error) {
       setCheckinCount(c => c + 1)
       setUserCheckedIn(true)
@@ -705,4 +703,159 @@ export function useItemMessages(userId: string | null, itemId: string | null, it
   }
 
   return { threads, loading, sendItemMessage, refetch: fetchThreads }
+}
+
+// ---------------------------------------------------------------------------
+// Outpost Rewards: OP points, referrals, and merchant reward offers
+// ---------------------------------------------------------------------------
+
+export function usePoints(userId: string | null) {
+  const [balance, setBalance] = useState(0)
+  const [transactions, setTransactions] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  async function fetchPoints() {
+    if (!userId) { setBalance(0); setTransactions([]); setLoading(false); return }
+    setLoading(true)
+    const [b, t] = await Promise.all([
+      supabase.from('user_points_balance').select('balance').eq('user_id', userId).maybeSingle(),
+      supabase.from('point_transactions').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(50),
+    ])
+    setBalance(b.data?.balance || 0)
+    setTransactions(t.data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => { fetchPoints() }, [userId])
+
+  async function claimFoundingMember(): Promise<{ number: number | null; error: string | null }> {
+    const { data, error } = await supabase.rpc('claim_founding_member')
+    if (!error) fetchPoints()
+    return { number: typeof data === 'number' ? data : null, error: error?.message || null }
+  }
+
+  return { balance, transactions, loading, claimFoundingMember, refetch: fetchPoints }
+}
+
+export function useReferrals(userId: string | null) {
+  const [referralCode, setReferralCode] = useState<string | null>(null)
+  const [referredBy, setReferredBy] = useState<string | null>(null)
+  const [referredUsers, setReferredUsers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  async function fetchReferrals() {
+    if (!userId) { setReferralCode(null); setReferredUsers([]); setLoading(false); return }
+    setLoading(true)
+    const [me, refs] = await Promise.all([
+      supabase.from('profiles').select('referral_code, referred_by').eq('id', userId).maybeSingle(),
+      supabase.from('profiles').select('id, username, avatar_url, created_at').eq('referred_by', userId).order('created_at', { ascending: false }),
+    ])
+    setReferralCode(me.data?.referral_code || null)
+    setReferredBy(me.data?.referred_by || null)
+    setReferredUsers(refs.data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => { fetchReferrals() }, [userId])
+
+  async function claimReferral(code: string): Promise<{ error: string | null }> {
+    const { error } = await supabase.rpc('claim_referral', { p_code: code.trim().toUpperCase() })
+    if (!error) fetchReferrals()
+    return { error: error?.message || null }
+  }
+
+  return { referralCode, referredBy, referredUsers, loading, claimReferral, refetch: fetchReferrals }
+}
+
+export function useRewardOffers(shopId: string | null) {
+  const [offers, setOffers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  async function fetchOffers() {
+    if (!shopId) { setOffers([]); setLoading(false); return }
+    setLoading(true)
+    const { data } = await supabase.from('reward_offers').select('*').eq('shop_id', shopId).order('points_cost')
+    setOffers(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => { fetchOffers() }, [shopId])
+
+  async function redeemOffer(offerId: string): Promise<{ code: string | null; error: string | null }> {
+    const { data, error } = await supabase.rpc('redeem_reward_offer', { p_offer_id: offerId })
+    if (!error) fetchOffers()
+    const row = Array.isArray(data) ? data[0] : data
+    return { code: row?.code || null, error: error?.message || null }
+  }
+
+  return { offers, loading, redeemOffer, refetch: fetchOffers }
+}
+
+export function useMyRedemptions(userId: string | null) {
+  const [redemptions, setRedemptions] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  async function fetchRedemptions() {
+    if (!userId) { setRedemptions([]); setLoading(false); return }
+    setLoading(true)
+    const { data } = await supabase
+      .from('reward_redemptions')
+      .select('*, reward_offers(title), shops(name)')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+    setRedemptions(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => { fetchRedemptions() }, [userId])
+
+  return { redemptions, loading, refetch: fetchRedemptions }
+}
+
+// Merchant-side: manage a shop's own reward offers + confirm customer codes.
+export function useMerchantRewards(shopId: string | null) {
+  const [offers, setOffers] = useState<any[]>([])
+  const [pendingRedemptions, setPendingRedemptions] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  async function fetchAll() {
+    if (!shopId) { setOffers([]); setPendingRedemptions([]); setLoading(false); return }
+    setLoading(true)
+    const [o, r] = await Promise.all([
+      supabase.from('reward_offers').select('*').eq('shop_id', shopId).order('created_at', { ascending: false }),
+      supabase.from('reward_redemptions').select('*, profiles(username)').eq('shop_id', shopId).eq('status', 'pending').order('created_at', { ascending: false }),
+    ])
+    setOffers(o.data || [])
+    setPendingRedemptions(r.data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => { fetchAll() }, [shopId])
+
+  async function createOffer(fields: { title: string; description: string; points_cost: number; quantity_available: number | null }) {
+    if (!shopId) return { error: 'no shop' }
+    const { error } = await supabase.from('reward_offers').insert({ shop_id: shopId, ...fields })
+    if (!error) fetchAll()
+    return { error: error?.message || null }
+  }
+
+  async function updateOffer(id: string, fields: any) {
+    const { error } = await supabase.from('reward_offers').update(fields).eq('id', id)
+    if (!error) fetchAll()
+    return { error: error?.message || null }
+  }
+
+  async function deleteOffer(id: string) {
+    const { error } = await supabase.from('reward_offers').delete().eq('id', id)
+    if (!error) fetchAll()
+    return { error: error?.message || null }
+  }
+
+  async function confirmCode(code: string): Promise<{ error: string | null }> {
+    const { error } = await supabase.rpc('confirm_redemption', { p_code: code.trim().toUpperCase() })
+    if (!error) fetchAll()
+    return { error: error?.message || null }
+  }
+
+  return { offers, pendingRedemptions, loading, createOffer, updateOffer, deleteOffer, confirmCode, refetch: fetchAll }
 }

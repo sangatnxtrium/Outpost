@@ -13,6 +13,11 @@ export interface DbProfile {
   avatar_url?: string | null
   banner_url?: string | null
   created_at: string
+  referral_code?: string | null
+  referred_by?: string | null
+  is_founding_member?: boolean
+  founding_member_number?: number | null
+  op_multiplier?: number
 }
 
 export function useAuth() {

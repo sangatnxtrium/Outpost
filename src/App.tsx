@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react'
 import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { Compass, MapPin, Search, Flame, X, Store, User, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, ShieldCheck, DollarSign, Plus, Check, Phone, Bell, Heart, Star, BookOpen, Send, Globe, Newspaper, Share2, MessageCircle, ArrowLeft } from 'lucide-react'
+import { Compass, MapPin, Search, Flame, X, Store, User, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, ShieldCheck, DollarSign, Plus, Check, Phone, Bell, Heart, Star, BookOpen, Send, Globe, Newspaper, Share2, MessageCircle, ArrowLeft, Trash2 } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
-import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useNews, useListings, useFcbd, useFcbdTitles, useNotifications, useAppSettings, useListingOffers, useFollows, useConversations, useMessages, useItemMessages } from './hooks/useShops'
+import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useNews, useListings, useFcbd, useFcbdTitles, useNotifications, useAppSettings, useListingOffers, useFollows, useConversations, useMessages, useItemMessages, usePoints, useReferrals, useMyRedemptions, useRewardOffers, useMerchantRewards } from './hooks/useShops'
 import { startCheckout } from './lib/stripe'
 import { supabase } from './lib/supabase'
 
@@ -451,6 +451,40 @@ export default function App() {
   const { listings, loading: listingsLoading, uploadPhoto, createListing, updateListing, deleteListing } = useListings()
   const { items: notifications, unread: unreadCount, refetch: refetchNotifs, markAllRead } = useNotifications(user?.id || null)
   const { following, followingProfiles, toggleFollow } = useFollows(user?.id || null)
+  const { balance: opBalance, claimFoundingMember } = usePoints(user?.id || null)
+  const { referralCode, referredBy, referredUsers, claimReferral } = useReferrals(user?.id || null)
+
+  // Capture ?ref=CODE from an invite link before it's routed away, and claim
+  // it automatically once the visitor signs in (claim_referral() is safe to
+  // call more than once — it no-ops if the user already has a referrer).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const ref = params.get('ref')
+    if (ref) {
+      sessionStorage.setItem('outpost_ref', ref.toUpperCase())
+      params.delete('ref')
+      const rest = params.toString()
+      window.history.replaceState({}, '', window.location.pathname + (rest ? '?' + rest : ''))
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!user) return
+    const pending = sessionStorage.getItem('outpost_ref')
+    if (pending) {
+      claimReferral(pending).finally(() => sessionStorage.removeItem('outpost_ref'))
+    }
+  }, [user])
+  const { redemptions: myRedemptions } = useMyRedemptions(user?.id || null)
+  const { offers: shopRewardOffers, redeemOffer } = useRewardOffers(selectedShop?.id || null)
+  const { offers: myShopOffers, pendingRedemptions: myShopPendingRedemptions, createOffer: createRewardOffer, deleteOffer: deleteRewardOffer, confirmCode: confirmRewardCode } = useMerchantRewards(selectedShop?.id || null)
+  const [referralCodeInput, setReferralCodeInput] = useState('')
+  const [newOfferTitle, setNewOfferTitle] = useState('')
+  const [newOfferDesc, setNewOfferDesc] = useState('')
+  const [newOfferCost, setNewOfferCost] = useState('500')
+  const [newOfferQty, setNewOfferQty] = useState('')
+  const [confirmCodeInput, setConfirmCodeInput] = useState('')
+  const [redeemedCode, setRedeemedCode] = useState<string | null>(null)
   const { conversations, loading: conversationsLoading, totalUnread: unreadMessages } = useConversations(user?.id || null)
   const { settings: appSettings } = useAppSettings()
   const FCBD_YEAR = parseInt(appSettings.fcbd_year || '') || 2027
@@ -2237,6 +2271,92 @@ export default function App() {
                       </div>
                     )}
 
+                    {user && profile && !profile.is_founding_member && (
+                      <button onClick={async () => {
+                          const { number, error } = await claimFoundingMember()
+                          if (error) alert(error)
+                          else alert(`Welcome, Founding Member #${number}! Lifetime free Elite + a permanent 10% OP bonus.`)
+                        }}
+                        className="w-full text-left rounded-3xl p-4 shadow-sm mb-3 text-white relative overflow-hidden"
+                        style={{ background: 'linear-gradient(135deg, #7C3AED, #5B21B6)' }}>
+                        <p className="text-xs font-black uppercase text-white/60">Limited · 1,000 spots</p>
+                        <p className="font-black text-base mt-1">Become a Founding Member</p>
+                        <p className="text-xs text-white/70 mt-1">Lifetime free Elite, a permanent +10% OP on everything you earn, and a serial-numbered badge on your profile — forever.</p>
+                      </button>
+                    )}
+
+                    {user && profile?.is_founding_member && (
+                      <div className="rounded-3xl p-4 shadow-sm mb-3 text-white relative overflow-hidden flex items-center gap-3" style={{ background: 'linear-gradient(135deg, #7C3AED, #5B21B6)' }}>
+                        <Shield className="h-8 w-8 flex-shrink-0" />
+                        <div>
+                          <p className="font-black text-sm">Founding Member #{profile.founding_member_number}</p>
+                          <p className="text-xs text-white/70">Lifetime Elite · +10% OP bonus, forever</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {user && (
+                      <div className="rounded-3xl p-4 shadow-sm border border-zinc-100 mb-3 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
+                        <p className="text-xs font-black uppercase text-white/50">Outpost Rewards</p>
+                        <p className="text-3xl font-black mt-1">{opBalance.toLocaleString()} <span className="text-sm font-bold text-white/60">OP</span></p>
+
+                        <div className="mt-4 pt-4 border-t border-white/10">
+                          <p className="text-xs font-bold text-white/70 mb-1">Invite a friend — earn 500 OP when they join, another 500 when they visit their first shop</p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <div className="flex-1 bg-white/10 rounded-xl px-3 py-2 font-mono text-sm tracking-widest">{referralCode || '…'}</div>
+                            <button onClick={() => referralCode && shareUrl(`/?ref=${referralCode}`, 'Join me on Outpost')}
+                              className="px-3 py-2 rounded-xl text-xs font-black text-white flex-shrink-0" style={{ background: '#E0533C' }}>
+                              {shareCopied ? 'Copied!' : 'Share'}
+                            </button>
+                          </div>
+                          {referredUsers.length > 0 && (
+                            <p className="text-xs text-white/50 mt-2">{referredUsers.length} friend{referredUsers.length !== 1 ? 's' : ''} joined using your invite</p>
+                          )}
+                        </div>
+
+                        {!referredBy && (
+                          <div className="mt-4 pt-4 border-t border-white/10">
+                            <p className="text-xs font-bold text-white/70 mb-2">Have a friend's invite code?</p>
+                            <div className="flex items-center gap-2">
+                              <input value={referralCodeInput} onChange={e => setReferralCodeInput(e.target.value.toUpperCase())}
+                                placeholder="ABCD123" maxLength={7}
+                                className="flex-1 bg-white/10 border border-white/10 rounded-xl px-3 py-2 text-sm font-mono tracking-widest text-white placeholder:text-white/30 outline-none" />
+                              <button onClick={async () => {
+                                  const { error } = await claimReferral(referralCodeInput)
+                                  if (error) alert(error)
+                                  else { setReferralCodeInput(''); alert('Code applied!') }
+                                }}
+                                disabled={referralCodeInput.length < 6}
+                                className="px-3 py-2 rounded-xl text-xs font-black text-white disabled:opacity-40 flex-shrink-0" style={{ background: '#059669' }}>
+                                Apply
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {myRedemptions.length > 0 && (
+                          <div className="mt-4 pt-4 border-t border-white/10">
+                            <p className="text-xs font-bold text-white/70 mb-2">My redemptions</p>
+                            <div className="space-y-1.5">
+                              {myRedemptions.slice(0, 5).map((r: any) => (
+                                <div key={r.id} className="flex items-center justify-between bg-white/10 rounded-xl px-3 py-2">
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-bold truncate">{r.reward_offers?.title || 'Reward'}</p>
+                                    <p className="text-[11px] text-white/50 truncate">{r.shops?.name}</p>
+                                  </div>
+                                  {r.status === 'pending' ? (
+                                    <span className="text-sm font-mono font-black tracking-widest flex-shrink-0 ml-2" style={{ color: '#fca997' }}>{r.code}</span>
+                                  ) : (
+                                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 flex-shrink-0 ml-2">{r.status}</span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {myShop && (
                       <button onClick={() => openShop(myShop)}
                         className="w-full bg-white rounded-3xl p-4 text-left shadow-sm border border-zinc-100 mb-3 hover:shadow-md transition-all">
@@ -2732,12 +2852,126 @@ export default function App() {
                 ))}
               </div>
             )}
+
+            {selectedShop.owner_id === user?.id ? (
+              <div className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-black uppercase text-zinc-400">Manage Rewards</p>
+                  <span className="text-[10px] text-zinc-400 font-mono">Outpost Rewards Accepted Here</span>
+                </div>
+
+                {myShopPendingRedemptions.length > 0 && (
+                  <div className="mb-3 p-3 rounded-2xl" style={{ background: '#FEF3C7' }}>
+                    <p className="text-xs font-black text-amber-900 mb-1">{myShopPendingRedemptions.length} pending redemption{myShopPendingRedemptions.length !== 1 ? 's' : ''}</p>
+                    <p className="text-xs text-amber-800">Ask the customer for their 6-digit code and enter it below to confirm.</p>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 mb-4">
+                  <input value={confirmCodeInput} onChange={e => setConfirmCodeInput(e.target.value.toUpperCase())}
+                    placeholder="Customer's code" maxLength={6}
+                    className="flex-1 bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 text-sm font-mono tracking-widest outline-none" />
+                  <button onClick={async () => {
+                      const { error } = await confirmRewardCode(confirmCodeInput)
+                      if (error) alert(error)
+                      else { setConfirmCodeInput(''); alert('Redemption confirmed!') }
+                    }}
+                    disabled={confirmCodeInput.length < 6}
+                    className="px-4 py-2.5 rounded-xl text-xs font-black text-white disabled:opacity-40 flex-shrink-0"
+                    style={{ background: '#059669' }}>
+                    Confirm
+                  </button>
+                </div>
+
+                <div className="space-y-2 mb-3">
+                  {myShopOffers.map((o: any) => (
+                    <div key={o.id} className="flex items-center justify-between p-3 rounded-2xl" style={{ background: '#F8F7F2' }}>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold truncate">{o.title}</p>
+                        <p className="text-xs text-zinc-400">{o.points_cost.toLocaleString()} OP{o.quantity_available != null ? ` · ${o.quantity_available - o.quantity_redeemed} left` : ''}{!o.active ? ' · inactive' : ''}</p>
+                      </div>
+                      <button onClick={() => deleteRewardOffer(o.id)} className="text-red-400 flex-shrink-0"><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                  ))}
+                  {myShopOffers.length === 0 && <p className="text-xs text-zinc-400">No reward offers yet — post one below.</p>}
+                </div>
+
+                <div className="pt-3 border-t border-zinc-100 space-y-2">
+                  <input value={newOfferTitle} onChange={e => setNewOfferTitle(e.target.value)}
+                    placeholder="Reward (e.g. Free booster pack, 10% off)" className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                  <textarea value={newOfferDesc} onChange={e => setNewOfferDesc(e.target.value)}
+                    placeholder="Details (optional)" rows={2} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none resize-none" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input type="number" min={1} value={newOfferCost} onChange={e => setNewOfferCost(e.target.value)}
+                      placeholder="OP cost" className="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                    <input type="number" min={1} value={newOfferQty} onChange={e => setNewOfferQty(e.target.value)}
+                      placeholder="Qty available (blank = unlimited)" className="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-sm outline-none" />
+                  </div>
+                  <button onClick={async () => {
+                      if (!newOfferTitle.trim() || !newOfferCost) return
+                      const { error } = await createRewardOffer({
+                        title: newOfferTitle.trim(),
+                        description: newOfferDesc.trim(),
+                        points_cost: parseInt(newOfferCost) || 0,
+                        quantity_available: newOfferQty ? parseInt(newOfferQty) : null,
+                      })
+                      if (error) alert(error)
+                      else { setNewOfferTitle(''); setNewOfferDesc(''); setNewOfferCost('500'); setNewOfferQty('') }
+                    }}
+                    className="w-full py-2.5 rounded-2xl text-xs font-black uppercase text-white" style={{ background: '#E0533C' }}>
+                    Post Reward
+                  </button>
+                </div>
+              </div>
+            ) : shopRewardOffers.filter((o: any) => o.active).length > 0 && (
+              <div className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xs font-black uppercase text-zinc-400">Outpost Rewards Accepted Here</span>
+                </div>
+                <div className="space-y-2">
+                  {shopRewardOffers.filter((o: any) => o.active).map((o: any) => {
+                    const soldOut = o.quantity_available != null && o.quantity_redeemed >= o.quantity_available
+                    const affordable = opBalance >= o.points_cost
+                    return (
+                      <div key={o.id} className="flex items-center justify-between p-3 rounded-2xl" style={{ background: '#F8F7F2' }}>
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold truncate">{o.title}</p>
+                          {o.description && <p className="text-xs text-zinc-400 truncate">{o.description}</p>}
+                          <p className="text-xs font-bold mt-0.5" style={{ color: '#E0533C' }}>{o.points_cost.toLocaleString()} OP</p>
+                        </div>
+                        <button onClick={async () => {
+                            if (!isSignedIn) { setModal('auth'); return }
+                            const { code, error } = await redeemOffer(o.id)
+                            if (error) alert(error)
+                            else if (code) { setRedeemedCode(code); alert(`Redeemed! Show this code to staff: ${code}`) }
+                          }}
+                          disabled={soldOut || !affordable}
+                          className="px-3 py-2 rounded-xl text-xs font-black text-white disabled:opacity-40 flex-shrink-0"
+                          style={{ background: 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
+                          {soldOut ? 'Sold out' : !affordable ? 'Not enough OP' : 'Redeem'}
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+                {redeemedCode && (
+                  <div className="mt-3 p-3 rounded-2xl text-center" style={{ background: '#1a0a2e' }}>
+                    <p className="text-[10px] text-white/50 uppercase font-black">Show this to staff</p>
+                    <p className="text-2xl font-black tracking-widest text-white mt-1">{redeemedCode}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="bg-white rounded-3xl p-4 shadow-sm border border-zinc-100">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-black uppercase text-zinc-400">Reviews</p>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-zinc-400 font-mono">{checkinCount} check-ins</span>
-                  <button onClick={() => isSignedIn ? checkIn(user!.id, selectedShop.id) : setModal('auth')}
+                  <button onClick={async () => {
+                      if (!isSignedIn) { setModal('auth'); return }
+                      const { error } = await checkIn(userLat, userLng)
+                      if (error) alert(error)
+                    }}
                     disabled={userCheckedIn}
                     className="text-xs font-black px-3 py-1.5 rounded-xl text-white disabled:opacity-60 flex items-center gap-1"
                     style={{ background: userCheckedIn ? 'linear-gradient(135deg, #059669, #047857)' : 'linear-gradient(135deg, #1a0a2e, #302b63)' }}>
