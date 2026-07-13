@@ -1179,7 +1179,9 @@ export default function App() {
   async function handleReviewSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!inpRev.trim() || !user || !selectedShop) return
-    await addReview(selectedShop.id, user.id, profile?.username || 'Guest', inpRev, 5)
+    if ((selectedShop as any).owner_id === user.id) return
+    const { error } = await addReview(selectedShop.id, user.id, profile?.username || 'Guest', inpRev, 5)
+    if (error) { alert(error); return }
     setInpRev('')
   }
 
@@ -2997,15 +2999,19 @@ export default function App() {
                 </div>
               ))}
               {reviews.length === 0 && <p className="text-sm text-zinc-400 italic mb-3">No reviews yet</p>}
-              <form onSubmit={handleReviewSubmit} className="flex gap-2">
-                <input type="text" required value={inpRev} onChange={e => setInpRev(e.target.value)}
-                  placeholder={isSignedIn ? 'Leave a review...' : 'Sign in to review'}
-                  disabled={!isSignedIn}
-                  className="flex-1 bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none disabled:opacity-50" />
-                <button type="submit" disabled={!isSignedIn}
-                  className="text-white font-black px-4 py-2 rounded-2xl text-sm disabled:opacity-30"
-                  style={{ background: '#1a0a2e' }}>Post</button>
-              </form>
+              {(selectedShop as any).owner_id === user?.id ? (
+                <p className="text-xs text-zinc-400 italic">You can't review your own shop.</p>
+              ) : (
+                <form onSubmit={handleReviewSubmit} className="flex gap-2">
+                  <input type="text" required value={inpRev} onChange={e => setInpRev(e.target.value)}
+                    placeholder={isSignedIn ? 'Leave a review...' : 'Sign in to review'}
+                    disabled={!isSignedIn}
+                    className="flex-1 bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none disabled:opacity-50" />
+                  <button type="submit" disabled={!isSignedIn}
+                    className="text-white font-black px-4 py-2 rounded-2xl text-sm disabled:opacity-30"
+                    style={{ background: '#1a0a2e' }}>Post</button>
+                </form>
+              )}
             </div>
           </div>
         </div>
@@ -3738,6 +3744,25 @@ export default function App() {
                       </button>
                     ))}
                   </div>
+                  {role === 'merchant' && (
+                    <div className="mb-5 p-4 rounded-2xl" style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.15)' }}>
+                      <p className="text-xs font-black uppercase tracking-wider mb-2" style={{ color: '#7C3AED' }}>Why sign up as a Merchant</p>
+                      <ul className="space-y-1.5">
+                        {[
+                          'Free storefront — get discovered by local collectors searching your city',
+                          'Drive foot traffic with GPS check-ins and post rewards to bring hunters back',
+                          'List items for sale or trade directly in the marketplace',
+                          'Message buyers and traders directly, no middleman',
+                          'Get featured on local event and convention pages',
+                        ].map((b, i) => (
+                          <li key={i} className="flex items-start gap-2 text-xs text-zinc-500">
+                            <Check className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" style={{ color: '#7C3AED' }} />
+                            <span>{b}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   <form onSubmit={handleAuthSend} className="space-y-3">
                     <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com"
                       className="w-full border-2 border-zinc-100 rounded-2xl px-4 py-4 text-sm font-medium outline-none focus:border-zinc-300"
