@@ -1499,7 +1499,7 @@ export default function App() {
                   ].map(c => (
                     <button key={c.id} onClick={() => setOnbInterest(onbInterest === c.id ? null : c.id)}
                       className="py-4 rounded-2xl text-sm font-bold border-2 transition-all"
-                      style={onbInterest === c.id ? { borderColor: '#0F9D8A', background: 'rgba(15,157,138,0.06)', color: '#0F9D8A' } : { borderColor: '#262B28', background: 'white', color: '#C2C8C4' }}>
+                      style={onbInterest === c.id ? { borderColor: '#0F9D8A', background: 'rgba(15,157,138,0.06)', color: '#0F9D8A' } : { borderColor: '#262B28', background: '#131615', color: '#C2C8C4' }}>
                       {c.label}
                     </button>
                   ))}
@@ -1627,7 +1627,7 @@ export default function App() {
                     ].map(f => (
                       <button key={f.id} onClick={() => setFilter(f.id)}
                         className="px-4 py-1.5 rounded-full text-[13px] font-medium border transition-all whitespace-nowrap flex-shrink-0"
-                        style={filter === f.id ? { background: '#0F9D8A', borderColor: '#0F9D8A', color: 'white' } : { background: 'white', borderColor: '#262B28', color: '#C2C8C4' }}>
+                        style={filter === f.id ? { background: '#0F9D8A', borderColor: '#0F9D8A', color: 'white' } : { background: '#131615', borderColor: '#262B28', color: '#C2C8C4' }}>
                         {f.label}
                       </button>
                     ))}
@@ -1745,7 +1745,7 @@ export default function App() {
                       ].map(f => (
                         <button key={f.id} onClick={() => setEventFilter(f.id)}
                           className="px-4 py-2 rounded-2xl text-xs font-black uppercase border-2 transition-all whitespace-nowrap flex-shrink-0"
-                          style={eventFilter === f.id ? { background: f.color, borderColor: f.color, color: 'white' } : { background: 'white', borderColor: '#262B28', color: '#9ca3af' }}>
+                          style={eventFilter === f.id ? { background: f.color, borderColor: f.color, color: 'white' } : { background: '#131615', borderColor: '#262B28', color: '#9ca3af' }}>
                           {f.label}
                         </button>
                       ))}
@@ -1808,7 +1808,7 @@ export default function App() {
                             {ev.description && <p className="text-xs text-zinc-500 leading-relaxed">{ev.description}</p>}
                             <button onClick={() => toggleRsvp(ev.id)}
                               className="w-full mt-3 py-2.5 rounded-2xl text-xs font-black uppercase border-2 transition-all"
-                              style={rsvps.includes(ev.id) ? { background: '#F0FDF4', color: '#166534', borderColor: '#BBF7D0' } : { background: 'white', color: '#9ca3af', borderColor: '#262B28' }}>
+                              style={rsvps.includes(ev.id) ? { background: '#F0FDF4', color: '#166534', borderColor: '#BBF7D0' } : { background: '#131615', color: '#9ca3af', borderColor: '#262B28' }}>
                               {rsvps.includes(ev.id) ? '✓ Going' : 'RSVP'}
                             </button>
                           </div>
@@ -1979,7 +1979,7 @@ export default function App() {
                   ].map(f => (
                     <button key={f.id} onClick={() => setMktFilter(f.id)}
                       className="px-4 py-1.5 rounded-full text-[13px] font-medium border transition-all whitespace-nowrap flex-shrink-0"
-                      style={mktFilter === f.id ? { background: '#0F9D8A', borderColor: '#0F9D8A', color: 'white' } : { background: 'white', borderColor: '#262B28', color: '#C2C8C4' }}>
+                      style={mktFilter === f.id ? { background: '#0F9D8A', borderColor: '#0F9D8A', color: 'white' } : { background: '#131615', borderColor: '#262B28', color: '#C2C8C4' }}>
                       {f.label}
                     </button>
                   ))}
@@ -2078,7 +2078,7 @@ export default function App() {
                         {['All', ...cats].map((c: string) => (
                           <button key={c} onClick={() => setNewsFilter(c)}
                             className="px-3.5 py-1.5 rounded-full text-xs font-bold flex-shrink-0 border transition-all"
-                            style={newsFilter === c ? { background: '#F5F5F4', borderColor: '#F5F5F4', color: 'white' } : { background: 'white', borderColor: '#262B28', color: '#C2C8C4' }}>
+                            style={newsFilter === c ? { background: '#0F9D8A', borderColor: '#0F9D8A', color: 'white' } : { background: '#131615', borderColor: '#262B28', color: '#C2C8C4' }}>
                             {c}
                           </button>
                         ))}
@@ -2811,7 +2811,7 @@ export default function App() {
                             : cat === 'comics' ? { background: '#FEF3C7', borderColor: '#D97706', color: '#D97706' }
                             : cat === 'toys' ? { background: '#D1FAE5', borderColor: '#059669', color: '#059669' }
                             : { background: '#EDE9FE', borderColor: '#7C3AED', color: '#7C3AED' }
-                            : { background: 'white', borderColor: '#262B28', color: '#9ca3af' }}>
+                            : { background: '#131615', borderColor: '#262B28', color: '#9ca3af' }}>
                           {cat === 'cards' ? '🃏' : cat === 'comics' ? '📚' : cat === 'toys' ? '🧸' : '🏆'} {cat}
                         </button>
                       ))}
@@ -2858,7 +2858,7 @@ export default function App() {
                     </div>
                     <button onClick={() => toggleRsvp(ev.id)}
                       className="text-xs font-black uppercase px-3 py-1.5 rounded-xl border-2"
-                      style={rsvps.includes(ev.id) ? { background: '#F0FDF4', color: '#166534', borderColor: '#BBF7D0' } : { background: 'white', color: '#9ca3af', borderColor: '#262B28' }}>
+                      style={rsvps.includes(ev.id) ? { background: '#F0FDF4', color: '#166534', borderColor: '#BBF7D0' } : { background: '#131615', color: '#9ca3af', borderColor: '#262B28' }}>
                       {rsvps.includes(ev.id) ? '✓ RSVP' : 'RSVP'}
                     </button>
                   </div>
@@ -3661,7 +3661,7 @@ export default function App() {
                           : cat === 'comics' ? { background: '#FEF3C7', borderColor: '#D97706', color: '#D97706' }
                           : cat === 'toys' ? { background: '#D1FAE5', borderColor: '#059669', color: '#059669' }
                           : { background: '#EDE9FE', borderColor: '#7C3AED', color: '#7C3AED' }
-                          : { background: 'white', borderColor: '#262B28', color: '#9ca3af' }}>
+                          : { background: '#131615', borderColor: '#262B28', color: '#9ca3af' }}>
                         {cat === 'cards' ? '🃏' : cat === 'comics' ? '📚' : cat === 'toys' ? '🧸' : '🏆'} {cat}
                       </button>
                     ))}
@@ -3737,7 +3737,7 @@ export default function App() {
                         style={role === r.id
                           ? r.id === 'merchant' ? { borderColor: '#7C3AED', background: '#7C3AED', color: 'white' }
                             : { borderColor: '#131615', background: '#131615', color: 'white' }
-                          : { borderColor: '#262B28', background: 'white', color: '#9ca3af' }}>
+                          : { borderColor: '#262B28', background: '#131615', color: '#9ca3af' }}>
                         <r.icon className="h-6 w-6" style={{ color: role === r.id ? (r.id === 'merchant' ? 'white' : '#0F9D8A') : '#3A403C' }} />
                         <span className="text-sm font-black uppercase">{r.label}</span>
                         <span className="text-xs opacity-50 font-mono">{r.sub}</span>
@@ -3923,7 +3923,7 @@ export default function App() {
                   {(['shop', 'event'] as const).map(t => (
                     <button key={t} onClick={() => setSubmitType(t)}
                       className="py-3 rounded-2xl text-xs font-black uppercase border-2 transition-all"
-                      style={submitType === t ? { background: '#7C3AED', borderColor: '#7C3AED', color: 'white' } : { background: 'white', borderColor: '#262B28', color: '#9ca3af' }}>
+                      style={submitType === t ? { background: '#7C3AED', borderColor: '#7C3AED', color: 'white' } : { background: '#131615', borderColor: '#262B28', color: '#9ca3af' }}>
                       {t === 'shop' ? '🏪 New Shop' : '📅 New Event'}
                     </button>
                   ))}
