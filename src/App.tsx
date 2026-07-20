@@ -1542,7 +1542,7 @@ export default function App() {
         <div className="flex-1 flex flex-col min-h-screen max-w-2xl mx-auto w-full md:max-w-none">
 
           {/* HEADER */}
-          <header className="sticky top-0 z-20 px-4 pt-10 pb-3 md:pt-3 md:pb-3 border-b border-zinc-200 bg-white/95 backdrop-blur">
+          <header className="sticky top-0 z-20 px-4 pt-10 pb-3 md:pt-3 md:pb-3 border-b border-zinc-200 bg-[#0A0B0C]/95 backdrop-blur">
             <div className="flex items-center justify-between gap-2 md:hidden">
               <div className="min-w-0 flex-1">
                 <img src="/logo.png" alt="getOutpost.net" onClick={() => goTab('discover')} className="h-[75px] w-auto cursor-pointer" />
