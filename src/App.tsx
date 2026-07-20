@@ -2650,7 +2650,7 @@ export default function App() {
                     <a href={(selectedShop as any).website.startsWith('http') ? (selectedShop as any).website : `https://${(selectedShop as any).website}`}
                       target="_blank" rel="noopener noreferrer" aria-label="Website"
                       className="h-11 w-11 flex items-center justify-center rounded-2xl text-white"
-                      style={{ background: '#ECEFED' }}>
+                      style={{ background: '#262B28' }}>
                       <Globe className="h-4 w-4" />
                     </a>
                   )}
@@ -2658,10 +2658,10 @@ export default function App() {
               </div>
             </div>
             {fcbdShopIds.has(selectedShop.id) && (
-              <div className="rounded-3xl p-4 border" style={{ background: '#eff6ff', borderColor: '#bfdbfe' }}>
+              <div className="rounded-3xl p-4 border" style={{ background: 'rgba(59,130,246,0.08)', borderColor: 'rgba(59,130,246,0.3)' }}>
                 <div className="flex items-center gap-2">
-                  <BookOpen className="h-4 w-4" style={{ color: '#1d4ed8' }} />
-                  <p className="font-black text-sm" style={{ color: '#1d4ed8' }}>FCBD {FCBD_YEAR} participant</p>
+                  <BookOpen className="h-4 w-4" style={{ color: '#60A5FA' }} />
+                  <p className="font-black text-sm" style={{ color: '#60A5FA' }}>FCBD {FCBD_YEAR} participant</p>
                 </div>
                 {fcbdOfferByShop.get(selectedShop.id) && (
                   <p className="text-sm text-zinc-700 mt-2 whitespace-pre-wrap">{String(fcbdOfferByShop.get(selectedShop.id))}</p>
@@ -2874,9 +2874,9 @@ export default function App() {
                 </div>
 
                 {myShopPendingRedemptions.length > 0 && (
-                  <div className="mb-3 p-3 rounded-2xl" style={{ background: '#FEF3C7' }}>
-                    <p className="text-xs font-black text-amber-900 mb-1">{myShopPendingRedemptions.length} pending redemption{myShopPendingRedemptions.length !== 1 ? 's' : ''}</p>
-                    <p className="text-xs text-amber-800">Ask the customer for their 6-digit code and enter it below to confirm.</p>
+                  <div className="mb-3 p-3 rounded-2xl border" style={{ background: 'rgba(245,158,11,0.08)', borderColor: 'rgba(245,158,11,0.3)' }}>
+                    <p className="text-xs font-black mb-1" style={{ color: '#FBBF24' }}>{myShopPendingRedemptions.length} pending redemption{myShopPendingRedemptions.length !== 1 ? 's' : ''}</p>
+                    <p className="text-xs" style={{ color: '#FCD34D' }}>Ask the customer for their 6-digit code and enter it below to confirm.</p>
                   </div>
                 )}
                 <div className="flex items-center gap-2 mb-4">
@@ -3317,7 +3317,7 @@ export default function App() {
                       </div>
                     )}
                     {myOffer && myOffer.status === 'countered' && (
-                      <div className="rounded-2xl p-3 space-y-2" style={{ background: '#FFFBEB', border: '1px solid #FDE68A' }}>
+                      <div className="rounded-2xl p-3 space-y-2" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)' }}>
                         <p className="text-sm text-zinc-700">Seller countered: <span className="font-semibold">${Number(myOffer.counter_amount).toLocaleString()}</span></p>
                         {myOffer.counter_message && <p className="text-xs text-zinc-500">"{myOffer.counter_message}"</p>}
                         <div className="flex gap-2">
@@ -3677,10 +3677,10 @@ export default function App() {
             {claimStep === 2 && (
               <div className="space-y-3">
                 <p className="text-sm font-black mb-3">Step 2 — Verify with EIN</p>
-                <div className="p-4 rounded-2xl" style={{ background: '#FEF3C7' }}>
+                <div className="p-4 rounded-2xl border" style={{ background: 'rgba(245,158,11,0.08)', borderColor: 'rgba(245,158,11,0.3)' }}>
                   <div className="flex items-start gap-2">
-                    <Shield className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-amber-800 leading-relaxed">Your EIN is used only to verify business ownership. Never stored or shared.</p>
+                    <Shield className="h-4 w-4 flex-shrink-0 mt-0.5" style={{ color: '#FBBF24' }} />
+                    <p className="text-xs leading-relaxed" style={{ color: '#FCD34D' }}>Your EIN is used only to verify business ownership. Never stored or shared.</p>
                   </div>
                 </div>
                 <input type="text" value={einInput} onChange={e => setEinInput(e.target.value)}
