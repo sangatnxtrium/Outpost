@@ -2544,8 +2544,8 @@ export default function App() {
           </main>
 
           {/* MOBILE BOTTOM NAV */}
-          <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t border-zinc-200 px-1 py-2 pb-6 flex items-center justify-around z-20"
-            style={{ background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(20px)' }}>
+          <nav className="md:hidden fixed bottom-4 left-4 right-4 rounded-full px-2 py-2.5 flex items-center justify-around z-20 border"
+            style={{ background: 'rgba(19,22,21,0.92)', backdropFilter: 'blur(20px)', borderColor: 'rgba(255,255,255,0.08)', boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}>
             {[
               { id: 'discover', icon: Search, label: 'Discover' },
               { id: 'marketplace', icon: Store, label: 'Marketplace' },
