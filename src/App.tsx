@@ -225,7 +225,7 @@ function timeAgo(iso: string | null | undefined): string {
 }
 
 const STANDING_STYLE: Record<string, { bg: string; fg: string }> = {
-  New:         { bg: '#F4F4F5', fg: '#71717A' },
+  New:         { bg: '#1A1E1C', fg: '#ACB3AE' },
   Member:      { bg: '#E0F2FE', fg: '#0369A1' },
   Established: { bg: '#EDE9FE', fg: '#6D28D9' },
   Trusted:     { bg: '#FEF3C7', fg: '#B45309' },
@@ -264,7 +264,7 @@ function StarPicker({ value, onChange, size = 'md' }: { value: number; onChange:
     <div className="flex items-center gap-1">
       {[1, 2, 3, 4, 5].map(n => (
         <button key={n} type="button" onClick={() => onChange(n)} aria-label={`${n} star`}>
-          <Star className={cls} style={n <= value ? { fill: '#F59E0B', color: '#F59E0B' } : { color: '#d4d4d8' }} />
+          <Star className={cls} style={n <= value ? { fill: '#F59E0B', color: '#F59E0B' } : { color: '#3A403C' }} />
         </button>
       ))}
     </div>
@@ -342,7 +342,7 @@ function ItemMessages({ threads, loading, isOwner, currentUserId, isSignedIn, dr
               {threads[0].messages.map((m: any) => (
                 <div key={m.id} className={`flex ${m.sender_id === currentUserId ? 'justify-end' : 'justify-start'}`}>
                   <div className="max-w-[80%] rounded-2xl px-3 py-1.5 text-sm"
-                    style={m.sender_id === currentUserId ? { background: '#0F9D8A', color: 'white' } : { background: '#f4f4f5', color: '#18181b' }}>
+                    style={m.sender_id === currentUserId ? { background: '#0F9D8A', color: 'white' } : { background: '#1A1E1C', color: '#F5F5F4' }}>
                     {m.body}
                   </div>
                 </div>
@@ -394,7 +394,7 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal, unreadCount, unre
       {items.map(({ id, icon: Icon, label }) => (
         <button key={id} onClick={() => setTab(id as TabType)}
           className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all font-medium text-sm"
-          style={tab === id ? { background: '#0F9D8A', color: 'white' } : { color: '#52525b' }}>
+          style={tab === id ? { background: '#0F9D8A', color: 'white' } : { color: '#C2C8C4' }}>
           <Icon className="h-4 w-4 flex-shrink-0" />
           {label}
           {id === 'messages' && unreadMessages > 0 && (
@@ -1437,7 +1437,7 @@ export default function App() {
             onClick={(e) => { e.stopPropagation(); toggleSaveShop(s.id) }}
             aria-label={isSaved ? 'Saved' : 'Save shop'}
             className="absolute top-2.5 right-2.5 h-8 w-8 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm">
-            <Heart className="h-[18px] w-[18px] transition-colors" style={isSaved ? { color: '#0F9D8A', fill: '#0F9D8A' } : { color: '#52525b' }} />
+            <Heart className="h-[18px] w-[18px] transition-colors" style={isSaved ? { color: '#0F9D8A', fill: '#0F9D8A' } : { color: '#C2C8C4' }} />
           </button>
           <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5 items-start">
             {s.hot_find && (
@@ -1469,7 +1469,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen text-[#18191B] font-sans" style={{ background: '#FAFAF9' }}>
+    <div className="min-h-screen text-[#F5F5F4] font-sans" style={{ background: '#0A0B0C' }}>
       {showOnboarding && (
         <div className="fixed inset-0 z-[60] flex flex-col" style={{ background: '#0A0B0C' }}>
           <div className="flex-1 flex flex-col items-center justify-center px-6 max-w-md mx-auto w-full text-center">
@@ -1499,7 +1499,7 @@ export default function App() {
                   ].map(c => (
                     <button key={c.id} onClick={() => setOnbInterest(onbInterest === c.id ? null : c.id)}
                       className="py-4 rounded-2xl text-sm font-bold border-2 transition-all"
-                      style={onbInterest === c.id ? { borderColor: '#0F9D8A', background: 'rgba(15,157,138,0.06)', color: '#0F9D8A' } : { borderColor: '#e4e4e7', background: 'white', color: '#52525b' }}>
+                      style={onbInterest === c.id ? { borderColor: '#0F9D8A', background: 'rgba(15,157,138,0.06)', color: '#0F9D8A' } : { borderColor: '#262B28', background: 'white', color: '#C2C8C4' }}>
                       {c.label}
                     </button>
                   ))}
@@ -1513,8 +1513,8 @@ export default function App() {
             )}
           </div>
           <div className="flex items-center justify-center gap-2 pb-10">
-            <div className="h-1.5 rounded-full transition-all" style={{ width: onbStep === 1 ? 20 : 8, background: onbStep === 1 ? '#0F9D8A' : '#d4d4d8' }} />
-            <div className="h-1.5 rounded-full transition-all" style={{ width: onbStep === 2 ? 20 : 8, background: onbStep === 2 ? '#0F9D8A' : '#d4d4d8' }} />
+            <div className="h-1.5 rounded-full transition-all" style={{ width: onbStep === 1 ? 20 : 8, background: onbStep === 1 ? '#0F9D8A' : '#3A403C' }} />
+            <div className="h-1.5 rounded-full transition-all" style={{ width: onbStep === 2 ? 20 : 8, background: onbStep === 2 ? '#0F9D8A' : '#3A403C' }} />
           </div>
         </div>
       )}
@@ -1600,17 +1600,17 @@ export default function App() {
                 <div className="inline-flex rounded-full border border-zinc-200 p-0.5 bg-zinc-50">
                   <button onClick={() => setActiveSection('shops')}
                     className="px-4 py-1.5 rounded-full text-[13px] font-medium transition-all"
-                    style={activeSection === 'shops' ? { background: '#0F9D8A', color: 'white' } : { color: '#52525b' }}>
+                    style={activeSection === 'shops' ? { background: '#0F9D8A', color: 'white' } : { color: '#C2C8C4' }}>
                     Shops
                   </button>
                   <button onClick={() => setActiveSection('events')}
                     className="px-4 py-1.5 rounded-full text-[13px] font-medium transition-all"
-                    style={activeSection === 'events' ? { background: '#0F9D8A', color: 'white' } : { color: '#52525b' }}>
+                    style={activeSection === 'events' ? { background: '#0F9D8A', color: 'white' } : { color: '#C2C8C4' }}>
                     Events
                   </button>
                   <button onClick={() => setActiveSection('fcbd')}
                     className="px-4 py-1.5 rounded-full text-[13px] font-medium transition-all"
-                    style={activeSection === 'fcbd' ? { background: '#0F9D8A', color: 'white' } : { color: '#52525b' }}>
+                    style={activeSection === 'fcbd' ? { background: '#0F9D8A', color: 'white' } : { color: '#C2C8C4' }}>
                     FCBD
                   </button>
                 </div>
@@ -1627,7 +1627,7 @@ export default function App() {
                     ].map(f => (
                       <button key={f.id} onClick={() => setFilter(f.id)}
                         className="px-4 py-1.5 rounded-full text-[13px] font-medium border transition-all whitespace-nowrap flex-shrink-0"
-                        style={filter === f.id ? { background: '#0F9D8A', borderColor: '#0F9D8A', color: 'white' } : { background: 'white', borderColor: '#e4e4e7', color: '#52525b' }}>
+                        style={filter === f.id ? { background: '#0F9D8A', borderColor: '#0F9D8A', color: 'white' } : { background: 'white', borderColor: '#262B28', color: '#C2C8C4' }}>
                         {f.label}
                       </button>
                     ))}
@@ -1646,10 +1646,10 @@ export default function App() {
                     <div className="ml-auto inline-flex rounded-full border border-zinc-200 p-0.5 bg-zinc-50 flex-shrink-0">
                       <button onClick={() => setDiscoverView('list')}
                         className="px-3 py-1 rounded-full text-xs font-bold transition-all"
-                        style={discoverView === 'list' ? { background: '#0F9D8A', color: 'white' } : { color: '#52525b' }}>List</button>
+                        style={discoverView === 'list' ? { background: '#0F9D8A', color: 'white' } : { color: '#C2C8C4' }}>List</button>
                       <button onClick={() => setDiscoverView('map')}
                         className="px-3 py-1 rounded-full text-xs font-bold transition-all"
-                        style={discoverView === 'map' ? { background: '#0F9D8A', color: 'white' } : { color: '#52525b' }}>Map</button>
+                        style={discoverView === 'map' ? { background: '#0F9D8A', color: 'white' } : { color: '#C2C8C4' }}>Map</button>
                     </div>
                   </div>
                 )}
@@ -1707,7 +1707,7 @@ export default function App() {
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
                               <span className="text-xs font-bold px-2 py-0.5 rounded-lg inline-block mb-2"
-                                style={item.condition === 'Graded' ? { background: '#EDE9FE', color: '#5B21B6' } : { background: '#F3F4F6', color: '#6B7280' }}>
+                                style={item.condition === 'Graded' ? { background: '#EDE9FE', color: '#5B21B6' } : { background: '#1A1E1C', color: '#ACB3AE' }}>
                                 {item.condition}
                               </span>
                               <p className="font-bold text-sm leading-tight">{item.title}</p>
@@ -1745,7 +1745,7 @@ export default function App() {
                       ].map(f => (
                         <button key={f.id} onClick={() => setEventFilter(f.id)}
                           className="px-4 py-2 rounded-2xl text-xs font-black uppercase border-2 transition-all whitespace-nowrap flex-shrink-0"
-                          style={eventFilter === f.id ? { background: f.color, borderColor: f.color, color: 'white' } : { background: 'white', borderColor: '#e5e7eb', color: '#9ca3af' }}>
+                          style={eventFilter === f.id ? { background: f.color, borderColor: f.color, color: 'white' } : { background: 'white', borderColor: '#262B28', color: '#9ca3af' }}>
                           {f.label}
                         </button>
                       ))}
@@ -1808,7 +1808,7 @@ export default function App() {
                             {ev.description && <p className="text-xs text-zinc-500 leading-relaxed">{ev.description}</p>}
                             <button onClick={() => toggleRsvp(ev.id)}
                               className="w-full mt-3 py-2.5 rounded-2xl text-xs font-black uppercase border-2 transition-all"
-                              style={rsvps.includes(ev.id) ? { background: '#F0FDF4', color: '#166534', borderColor: '#BBF7D0' } : { background: 'white', color: '#9ca3af', borderColor: '#e5e7eb' }}>
+                              style={rsvps.includes(ev.id) ? { background: '#F0FDF4', color: '#166534', borderColor: '#BBF7D0' } : { background: 'white', color: '#9ca3af', borderColor: '#262B28' }}>
                               {rsvps.includes(ev.id) ? '✓ Going' : 'RSVP'}
                             </button>
                           </div>
@@ -1930,10 +1930,10 @@ export default function App() {
                   <div className="inline-flex rounded-full border border-zinc-200 p-0.5 bg-zinc-50">
                     <button onClick={() => setMktSection('sale')}
                       className="px-4 py-1.5 rounded-full text-[13px] font-medium transition-all"
-                      style={mktSection === 'sale' ? { background: '#0F9D8A', color: 'white' } : { color: '#52525b' }}>For Sale</button>
+                      style={mktSection === 'sale' ? { background: '#0F9D8A', color: 'white' } : { color: '#C2C8C4' }}>For Sale</button>
                     <button onClick={() => setMktSection('trade')}
                       className="px-4 py-1.5 rounded-full text-[13px] font-medium transition-all"
-                      style={mktSection === 'trade' ? { background: '#0F9D8A', color: 'white' } : { color: '#52525b' }}>Trades</button>
+                      style={mktSection === 'trade' ? { background: '#0F9D8A', color: 'white' } : { color: '#C2C8C4' }}>Trades</button>
                   </div>
                   <button onClick={() => isSignedIn ? (setMktPhotos([]), setEditingListingId(null), setEditingTradeId(null), setModal(mktSection === 'sale' ? 'listsale' : 'posttrade')) : setModal('auth')}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium text-white flex-shrink-0"
@@ -1979,7 +1979,7 @@ export default function App() {
                   ].map(f => (
                     <button key={f.id} onClick={() => setMktFilter(f.id)}
                       className="px-4 py-1.5 rounded-full text-[13px] font-medium border transition-all whitespace-nowrap flex-shrink-0"
-                      style={mktFilter === f.id ? { background: '#0F9D8A', borderColor: '#0F9D8A', color: 'white' } : { background: 'white', borderColor: '#e4e4e7', color: '#52525b' }}>
+                      style={mktFilter === f.id ? { background: '#0F9D8A', borderColor: '#0F9D8A', color: 'white' } : { background: 'white', borderColor: '#262B28', color: '#C2C8C4' }}>
                       {f.label}
                     </button>
                   ))}
@@ -2078,7 +2078,7 @@ export default function App() {
                         {['All', ...cats].map((c: string) => (
                           <button key={c} onClick={() => setNewsFilter(c)}
                             className="px-3.5 py-1.5 rounded-full text-xs font-bold flex-shrink-0 border transition-all"
-                            style={newsFilter === c ? { background: '#18181b', borderColor: '#18181b', color: 'white' } : { background: 'white', borderColor: '#e4e4e7', color: '#52525b' }}>
+                            style={newsFilter === c ? { background: '#F5F5F4', borderColor: '#F5F5F4', color: 'white' } : { background: 'white', borderColor: '#262B28', color: '#C2C8C4' }}>
                             {c}
                           </button>
                         ))}
@@ -2098,7 +2098,7 @@ export default function App() {
                             <a key={a.id} href={a.url} target="_blank" rel="noopener noreferrer"
                               className="block bg-zinc-50 rounded-2xl border border-zinc-200 p-4 hover:shadow-md transition-all">
                               <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                                {a.source_name && <span className="text-[11px] font-bold px-2 py-0.5 rounded-md" style={{ background: '#F4F4F5', color: '#3f3f46' }}>{a.source_name}</span>}
+                                {a.source_name && <span className="text-[11px] font-bold px-2 py-0.5 rounded-md" style={{ background: '#1A1E1C', color: '#D8DDD9' }}>{a.source_name}</span>}
                                 <span className="text-[11px] font-bold px-2 py-0.5 rounded-md" style={{ background: '#FEF3C7', color: '#92400E' }}>{a.category}</span>
                                 <span className="text-[11px] text-zinc-400">{timeAgo(a.published_at)}</span>
                               </div>
@@ -2145,7 +2145,7 @@ export default function App() {
                       {threadMessages.map((m: any) => (
                         <div key={m.id} className={`flex ${m.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
                           <div className="max-w-[75%] rounded-2xl px-3.5 py-2 text-sm"
-                            style={m.sender_id === user?.id ? { background: '#0F9D8A', color: 'white' } : { background: '#f4f4f5', color: '#18181b' }}>
+                            style={m.sender_id === user?.id ? { background: '#0F9D8A', color: 'white' } : { background: '#1A1E1C', color: '#F5F5F4' }}>
                             {m.body}
                           </div>
                         </div>
@@ -2407,7 +2407,7 @@ export default function App() {
                           <span className="text-sm text-zinc-700">We're participating</span>
                           <button onClick={() => { setFcbdParticipating(!fcbdParticipating); setFcbdSaved(false) }}
                             className="relative w-12 h-7 rounded-full transition-colors flex-shrink-0"
-                            style={{ background: fcbdParticipating ? '#0F9D8A' : '#d4d4d8' }}>
+                            style={{ background: fcbdParticipating ? '#0F9D8A' : '#3A403C' }}>
                             <span className="absolute top-1 h-5 w-5 rounded-full bg-zinc-50 transition-all" style={{ left: fcbdParticipating ? '24px' : '4px' }} />
                           </button>
                         </div>
@@ -2571,7 +2571,7 @@ export default function App() {
 
       {/* SHOP DETAIL */}
       {modal === 'shop' && selectedShop && (
-        <div className="fixed inset-0 z-50 flex flex-col overflow-hidden md:inset-y-0 md:right-0 md:left-56" style={{ background: '#F0EFE9' }}>
+        <div className="fixed inset-0 z-50 flex flex-col overflow-hidden md:inset-y-0 md:right-0 md:left-56" style={{ background: '#0A0B0C' }}>
           <div className="px-4 pt-12 md:pt-4 pb-4 flex items-center gap-3 flex-shrink-0" style={{ background: 'linear-gradient(135deg, #131615, #1A1E1C)' }}>
             <button onClick={closeShop} className="h-9 w-9 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.15)' }}>
               <X className="h-4 w-4 text-white" />
@@ -2650,7 +2650,7 @@ export default function App() {
                     <a href={(selectedShop as any).website.startsWith('http') ? (selectedShop as any).website : `https://${(selectedShop as any).website}`}
                       target="_blank" rel="noopener noreferrer" aria-label="Website"
                       className="h-11 w-11 flex items-center justify-center rounded-2xl text-white"
-                      style={{ background: '#27272a' }}>
+                      style={{ background: '#ECEFED' }}>
                       <Globe className="h-4 w-4" />
                     </a>
                   )}
@@ -2729,7 +2729,7 @@ export default function App() {
                     setEditingInfo(!editingInfo)
                   }}
                     className="text-xs font-black px-3 py-1.5 rounded-xl"
-                    style={{ background: editingInfo ? '#0F9D8A' : '#f3f4f6', color: editingInfo ? 'white' : '#6b7280' }}>
+                    style={{ background: editingInfo ? '#0F9D8A' : '#1A1E1C', color: editingInfo ? 'white' : '#ACB3AE' }}>
                     {editingInfo ? 'Cancel' : 'Edit'}
                   </button>
                 </div>
@@ -2795,7 +2795,7 @@ export default function App() {
                   <p className="text-xs font-black uppercase text-zinc-400">Shop Categories</p>
                   <button onClick={() => { setEditingCategories(!editingCategories); setShopCategories((selectedShop as any).categories || []) }}
                     className="text-xs font-black px-3 py-1.5 rounded-xl"
-                    style={{ background: editingCategories ? '#0F9D8A' : '#f3f4f6', color: editingCategories ? 'white' : '#6b7280' }}>
+                    style={{ background: editingCategories ? '#0F9D8A' : '#1A1E1C', color: editingCategories ? 'white' : '#ACB3AE' }}>
                     {editingCategories ? 'Cancel' : 'Edit'}
                   </button>
                 </div>
@@ -2811,7 +2811,7 @@ export default function App() {
                             : cat === 'comics' ? { background: '#FEF3C7', borderColor: '#D97706', color: '#D97706' }
                             : cat === 'toys' ? { background: '#D1FAE5', borderColor: '#059669', color: '#059669' }
                             : { background: '#EDE9FE', borderColor: '#7C3AED', color: '#7C3AED' }
-                            : { background: 'white', borderColor: '#e5e7eb', color: '#9ca3af' }}>
+                            : { background: 'white', borderColor: '#262B28', color: '#9ca3af' }}>
                           {cat === 'cards' ? '🃏' : cat === 'comics' ? '📚' : cat === 'toys' ? '🧸' : '🏆'} {cat}
                         </button>
                       ))}
@@ -2858,7 +2858,7 @@ export default function App() {
                     </div>
                     <button onClick={() => toggleRsvp(ev.id)}
                       className="text-xs font-black uppercase px-3 py-1.5 rounded-xl border-2"
-                      style={rsvps.includes(ev.id) ? { background: '#F0FDF4', color: '#166534', borderColor: '#BBF7D0' } : { background: 'white', color: '#9ca3af', borderColor: '#e5e7eb' }}>
+                      style={rsvps.includes(ev.id) ? { background: '#F0FDF4', color: '#166534', borderColor: '#BBF7D0' } : { background: 'white', color: '#9ca3af', borderColor: '#262B28' }}>
                       {rsvps.includes(ev.id) ? '✓ RSVP' : 'RSVP'}
                     </button>
                   </div>
@@ -3105,7 +3105,7 @@ export default function App() {
                 <div className="flex gap-2">
                   <button onClick={() => toggleFollow(viewedProfileUserId)}
                     className="flex-1 py-2.5 rounded-2xl text-sm font-medium"
-                    style={following.includes(viewedProfileUserId) ? { border: '1px solid #e4e4e7', color: '#52525b' } : { background: '#059669', color: 'white' }}>
+                    style={following.includes(viewedProfileUserId) ? { border: '1px solid #262B28', color: '#C2C8C4' } : { background: '#059669', color: 'white' }}>
                     {following.includes(viewedProfileUserId) ? 'Following' : 'Follow'}
                   </button>
                   <button onClick={() => messageSeller(viewedProfileUserId)}
@@ -3164,7 +3164,7 @@ export default function App() {
               <div className="absolute top-3 left-3 flex gap-2">
                 <button onClick={() => toggleSaveListing(selectedListing.id)} aria-label="Save"
                   className="h-9 w-9 rounded-full bg-white/90 flex items-center justify-center shadow">
-                  <Heart className="h-4 w-4" style={savedListings.includes(selectedListing.id) ? { fill: '#0F9D8A', color: '#0F9D8A' } : { color: '#52525b' }} />
+                  <Heart className="h-4 w-4" style={savedListings.includes(selectedListing.id) ? { fill: '#0F9D8A', color: '#0F9D8A' } : { color: '#C2C8C4' }} />
                 </button>
                 <button onClick={() => shareUrl(`/marketplace/${selectedListing.slug}`, selectedListing.title)} aria-label="Share"
                   className="h-9 w-9 rounded-full bg-white/90 flex items-center justify-center shadow">
@@ -3211,7 +3211,7 @@ export default function App() {
                 <div className="space-y-2">
                   <button onClick={() => toggleListingSold(selectedListing)}
                     className="w-full py-3 rounded-2xl text-sm font-medium text-white"
-                    style={{ background: selectedListing.status === 'sold' ? '#52525b' : '#059669' }}>
+                    style={{ background: selectedListing.status === 'sold' ? '#C2C8C4' : '#059669' }}>
                     {selectedListing.status === 'sold' ? 'Mark as available' : 'Mark as sold'}
                   </button>
                   {buyerPickerOpen && (
@@ -3505,7 +3505,7 @@ export default function App() {
                 <div className="space-y-2">
                   <button onClick={() => { if (selectedTrade.completed_with) { confirmTradeCompleted(selectedTrade, null) } else { setTradePartnerPickerOpen(true) } }}
                     className="w-full py-2.5 rounded-2xl text-xs font-medium text-white"
-                    style={{ background: selectedTrade.completed_with ? '#52525b' : '#059669' }}>
+                    style={{ background: selectedTrade.completed_with ? '#C2C8C4' : '#059669' }}>
                     {selectedTrade.completed_with ? 'Undo trade complete' : 'Mark as traded'}
                   </button>
                   {tradePartnerPickerOpen && (
@@ -3633,10 +3633,10 @@ export default function App() {
               {[1,2,3].map(s => (
                 <React.Fragment key={s}>
                   <div className="h-7 w-7 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
-                    style={claimStep >= s ? { background: '#0F9D8A', color: 'white' } : { background: '#e5e7eb', color: '#9ca3af' }}>
+                    style={claimStep >= s ? { background: '#0F9D8A', color: 'white' } : { background: '#262B28', color: '#9ca3af' }}>
                     {claimStep > s ? <Check className="h-3.5 w-3.5" /> : s}
                   </div>
-                  {s < 3 && <div className="flex-1 h-0.5 rounded-full" style={{ background: claimStep > s ? '#0F9D8A' : '#e5e7eb' }} />}
+                  {s < 3 && <div className="flex-1 h-0.5 rounded-full" style={{ background: claimStep > s ? '#0F9D8A' : '#262B28' }} />}
                 </React.Fragment>
               ))}
             </div>
@@ -3661,7 +3661,7 @@ export default function App() {
                           : cat === 'comics' ? { background: '#FEF3C7', borderColor: '#D97706', color: '#D97706' }
                           : cat === 'toys' ? { background: '#D1FAE5', borderColor: '#059669', color: '#059669' }
                           : { background: '#EDE9FE', borderColor: '#7C3AED', color: '#7C3AED' }
-                          : { background: 'white', borderColor: '#e5e7eb', color: '#9ca3af' }}>
+                          : { background: 'white', borderColor: '#262B28', color: '#9ca3af' }}>
                         {cat === 'cards' ? '🃏' : cat === 'comics' ? '📚' : cat === 'toys' ? '🧸' : '🏆'} {cat}
                       </button>
                     ))}
@@ -3737,8 +3737,8 @@ export default function App() {
                         style={role === r.id
                           ? r.id === 'merchant' ? { borderColor: '#7C3AED', background: '#7C3AED', color: 'white' }
                             : { borderColor: '#131615', background: '#131615', color: 'white' }
-                          : { borderColor: '#e5e7eb', background: 'white', color: '#9ca3af' }}>
-                        <r.icon className="h-6 w-6" style={{ color: role === r.id ? (r.id === 'merchant' ? 'white' : '#0F9D8A') : '#d1d5db' }} />
+                          : { borderColor: '#262B28', background: 'white', color: '#9ca3af' }}>
+                        <r.icon className="h-6 w-6" style={{ color: role === r.id ? (r.id === 'merchant' ? 'white' : '#0F9D8A') : '#3A403C' }} />
                         <span className="text-sm font-black uppercase">{r.label}</span>
                         <span className="text-xs opacity-50 font-mono">{r.sub}</span>
                       </button>
@@ -3791,7 +3791,7 @@ export default function App() {
                           onChange={e => handleCodeInput(i, e.target.value)}
                           onKeyDown={e => handleCodeKey(i, e)}
                           className="w-11 h-13 text-center text-xl font-black border-2 rounded-2xl outline-none transition-all bg-zinc-50"
-                          style={{ borderColor: digit ? '#131615' : '#e5e7eb', caretColor: 'transparent', height: '3.25rem' }} />
+                          style={{ borderColor: digit ? '#131615' : '#262B28', caretColor: 'transparent', height: '3.25rem' }} />
                       ))}
                     </div>
                     {authError && <p className="text-sm text-red-500 text-center">{authError}</p>}
@@ -3923,7 +3923,7 @@ export default function App() {
                   {(['shop', 'event'] as const).map(t => (
                     <button key={t} onClick={() => setSubmitType(t)}
                       className="py-3 rounded-2xl text-xs font-black uppercase border-2 transition-all"
-                      style={submitType === t ? { background: '#7C3AED', borderColor: '#7C3AED', color: 'white' } : { background: 'white', borderColor: '#e5e7eb', color: '#9ca3af' }}>
+                      style={submitType === t ? { background: '#7C3AED', borderColor: '#7C3AED', color: 'white' } : { background: 'white', borderColor: '#262B28', color: '#9ca3af' }}>
                       {t === 'shop' ? '🏪 New Shop' : '📅 New Event'}
                     </button>
                   ))}
@@ -3991,7 +3991,7 @@ export default function App() {
                 return (
                   <div key={n.id} className="flex items-start gap-3 px-5 py-4" style={{ background: !n.read ? 'rgba(15,157,138,0.04)' : 'white' }}>
                     <div className="h-10 w-10 rounded-2xl flex items-center justify-center flex-shrink-0 text-lg"
-                      style={{ background: !n.read ? 'rgba(15,157,138,0.1)' : '#F3F4F6' }}>{n.type === 'reply' ? '💬' : n.type === 'reward' ? '🎁' : '❓'}</div>
+                      style={{ background: !n.read ? 'rgba(15,157,138,0.1)' : '#1A1E1C' }}>{n.type === 'reply' ? '💬' : n.type === 'reward' ? '🎁' : '❓'}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
                         <p className="font-black text-sm">{n.title}</p>

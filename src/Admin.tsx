@@ -474,7 +474,7 @@ export default function Admin() {
   // Admin panel
   return (
     <AdminErrorBoundary>
-    <div className="min-h-screen font-sans" style={{ background: '#F0EFE9' }}>
+    <div className="min-h-screen font-sans" style={{ background: '#0A0B0C' }}>
 
       {/* Header */}
       <header className="sticky top-0 z-20 bg-zinc-50 border-b border-zinc-200 px-4 py-3">
@@ -506,7 +506,7 @@ export default function Admin() {
         {TABS.map(({ id, icon: Icon, label }) => (
           <button key={id} onClick={() => setTab(id as Tab)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap flex-shrink-0 transition-all"
-            style={tab === id ? { background: 'linear-gradient(135deg, #0F9D8A, #14B8A6)', color: 'white' } : { background: '#f4f4f5', color: '#6b7280' }}>
+            style={tab === id ? { background: 'linear-gradient(135deg, #0F9D8A, #14B8A6)', color: 'white' } : { background: '#1A1E1C', color: '#ACB3AE' }}>
             <Icon className="h-3 w-3" />{label}
           </button>
         ))}
@@ -579,13 +579,13 @@ export default function Admin() {
               <div className="h-64 -ml-2">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={signupsChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1A1E1C" />
                     <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} />
                     <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} width={28} />
-                    <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #f4f4f5', fontSize: 12 }} />
+                    <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #1A1E1C', fontSize: 12 }} />
                     <Legend wrapperStyle={{ fontSize: 12 }} />
                     <Line type="monotone" dataKey="This week" stroke="#0F9D8A" strokeWidth={2.5} dot={{ r: 3 }} />
-                    <Line type="monotone" dataKey="Prior week" stroke="#d4d4d8" strokeWidth={2} strokeDasharray="4 3" dot={{ r: 2 }} />
+                    <Line type="monotone" dataKey="Prior week" stroke="#3A403C" strokeWidth={2} strokeDasharray="4 3" dot={{ r: 2 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -625,10 +625,10 @@ export default function Admin() {
                 <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={activityChartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1A1E1C" />
                       <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} />
                       <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} width={28} />
-                      <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #f4f4f5', fontSize: 12 }} />
+                      <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #1A1E1C', fontSize: 12 }} />
                       <Legend wrapperStyle={{ fontSize: 12 }} />
                       <Bar dataKey="Listings" stackId="a" fill="#0F9D8A" radius={[0, 0, 0, 0]} />
                       <Bar dataKey="Trades" stackId="a" fill="#fca997" radius={[4, 4, 0, 0]} />
@@ -646,7 +646,7 @@ export default function Admin() {
                   <span className="text-xs font-black px-2 py-0.5 rounded-lg"
                     style={u.tier === 'elite' ? { background: '#EDE9FE', color: '#5B21B6' }
                       : u.tier === 'store' ? { background: '#FEF3C7', color: '#92400E' }
-                      : { background: '#F3F4F6', color: '#6B7280' }}>
+                      : { background: '#1A1E1C', color: '#ACB3AE' }}>
                     {u.tier}
                   </span>
                 </div>
@@ -662,7 +662,7 @@ export default function Admin() {
               <h2 className="font-black text-xl">Shops ({fShops.length})</h2>
               <button onClick={() => setAddingShop(!addingShop)}
                 className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-black text-white"
-                style={{ background: addingShop ? '#71717a' : '#0F9D8A' }}>
+                style={{ background: addingShop ? '#ACB3AE' : '#0F9D8A' }}>
                 {addingShop ? <><X className="h-3 w-3" /> Cancel</> : <><Plus className="h-3 w-3" /> Add shop</>}
               </button>
             </div>
@@ -759,7 +759,7 @@ export default function Admin() {
                   <p className="font-black text-sm">@{u.username}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-xs font-bold px-2 py-0.5 rounded-lg"
-                      style={u.role === 'merchant' ? { background: '#EDE9FE', color: '#5B21B6' } : { background: '#F3F4F6', color: '#6B7280' }}>
+                      style={u.role === 'merchant' ? { background: '#EDE9FE', color: '#5B21B6' } : { background: '#1A1E1C', color: '#ACB3AE' }}>
                       {u.role}
                     </span>
                     <span className="text-xs text-zinc-400 font-mono">{new Date(u.created_at).toLocaleDateString()}</span>
@@ -776,7 +776,7 @@ export default function Admin() {
                   </select>
                   <button onClick={() => banUser(u.id, u.banned)}
                     className="text-xs font-black px-2 py-1.5 rounded-xl transition-all"
-                    style={u.banned ? { background: '#FEF2F2', color: '#991B1B' } : { background: '#F3F4F6', color: '#6B7280' }}>
+                    style={u.banned ? { background: '#FEF2F2', color: '#991B1B' } : { background: '#1A1E1C', color: '#ACB3AE' }}>
                     {u.banned ? 'Banned' : 'Ban'}
                   </button>
                   <button onClick={() => deleteUser(u.id)} className="text-red-400 hover:text-red-600">
@@ -839,7 +839,7 @@ export default function Admin() {
               <h2 className="font-black text-xl">Events ({fEvents.length})</h2>
               <button onClick={() => setAddingEvent(!addingEvent)}
                 className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-black text-white"
-                style={{ background: addingEvent ? '#71717a' : '#0F9D8A' }}>
+                style={{ background: addingEvent ? '#ACB3AE' : '#0F9D8A' }}>
                 {addingEvent ? <><X className="h-3 w-3" /> Cancel</> : <><Plus className="h-3 w-3" /> Add event</>}
               </button>
             </div>
@@ -1117,7 +1117,7 @@ export default function Admin() {
                     </div>
                     <button onClick={() => toggleRewardOfferActive(o)}
                       className="text-xs font-black px-2.5 py-1.5 rounded-xl flex-shrink-0"
-                      style={o.active ? { background: '#F0FDF4', color: '#166534' } : { background: '#F3F4F6', color: '#6B7280' }}>
+                      style={o.active ? { background: '#F0FDF4', color: '#166534' } : { background: '#1A1E1C', color: '#ACB3AE' }}>
                       {o.active ? 'Active' : 'Inactive'}
                     </button>
                   </div>
