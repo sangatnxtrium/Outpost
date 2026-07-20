@@ -18,7 +18,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export function PrivacyPolicy() {
   return (
     <div className="min-h-screen font-sans" style={{ background: '#F0EFE9' }}>
-      <header className="sticky top-0 z-10 bg-white border-b border-zinc-200 px-4 py-4">
+      <header className="sticky top-0 z-10 bg-zinc-50 border-b border-zinc-200 px-4 py-4">
         <div className="max-w-2xl mx-auto flex items-center gap-3">
           <a href="/" className="h-8 w-8 rounded-xl bg-zinc-100 flex items-center justify-center">
             <ArrowLeft className="h-4 w-4 text-zinc-600" />
@@ -28,7 +28,7 @@ export function PrivacyPolicy() {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-zinc-100">
+        <div className="bg-zinc-50 rounded-3xl p-6 shadow-sm border border-zinc-100">
           <p className="text-xs text-zinc-400 font-mono mb-8">Last updated: {LAST_UPDATED}</p>
 
           <Section title="1. Introduction">
@@ -118,7 +118,7 @@ export function PrivacyPolicy() {
 export function TermsOfService() {
   return (
     <div className="min-h-screen font-sans" style={{ background: '#F0EFE9' }}>
-      <header className="sticky top-0 z-10 bg-white border-b border-zinc-200 px-4 py-4">
+      <header className="sticky top-0 z-10 bg-zinc-50 border-b border-zinc-200 px-4 py-4">
         <div className="max-w-2xl mx-auto flex items-center gap-3">
           <a href="/" className="h-8 w-8 rounded-xl bg-zinc-100 flex items-center justify-center">
             <ArrowLeft className="h-4 w-4 text-zinc-600" />
@@ -128,7 +128,7 @@ export function TermsOfService() {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-zinc-100">
+        <div className="bg-zinc-50 rounded-3xl p-6 shadow-sm border border-zinc-100">
           <p className="text-xs text-zinc-400 font-mono mb-8">Last updated: {LAST_UPDATED}</p>
 
           <Section title="1. Acceptance of Terms">
