@@ -429,7 +429,7 @@ export default function Admin() {
   if (!authed) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #131615, #1A1E1C)' }}>
-        <div className="w-full max-w-sm bg-zinc-50 rounded-3xl p-6 shadow-2xl text-[#F5F5F4]">
+        <div className="w-full max-w-sm bg-zinc-50 rounded-3xl p-6 shadow-2xl text-[#D8DDD9]">
           <div className="flex items-center gap-3 mb-6">
             <div className="h-10 w-10 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0F9D8A, #14B8A6)' }}>
               <Shield className="h-5 w-5 text-white" />
@@ -474,7 +474,7 @@ export default function Admin() {
   // Admin panel
   return (
     <AdminErrorBoundary>
-    <div className="min-h-screen font-sans text-[#F5F5F4]" style={{ background: '#0A0B0C' }}>
+    <div className="min-h-screen font-sans text-[#D8DDD9]" style={{ background: '#0A0B0C' }}>
 
       {/* Header */}
       <header className="sticky top-0 z-20 bg-zinc-50 border-b border-zinc-200 px-4 py-3">
