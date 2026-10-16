@@ -3680,7 +3680,7 @@ export default function App() {
                 <div className="p-4 rounded-2xl border" style={{ background: 'rgba(245,158,11,0.08)', borderColor: 'rgba(245,158,11,0.3)' }}>
                   <div className="flex items-start gap-2">
                     <Shield className="h-4 w-4 flex-shrink-0 mt-0.5" style={{ color: '#FBBF24' }} />
-                    <p className="text-xs leading-relaxed" style={{ color: '#FCD34D' }}>Your EIN is used only to verify business ownership. Never stored or shared.</p>
+                    <p className="text-xs leading-relaxed" style={{ color: '#FCD34D' }}>Your EIN is used only to verify you own this business. Stored securely and never shared or shown publicly.</p>
                   </div>
                 </div>
                 <input type="text" value={einInput} onChange={e => setEinInput(e.target.value)}
