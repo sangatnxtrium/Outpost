@@ -34,7 +34,7 @@ const national = NATIONAL_EVENTS.filter((e) => (e.end_date || e.date) >= today).
   ...e,
   location: [e.venue, e.city, e.state].filter((x) => x && x !== 'TBA').join(', '),
   description: `${e.description} Source: ${e.source_url} (checked ${VERIFIED_AT}).`,
-  ticket_url: '', image_url: '', source: 'curated', external_id: e.source_url,
+  ticket_url: '', image_url: '', source: 'curated', external_id: `curated:${makeDedupeKey(e.title, e.date, e.city)}`,
   is_active: e.confirmed,
 }))
 const { rows: local, stats } = await fetchAllLocal()
