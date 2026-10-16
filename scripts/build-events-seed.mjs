@@ -13,6 +13,7 @@ import { NATIONAL_EVENTS, VERIFIED_AT } from '../api/_lib/national-events.js'
 
 const OUT_SQL = process.argv[2] || 'events-seed.sql'
 const OUT_CSV = process.argv[3] || 'events-seed.csv'
+const OUT_JSON = process.argv[4] || ''
 const { SUPABASE_URL = 'https://ihctysckgobjvyztdfsz.supabase.co', SUPABASE_ANON_KEY } = process.env
 
 async function loadShops() {
@@ -72,6 +73,12 @@ alter table public.events add column if not exists is_active boolean not null de
 alter table public.events add column if not exists last_seen_at timestamptz;
 create unique index if not exists events_dedupe_key_uidx on public.events (dedupe_key);
 
+-- Query indexes for the Events tab (same as migrations/002_events_query_indexes.sql).
+create index if not exists events_active_state_date_idx on public.events (is_active, state, date, id);
+create index if not exists events_active_national_date_idx on public.events (is_active, is_national, date);
+create index if not exists events_categories_gin_idx on public.events using gin (categories);
+create index if not exists events_lat_lng_idx on public.events (lat, lng) where is_active;
+
 -- Hide legacy rows this seed replaces (null dedupe_key duplicates) and known junk
 -- pulled in by the old Ticketmaster keywords (comedy, rodeo, etc).
 update public.events set is_active = false
@@ -92,6 +99,7 @@ const csvq = (v) => { const s = v === null || v === undefined ? '' : Array.isArr
 const CCOLS = ['date', 'end_date', 'title', 'city', 'state', 'location', 'is_national', 'confirmed', 'source', 'source_url', 'shop_id', 'categories', 'website', 'ticket_url', 'lat', 'lng', 'dedupe_key']
 writeFileSync(OUT_CSV, [CCOLS.join(','), ...rows.map((r) => CCOLS.map((c) => csvq(c === 'source_url' ? (r.source_url || r.ticket_url) : r[c])).join(','))].join('\n') + '\n')
 
+if (OUT_JSON) writeFileSync(OUT_JSON, JSON.stringify(rows.filter((r) => r.is_active).map((r) => Object.fromEntries(COLS.map((c) => [c, r[c] ?? null])))))
 const loc = rows.filter((r) => r.source !== 'curated')
 const summary = {
   total: rows.length,

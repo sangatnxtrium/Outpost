@@ -235,42 +235,105 @@ export function useNews() {
   return { articles, loading }
 }
 
-export function useEvents() {
+// Columns the Events tab actually renders (keeps payloads small).
+const EVENT_COLS = 'id,title,date,end_date,location,city,state,description,website,ticket_url,categories,is_national,lat,lng,shop_id,spots'
+export const EVENTS_PAGE_SIZE = 60
+
+const todayISO = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+export type EventQuery = {
+  state: string              // 2-letter code or 'all'
+  category: string           // 'all' | 'cards' | 'comics' | ...
+  near?: { lat: number; lng: number; miles: number } | null
+}
+
+// Local events (non-national), filtered server-side and paginated with .range().
+export function useEvents(q: EventQuery) {
   const [events, setEvents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [hasMore, setHasMore] = useState(false)
+  const [page, setPage] = useState(0)
+  const key = JSON.stringify(q)
+
+  useEffect(() => { setPage(0) }, [key])
 
   useEffect(() => {
     let cancelled = false
-    // PostgREST caps each response at 1000 rows, and the importer can produce
-    // several thousand local store events, so page through them.
-    const load = async () => {
-      const today = new Date().toISOString().slice(0, 10)
-      const PAGE = 1000
-      const all: any[] = []
-      for (let from = 0; from < 20000; from += PAGE) {
-        const { data, error } = await supabase
-          .from('events')
-          .select('*')
-          .eq('is_active', true)
-          .gte('date', today)
-          .order('date', { ascending: true })
-          .order('id', { ascending: true })
-          .range(from, from + PAGE - 1)
-        if (error || !data) break
-        all.push(...data)
-        if (data.length < PAGE) break
-      }
-      if (!cancelled) {
-        setEvents(all)
-        setLoading(false)
-      }
+    setLoading(true)
+    let query = supabase
+      .from('events')
+      .select(EVENT_COLS)
+      .eq('is_active', true)
+      .not('is_national', 'is', true)
+      .gte('date', todayISO())
+    if (q.near) {
+      // Bounding box on the server; exact radius trimmed below.
+      const dLat = q.near.miles / 69
+      const dLng = q.near.miles / (69 * Math.max(0.2, Math.cos((q.near.lat * Math.PI) / 180)))
+      query = query.gte('lat', q.near.lat - dLat).lte('lat', q.near.lat + dLat)
+        .gte('lng', q.near.lng - dLng).lte('lng', q.near.lng + dLng)
+    } else if (q.state && q.state !== 'all') {
+      query = query.eq('state', q.state)
     }
-    load()
+    if (q.category && q.category !== 'all') query = query.contains('categories', [q.category])
+    const from = page * EVENTS_PAGE_SIZE
+    // Ask for one extra row to know whether there's another page.
+    query.order('date', { ascending: true }).order('id', { ascending: true })
+      .range(from, from + EVENTS_PAGE_SIZE)
+      .then(({ data, error }) => {
+        if (cancelled) return
+        let rows = error ? [] : (data || [])
+        const more = rows.length > EVENTS_PAGE_SIZE
+        rows = rows.slice(0, EVENTS_PAGE_SIZE)
+        if (q.near) {
+          const { lat, lng, miles } = q.near
+          rows = rows.filter((r: any) => r.lat != null && r.lng != null && milesBetween(lat, lng, r.lat, r.lng) <= miles)
+        }
+        setEvents(prev => (page === 0 ? rows : [...prev, ...rows]))
+        setHasMore(more)
+        setLoading(false)
+      })
     return () => { cancelled = true }
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, page])
 
-  return { events, loading }
+  return { events, loading, hasMore, loadMore: () => setPage(p => p + 1) }
 }
+
+// Conventions & championships: always shown, small query.
+export function useMajorEvents(category: string) {
+  const [events, setEvents] = useState<any[]>([])
+  useEffect(() => {
+    let query = supabase.from('events').select(EVENT_COLS)
+      .eq('is_active', true).eq('is_national', true).gte('date', todayISO())
+    if (category && category !== 'all') query = query.contains('categories', [category])
+    query.order('date', { ascending: true }).limit(60).then(({ data }) => setEvents(data || []))
+  }, [category])
+  return { events }
+}
+
+// Events the user RSVP'd to (fetched by id, independent of the filters).
+export function useEventsByIds(ids: string[]) {
+  const [events, setEvents] = useState<any[]>([])
+  const key = ids.slice().sort().join(',')
+  useEffect(() => {
+    if (!ids.length) { setEvents([]); return }
+    supabase.from('events').select(EVENT_COLS).in('id', ids.slice(0, 200)).order('date')
+      .then(({ data }) => setEvents(data || []))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key])
+  return { events }
+}
+
+function milesBetween(aLat: number, aLng: number, bLat: number, bLng: number) {
+  const R = 3958.8, t = Math.PI / 180
+  const x = Math.sin(((bLat - aLat) * t) / 2) ** 2 + Math.cos(aLat * t) * Math.cos(bLat * t) * Math.sin(((bLng - aLng) * t) / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(x))
+}
+
 export function useListings() {
   const [listings, setListings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)

@@ -217,6 +217,19 @@ export default async function handler(req, res) {
     if (staleErr) errors.push(`stale: ${staleErr.message}`)
   }
 
+  // 4c. One-time cleanup that is safe to repeat: hide junk the old Ticketmaster
+  //     keywords pulled in, and legacy null-dedupe rows the curated list replaces.
+  {
+    const { error: junkErr } = await supabase.from('events').update({ is_active: false })
+      .eq('is_active', true).neq('source', 'curated')
+      .or('title.ilike.%comedy%,title.ilike.%open mic%,title.ilike.%rodeo%,title.ilike.%wild card round%,title.ilike.%burlesque%')
+    if (junkErr) errors.push(`junk: ${junkErr.message}`)
+    const { error: legErr } = await supabase.from('events').update({ is_active: false })
+      .is('dedupe_key', null)
+      .in('title', ['WonderCon 2027', 'C2E2 2027', 'Yu-Gi-Oh! YCS — Orlando', 'MagicCon: Atlanta 2026 (World Championship)'])
+    if (legErr) errors.push(`legacy: ${legErr.message}`)
+  }
+
   // 5. Soft-expire anything whose date has passed (keeps history, hides from UI)
   const { error: expErr, count: expiredCount } = await supabase
     .from('events')

@@ -380,15 +380,17 @@ export function matchShops(rows, shops) {
 export async function fetchAllLocal({ metros = LOCAL_METROS, days = 42 } = {}) {
   const stats = { wizards: 0, ravensburger: 0, eventbrite: 0 }
   const all = []
-  for (const m of metros) {
+  const run = async (m) => {
     // Colorado gets the full 6-week window and deeper paging; other states a
-    // tighter radius so the Events tab stays a manageable size.
+    // tighter radius so each run stays well inside the function time limit.
     const co = m.state === 'CO'
     const opts = co ? { days, miles: 20, maxPages: 6 } : { days: Math.min(days, 35), miles: 15, maxPages: 2 }
     const [w, r, e] = await Promise.all([fetchWizards(m, opts), fetchRavensburger(m, opts), fetchEventbrite(m)])
     stats.wizards += w.length; stats.ravensburger += r.length; stats.eventbrite += e.length
     all.push(...w, ...r, ...e)
   }
+  // 4 metros at a time.
+  for (let i = 0; i < metros.length; i += 4) await Promise.all(metros.slice(i, i + 4).map(run))
   // Drop duplicates from overlapping metro radii by external_id.
   const seen = new Set()
   const uniq = all.filter((x) => (seen.has(x.external_id) ? false : seen.add(x.external_id)))
