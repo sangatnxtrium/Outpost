@@ -240,17 +240,33 @@ export function useEvents() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10)
-    supabase
-      .from('events')
-      .select('*')
-      .eq('is_active', true)
-      .gte('date', today)
-      .order('date', { ascending: true })
-      .then(({ data }) => {
-        setEvents(data || [])
+    let cancelled = false
+    // PostgREST caps each response at 1000 rows, and the importer can produce
+    // several thousand local store events, so page through them.
+    const load = async () => {
+      const today = new Date().toISOString().slice(0, 10)
+      const PAGE = 1000
+      const all: any[] = []
+      for (let from = 0; from < 20000; from += PAGE) {
+        const { data, error } = await supabase
+          .from('events')
+          .select('*')
+          .eq('is_active', true)
+          .gte('date', today)
+          .order('date', { ascending: true })
+          .order('id', { ascending: true })
+          .range(from, from + PAGE - 1)
+        if (error || !data) break
+        all.push(...data)
+        if (data.length < PAGE) break
+      }
+      if (!cancelled) {
+        setEvents(all)
         setLoading(false)
-      })
+      }
+    }
+    load()
+    return () => { cancelled = true }
   }, [])
 
   return { events, loading }

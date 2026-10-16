@@ -1,9 +1,17 @@
 import { createClient } from '@supabase/supabase-js'
 
-const GOOGLE_API_KEY = 'AIzaSyDsncRLfDRD6SwMh4FpEOS5MKBg8H92V6w'
-const SUPABASE_URL = 'https://ihctysckgobjvyztdfsz.supabase.co'
-const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImloY3R5c2NrZ29ianZ5enRkZnN6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTI1MTgzNiwiZXhwIjoyMDk0ODI3ODM2fQ.Cj64DmACdgDUyZG_izip2a08yVC_AsQt6bd2NShpk3M'
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://ihctysckgobjvyztdfsz.supabase.co'
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY
 
+if (!SUPABASE_SERVICE_KEY) {
+  console.error('Set SUPABASE_SERVICE_KEY in your environment (never commit it).')
+  process.exit(1)
+}
+if (!GOOGLE_API_KEY) {
+  console.error('Set GOOGLE_API_KEY in your environment.')
+  process.exit(1)
+}
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 const CITIES = [

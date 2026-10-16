@@ -30,7 +30,7 @@ class AdminErrorBoundary extends React.Component<{children: any}, {error: string
 
 const ADMIN_EMAILS = ['sangtruong@gmail.com']
 
-type Tab = 'dashboard' | 'shops' | 'users' | 'reviews' | 'trades' | 'events' | 'claims' | 'marketplace' | 'fcbd' | 'rewards'
+type Tab = 'dashboard' | 'shops' | 'users' | 'reviews' | 'trades' | 'events' | 'submissions' | 'claims' | 'marketplace' | 'fcbd' | 'rewards'
 
 export default function Admin() {
   const [checking, setChecking] = useState(true)
@@ -52,6 +52,10 @@ export default function Admin() {
   const [trades, setTrades] = useState<any[]>([])
   const [events, setEvents] = useState<any[]>([])
   const [claims, setClaims] = useState<any[]>([])
+  const [submissions, setSubmissions] = useState<any[]>([])
+  const [subStatus, setSubStatus] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending')
+  const [subError, setSubError] = useState('')
+  const [subBusy, setSubBusy] = useState<number | null>(null)
   const [marketItems, setMarketItems] = useState<any[]>([])
   const [rewardOffers, setRewardOffers] = useState<any[]>([])
   const [rewardRedemptions, setRewardRedemptions] = useState<any[]>([])
@@ -399,11 +403,52 @@ export default function Admin() {
     { id: 'reviews', icon: MessageSquare, label: `Reviews (${reviews.length})` },
     { id: 'trades', icon: ArrowLeftRight, label: `Trades (${trades.length})` },
     { id: 'events', icon: Calendar, label: `Events (${events.length})` },
+    { id: 'submissions', icon: Calendar, label: `Event Submissions${subStatus === 'pending' && submissions.length ? ` (${submissions.length})` : ''}` },
     { id: 'claims', icon: Shield, label: `Claims (${pendingClaims})` },
     { id: 'marketplace', icon: Package, label: `Listings (${marketItems.length})` },
     { id: 'fcbd', icon: Calendar, label: `FCBD (${fcbdTitles.length})` },
     { id: 'rewards', icon: Shield, label: `Rewards (${rewardOffers.length})` },
   ]
+
+  // Event submissions live behind RLS, so go through the service-key API with
+  // the admin's session token.
+  async function adminFetch(path: string, init: RequestInit = {}) {
+    const { data: { session } } = await supabase.auth.getSession()
+    return fetch(path, {
+      ...init,
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${session?.access_token || ''}`, ...(init.headers || {}) },
+    })
+  }
+
+  async function loadSubmissions(status = subStatus) {
+    setSubError('')
+    try {
+      const r = await adminFetch(`/api/admin-submissions?status=${status}`)
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) { setSubError(j.error || `HTTP ${r.status}`); return }
+      setSubmissions(j.submissions || [])
+    } catch (e: any) {
+      setSubError(e?.message || 'Failed to load')
+    }
+  }
+
+  async function moderateSubmission(id: number, action: 'approve' | 'reject') {
+    setSubBusy(id)
+    setSubError('')
+    try {
+      const r = await adminFetch('/api/admin-submissions', { method: 'POST', body: JSON.stringify({ id, action }) })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) setSubError(j.error || `HTTP ${r.status}`)
+      await loadSubmissions()
+    } finally {
+      setSubBusy(null)
+    }
+  }
+
+  useEffect(() => {
+    if (authed) loadSubmissions('pending')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authed])
 
   function catStyle(cat: string) {
     if (cat === 'comics') return { background: '#FEF3C7', color: '#92400E' }
@@ -907,6 +952,56 @@ export default function Admin() {
               </div>
             ))}
           {fEvents.length === 0 && <p className="text-center text-zinc-400 py-8 text-sm font-mono">No events yet</p>}
+          </div>
+        )}
+
+        {/* EVENT SUBMISSIONS */}
+        {tab === 'submissions' && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <h2 className="font-black text-xl">Event Submissions ({submissions.length})</h2>
+              <div className="flex gap-2">
+                {(['pending', 'approved', 'rejected', 'all'] as const).map(st => (
+                  <button key={st} onClick={() => { setSubStatus(st); loadSubmissions(st) }}
+                    className="text-xs font-black px-3 py-1.5 rounded-xl uppercase border"
+                    style={subStatus === st ? { background: '#7C3AED', color: 'white', borderColor: '#7C3AED' } : { color: '#71717a' }}>
+                    {st}
+                  </button>
+                ))}
+                <button onClick={() => loadSubmissions()} className="text-xs font-black px-3 py-1.5 rounded-xl border flex items-center gap-1">
+                  <RefreshCw className="h-3 w-3" /> Refresh
+                </button>
+              </div>
+            </div>
+            {subError && <p className="text-sm text-red-500 font-bold">{subError}</p>}
+            {submissions.map((sub: any) => (
+              <div key={sub.id} className="bg-white rounded-2xl p-4 border border-zinc-100 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-black">{sub.title}</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">{sub.date} · {[sub.location, sub.city, sub.state].filter(Boolean).join(', ')}</p>
+                    {sub.description && <p className="text-xs text-zinc-500 mt-1">{sub.description}</p>}
+                    {sub.website && <a href={sub.website} target="_blank" rel="noopener noreferrer" className="text-xs text-violet-600 font-bold break-all">{sub.website}</a>}
+                    <p className="text-[11px] text-zinc-400 mt-1 font-mono">
+                      {sub.submitter_email || 'anonymous'} · {new Date(sub.created_at).toLocaleString()} · {sub.status}
+                    </p>
+                  </div>
+                  {sub.status === 'pending' && (
+                    <div className="flex flex-col gap-2 flex-shrink-0">
+                      <button disabled={subBusy === sub.id} onClick={() => moderateSubmission(sub.id, 'approve')}
+                        className="text-xs font-black px-3 py-1.5 rounded-xl text-white flex items-center gap-1 disabled:opacity-40" style={{ background: '#10B981' }}>
+                        <Check className="h-3 w-3" /> Approve
+                      </button>
+                      <button disabled={subBusy === sub.id} onClick={() => moderateSubmission(sub.id, 'reject')}
+                        className="text-xs font-black px-3 py-1.5 rounded-xl text-white flex items-center gap-1 disabled:opacity-40" style={{ background: '#EF4444' }}>
+                        <X className="h-3 w-3" /> Reject
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+            {submissions.length === 0 && !subError && <p className="text-center text-zinc-400 py-8 text-sm font-mono">No {subStatus === 'all' ? '' : subStatus} submissions</p>}
           </div>
         )}
 

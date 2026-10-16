@@ -558,6 +558,13 @@ export default function App() {
   const [submitAddress, setSubmitAddress] = useState('')
   const [submitDetails, setSubmitDetails] = useState('')
   const [submitSent, setSubmitSent] = useState(false)
+  const [submitDate, setSubmitDate] = useState('')
+  const [submitCity, setSubmitCity] = useState('')
+  const [submitState, setSubmitState] = useState('')
+  const [submitWebsite, setSubmitWebsite] = useState('')
+  const [submitError, setSubmitError] = useState('')
+  const [submitBusy, setSubmitBusy] = useState(false)
+  const [eventsVisible, setEventsVisible] = useState(60)
   const [claimName, setClaimName] = useState('')
   const [claimAddress, setClaimAddress] = useState('')
   const [claimPhone, setClaimPhone] = useState('')
@@ -1743,7 +1750,7 @@ export default function App() {
                         { id: 'collectibles', label: 'Collectibles', color: '#A78BFA' },
                         { id: 'toys', label: 'Toys', color: '#10B981' },
                       ].map(f => (
-                        <button key={f.id} onClick={() => setEventFilter(f.id)}
+                        <button key={f.id} onClick={() => { setEventFilter(f.id); setEventsVisible(60) }}
                           className="px-4 py-2 rounded-2xl text-xs font-black uppercase border-2 transition-all whitespace-nowrap flex-shrink-0"
                           style={eventFilter === f.id ? { background: f.color, borderColor: f.color, color: 'white' } : { background: '#131615', borderColor: '#262B28', color: '#9ca3af' }}>
                           {f.label}
@@ -1756,7 +1763,7 @@ export default function App() {
                       <MapPin className="h-3.5 w-3.5 text-zinc-400 flex-shrink-0" />
                       <select
                         value={eventState}
-                        onChange={e => setEventState(e.target.value)}
+                        onChange={e => { setEventState(e.target.value); setEventsVisible(60) }}
                         className="flex-1 bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-2.5 text-sm font-black outline-none focus:border-zinc-300">
                         {eventStates.map((state: string) => (
                           <option key={state} value={state}>
@@ -1782,7 +1789,7 @@ export default function App() {
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {filteredEvents.map((ev: any) => (
+                        {filteredEvents.slice(0, eventsVisible).map((ev: any) => (
                           <div key={ev.id} className="bg-zinc-50 rounded-3xl p-4 shadow-sm border border-zinc-100">
                             <div className="flex items-start justify-between gap-3 mb-2">
                               <div className="flex-1">
@@ -1805,7 +1812,13 @@ export default function App() {
                                 {ev.spots && <p className="text-xs text-zinc-400 mt-1">{ev.spots} spots</p>}
                               </div>
                             </div>
-                            {ev.description && <p className="text-xs text-zinc-500 leading-relaxed">{ev.description}</p>}
+                            {ev.description && <p className="text-xs text-zinc-500 leading-relaxed line-clamp-3">{ev.description}</p>}
+                            {(ev.ticket_url || ev.website) && (
+                              <a href={ev.ticket_url || ev.website} target="_blank" rel="noopener noreferrer"
+                                className="inline-block mt-2 text-xs font-black" style={{ color: '#7C3AED' }}>
+                                Details →
+                              </a>
+                            )}
                             <button onClick={() => toggleRsvp(ev.id)}
                               className="w-full mt-3 py-2.5 rounded-2xl text-xs font-black uppercase border-2 transition-all"
                               style={rsvps.includes(ev.id) ? { background: '#F0FDF4', color: '#166534', borderColor: '#BBF7D0' } : { background: '#131615', color: '#9ca3af', borderColor: '#262B28' }}>
@@ -1813,6 +1826,13 @@ export default function App() {
                             </button>
                           </div>
                         ))}
+                        {filteredEvents.length > eventsVisible && (
+                          <button onClick={() => setEventsVisible(v => v + 60)}
+                            className="md:col-span-2 w-full py-3 rounded-2xl text-xs font-black uppercase border-2"
+                            style={{ background: '#131615', color: '#9ca3af', borderColor: '#262B28' }}>
+                            Show more ({filteredEvents.length - eventsVisible} left)
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -3934,13 +3954,54 @@ export default function App() {
                 <input type="text" value={submitAddress} onChange={e => setSubmitAddress(e.target.value)}
                   placeholder={submitType === 'shop' ? 'Address' : 'Location / venue'}
                   className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none" />
+                {submitType === 'event' && (
+                  <>
+                    <input type="date" value={submitDate} onChange={e => setSubmitDate(e.target.value)}
+                      min={new Date().toISOString().slice(0, 10)}
+                      className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none" />
+                    <div className="grid grid-cols-3 gap-2">
+                      <input type="text" value={submitCity} onChange={e => setSubmitCity(e.target.value)} placeholder="City"
+                        className="col-span-2 w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none" />
+                      <input type="text" value={submitState} onChange={e => setSubmitState(e.target.value.toUpperCase().slice(0, 2))} placeholder="ST"
+                        className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none" />
+                    </div>
+                    <input type="url" value={submitWebsite} onChange={e => setSubmitWebsite(e.target.value)} placeholder="Website or ticket link (optional)"
+                      className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none" />
+                  </>
+                )}
                 <textarea value={submitDetails} onChange={e => setSubmitDetails(e.target.value)}
-                  placeholder={submitType === 'shop' ? 'What do they sell? Hours? Website?' : 'Date, time, description...'}
+                  placeholder={submitType === 'shop' ? 'What do they sell? Hours? Website?' : 'Time, description, entry fee...'}
                   rows={3}
                   className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none resize-none" />
+                {submitError && <p className="text-xs font-bold text-red-500">{submitError}</p>}
                 <button
                   onClick={async () => {
                     if (!submitName.trim()) return
+                    setSubmitError('')
+                    if (submitType === 'event') {
+                      if (!submitDate || !submitCity.trim()) { setSubmitError('Event name, date and city are required.'); return }
+                      setSubmitBusy(true)
+                      try {
+                        const r = await fetch('/api/submit-event', {
+                          method: 'POST',
+                          headers: { 'content-type': 'application/json' },
+                          body: JSON.stringify({
+                            title: submitName, date: submitDate, city: submitCity, state: submitState,
+                            location: submitAddress, description: submitDetails, website: submitWebsite,
+                            user_id: user?.id || null, email: user?.email || '',
+                          }),
+                        })
+                        const j = await r.json().catch(() => ({}))
+                        if (!r.ok) { setSubmitError(j.error || 'Could not submit. Please try again.'); return }
+                        setSubmitDate(''); setSubmitCity(''); setSubmitState(''); setSubmitWebsite('')
+                        setSubmitSent(true)
+                      } catch {
+                        setSubmitError('Network error. Please try again.')
+                      } finally {
+                        setSubmitBusy(false)
+                      }
+                      return
+                    }
                     await supabase.from('shop_claims').insert({
                       user_id: user?.id || '00000000-0000-0000-0000-000000000000',
                       username: profile?.username || 'anonymous',
@@ -3948,17 +4009,17 @@ export default function App() {
                       shop_name: submitName,
                       shop_address: submitAddress,
                       phone: '',
-                      category: submitType === 'event' ? 'event' : 'cards',
+                      category: 'cards',
                       hours: submitDetails,
                       ein: 'SUBMISSION',
                       status: 'pending',
                     })
                     setSubmitSent(true)
                   }}
-                  disabled={!submitName.trim()}
+                  disabled={!submitName.trim() || submitBusy}
                   className="w-full text-white font-black py-3.5 rounded-2xl text-sm uppercase disabled:opacity-40"
                   style={{ background: 'linear-gradient(135deg, #7C3AED, #6D28D9)' }}>
-                  Submit for Review
+                  {submitBusy ? 'Submitting…' : 'Submit for Review'}
                 </button>
               </div>
             )}
