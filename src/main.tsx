@@ -16,6 +16,9 @@ async function loadApp() {
   } else if (path.startsWith('/terms')) {
     const { TermsOfService } = await import('./Legal.tsx')
     root.render(<React.StrictMode><TermsOfService /></React.StrictMode>)
+  } else if (path === '/for-shops' || path.startsWith('/for-shops/')) {
+    const { default: ForShops } = await import('./ForShops.tsx')
+    root.render(<React.StrictMode><ForShops /></React.StrictMode>)
   } else {
     const { default: App } = await import('./App.tsx')
     root.render(<React.StrictMode><App /></React.StrictMode>)

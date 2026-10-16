@@ -72,6 +72,7 @@ export default async function handler(req, res) {
     { loc: `${SITE}/`, changefreq: 'daily', priority: '1.0' },
     { loc: `${SITE}/marketplace`, changefreq: 'daily', priority: '0.8' },
     { loc: `${SITE}/news`, changefreq: 'daily', priority: '0.5' },
+    { loc: `${SITE}/for-shops`, changefreq: 'monthly', priority: '0.6' },
     { loc: `${SITE}/fcbd`, changefreq: 'weekly', priority: '0.4' },
     { loc: `${SITE}/privacy`, changefreq: 'monthly', priority: '0.3' },
     { loc: `${SITE}/terms`, changefreq: 'monthly', priority: '0.3' },

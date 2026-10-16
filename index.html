@@ -72,7 +72,9 @@
   </head>
   <body>
     <div id="root">
-      <!-- Static fallback for crawlers / no-JS. React's createRoot().render() replaces everything inside #root. -->
+      <!-- Static fallback for crawlers / no-JS. React's createRoot().render() replaces everything inside #root.
+           middleware.ts swaps the content between the ssr markers for page-specific HTML. -->
+      <!--ssr-root-start-->
       <main style="max-width:640px;margin:0 auto;padding:48px 20px;font-family:system-ui,sans-serif;color:#F5F5F4;background:#131615">
         <h1>Outpost — Card, Comic &amp; Collectibles Shops Near You</h1>
         <p>Every Shop. Every Drop. Near You.</p>
@@ -81,8 +83,9 @@
           <li><strong>Marketplace:</strong> buy, sell and trade cards, comics and collectibles with collectors in your area.</li>
           <li><strong>Rewards:</strong> earn rewards for checking in and shopping local.</li>
         </ul>
-        <p><a href="/marketplace" style="color:#0F9D8A">Browse the marketplace</a> · <a href="/terms" style="color:#0F9D8A">Shop owners: claim your listing</a></p>
+        <p><a href="/marketplace" style="color:#0F9D8A">Browse the marketplace</a> · <a href="/for-shops" style="color:#0F9D8A">Shop owners: claim your listing</a></p>
       </main>
+      <!--ssr-root-end-->
     </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
