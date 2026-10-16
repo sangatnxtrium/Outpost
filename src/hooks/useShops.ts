@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 
 export function useShops() {
@@ -216,23 +216,58 @@ export function useCheckins(shopId: string) {
   return { checkinCount, userCheckedIn, checkIn }
 }
 
-export function useNews() {
+export const NEWS_CATEGORIES = ['All', 'TCG', 'Comics', 'Pop Culture'] as const
+export const NEWS_PAGE_SIZE = 40
+const NEWS_COLS = 'id,title,url,source_name,description,category,published_at'
+
+// Server-side, paginated news. "All" page 1 also merges in the newest few
+// Comics so the low-volume category is never crowded out.
+export function useNews(category: string = 'All') {
   const [articles, setArticles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [hasMore, setHasMore] = useState(true)
+  const [page, setPage] = useState(0)
+  const loadingRef = useRef(false)
+
+  useEffect(() => { setArticles([]); setPage(0); setHasMore(true) }, [category])
 
   useEffect(() => {
-    supabase
-      .from('news_articles')
-      .select('*')
+    let cancelled = false
+    loadingRef.current = true
+    setLoading(true)
+    const from = page * NEWS_PAGE_SIZE
+    let q = supabase.from('news_articles').select(NEWS_COLS)
       .order('published_at', { ascending: false, nullsFirst: false })
-      .limit(80)
-      .then(({ data }) => {
-        setArticles(data || [])
-        setLoading(false)
+      .order('id', { ascending: false })
+      .range(from, from + NEWS_PAGE_SIZE)
+    if (category !== 'All') q = q.eq('category', category)
+    const extra = category === 'All' && page === 0
+      ? supabase.from('news_articles').select(NEWS_COLS).eq('category', 'Comics')
+          .order('published_at', { ascending: false, nullsFirst: false }).limit(6)
+      : Promise.resolve({ data: [] as any[] })
+    Promise.all([q, extra]).then(([main, ex]: any[]) => {
+      if (cancelled) return
+      const rows = (main.data || []) as any[]
+      setHasMore(rows.length > NEWS_PAGE_SIZE)
+      const pageRows = rows.slice(0, NEWS_PAGE_SIZE).concat(ex.data || [])
+      setArticles(prev => {
+        const seen = new Set(prev.map(a => a.id))
+        const merged = page === 0 ? [] as any[] : [...prev]
+        if (page === 0) seen.clear()
+        for (const a of pageRows) if (!seen.has(a.id)) { seen.add(a.id); merged.push(a) }
+        return merged.sort((a, b) => String(b.published_at || '').localeCompare(String(a.published_at || '')))
       })
-  }, [])
+      loadingRef.current = false
+      setLoading(false)
+    })
+    return () => { cancelled = true; loadingRef.current = false }
+  }, [category, page])
 
-  return { articles, loading }
+  const loadMore = useCallback(() => {
+    if (!loadingRef.current && hasMore) setPage(p => p + 1)
+  }, [hasMore])
+
+  return { articles, loading, hasMore, loadMore }
 }
 
 // Columns the Events tab actually renders (keeps payloads small).
