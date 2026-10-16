@@ -34,5 +34,5 @@ export const FOR_SHOPS = {
     'Our team reviews your claim. Once approved, you get the verified badge and can edit your listing.',
   ],
   einNote:
-    'Your EIN is only used to review your ownership claim. It is never shown on your listing or shared with other users.',
+    'Your EIN is used only to verify you own this business. Stored securely and never shared or shown publicly.',
 }
