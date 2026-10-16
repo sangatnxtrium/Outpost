@@ -142,7 +142,10 @@ export default async function handler(req, res) {
     ticket_url: '',
     image_url: '',
     source: 'curated',
-    external_id: e.source_url,
+    // Must be unique per row: several curated rows share one source page, and a
+    // unique index on external_id made the whole first upsert batch fail.
+    external_id: `curated:${makeDedupeKey(e.title, e.date, e.city)}`,
+    is_national: !!e.is_national,
     description: `${e.description} Source: ${e.source_url}`,
   }))
   const raw = [...national, ...serp, ...tm, ...local.rows].filter(isRelevantEvent)
@@ -173,19 +176,19 @@ export default async function handler(req, res) {
     .map((r) => ({
       title: r.title,
       date: r.date,
-      location: r.location,
-      city: r.city,
-      state: r.state,
-      description: r.description,
-      website: r.website,
+      location: r.location || '',
+      city: r.city || '',
+      state: r.state || '',
+      description: r.description || '',
+      website: r.website || '',
       ticket_url: r.ticket_url || '',
       image_url: r.image_url || '',
-      categories: r.categories,
-      is_national: r.is_national,
+      categories: r.categories?.length ? r.categories : ['collectibles'],
+      is_national: !!r.is_national,
       end_date: r.end_date || null,
       shop_id: r.shop_id || null,
-      lat: r.lat,
-      lng: r.lng,
+      lat: r.lat ?? null,
+      lng: r.lng ?? null,
       source: r.source,
       external_id: r.external_id,
       dedupe_key: r.dedupe_key || makeDedupeKey(r.title, r.date, r.city),
@@ -195,15 +198,30 @@ export default async function handler(req, res) {
 
   let upserted = 0
   const errors = []
-  // Batch to stay well under payload limits
-  for (let i = 0; i < upserts.length; i += 200) {
-    const chunk = upserts.slice(i, i + 200)
+  const failedRows = []
+  // Upsert a batch; if Postgres rejects it, split it so one bad row can't take
+  // down 199 good ones, and report exactly which rows failed and why.
+  async function upsertBatch(rows) {
+    if (!rows.length) return
     const { error, count } = await supabase
       .from('events')
-      .upsert(chunk, { onConflict: 'dedupe_key', ignoreDuplicates: false, count: 'exact' })
-    if (error) errors.push(error.message)
-    else upserted += count ?? chunk.length
+      .upsert(rows, { onConflict: 'dedupe_key', ignoreDuplicates: false, count: 'exact' })
+    if (!error) { upserted += count ?? rows.length; return }
+    if (rows.length === 1) {
+      if (failedRows.length < 25) failedRows.push({ title: rows[0].title, date: rows[0].date, source: rows[0].source, error: error.message })
+      if (!errors.includes(error.message)) errors.push(error.message)
+      return
+    }
+    const mid = Math.ceil(rows.length / 2)
+    await upsertBatch(rows.slice(0, mid))
+    await upsertBatch(rows.slice(mid))
   }
+  // Curated national rows go first in their own batch so they never share a
+  // fate with scraped rows.
+  const curated = upserts.filter((r) => r.source === 'curated')
+  const rest = upserts.filter((r) => r.source !== 'curated')
+  await upsertBatch(curated)
+  for (let i = 0; i < rest.length; i += 200) await upsertBatch(rest.slice(i, i + 200))
 
   // 4b. Regenerate store events: hide future rows from store platforms that
   //     were not seen this run (cancelled, or a projected week that changed).
@@ -244,6 +262,8 @@ export default async function handler(req, res) {
     ms: Date.now() - started,
     fetched: { serpapi: serp.length, ticketmaster: tm.length, national: national.length, local: local.stats },
     shopsMatched,
+    curated: curated.length,
+    failedRows,
     deduped: deduped.length,
     upserted,
     expired: expiredCount ?? 0,
