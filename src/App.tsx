@@ -3,6 +3,7 @@ import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Compass, MapPin, Search, Flame, X, Store, User, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, ShieldCheck, DollarSign, Plus, Check, Phone, Bell, Heart, Star, BookOpen, Send, Globe, Newspaper, Share2, MessageCircle, ArrowLeft, Trash2, ChevronLeft, ChevronDown, ArrowUp, CalendarCheck, CalendarPlus } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
+import { FACEBOOK_URL, FacebookIcon } from './FacebookLink'
 import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useMajorEvents, type EventRange, useEventsByIds, useNews, NEWS_CATEGORIES, useListings, useFcbd, useFcbdTitles, useNotifications, useAppSettings, useListingOffers, useFollows, useConversations, useMessages, useItemMessages, usePoints, useReferrals, useMyRedemptions, useRewardOffers, useMerchantRewards } from './hooks/useShops'
 import { startCheckout } from './lib/stripe'
 import { supabase } from './lib/supabase'
@@ -2731,6 +2732,12 @@ export default function App() {
                     <button onClick={() => window.open('/privacy', '_blank')} className="hover:text-zinc-600 transition-colors">Privacy Policy</button>
                     <span className="text-zinc-300">·</span>
                     <button onClick={() => window.open('/terms', '_blank')} className="hover:text-zinc-600 transition-colors">Terms of Service</button>
+                    <span className="text-zinc-300">·</span>
+                    <a href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer" aria-label="Outpost on Facebook" title="Outpost on Facebook"
+                      className="inline-flex items-center gap-1 hover:text-[#1877F2] transition-colors">
+                      <FacebookIcon className="h-4 w-4" />
+                      <span className="hidden sm:inline">Facebook</span>
+                    </a>
                   </div>
                   <p className="text-[11px] text-zinc-300 mt-2">Outpost · Find collectibles near you</p>
                 </div>
@@ -4087,6 +4094,14 @@ export default function App() {
                   <ChevronRight className="h-4 w-4 text-zinc-300" />
                 </button>
               ))}
+              <a href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer" aria-label="Outpost on Facebook"
+                className="w-full px-5 py-4 flex items-center justify-between text-left">
+                <div className="flex items-center gap-3">
+                  <FacebookIcon className="h-5 w-5 text-[#1877F2]" />
+                  <div><p className="font-black text-sm">Follow us on Facebook</p><p className="text-xs text-zinc-400 mt-0.5">News, drops and updates</p></div>
+                </div>
+                <ChevronRight className="h-4 w-4 text-zinc-300" />
+              </a>
             </div>
           </div>
         </div>
