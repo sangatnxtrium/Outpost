@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react'
 import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { Compass, MapPin, Search, Flame, X, Store, User, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, ShieldCheck, DollarSign, Plus, Check, Phone, Bell, Heart, Star, BookOpen, Send, Globe, Newspaper, Share2, MessageCircle, ArrowLeft, Trash2 } from 'lucide-react'
+import { Compass, MapPin, Search, Flame, X, Store, User, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, ShieldCheck, DollarSign, Plus, Check, Phone, Bell, Heart, Star, BookOpen, Send, Globe, Newspaper, Share2, MessageCircle, ArrowLeft, Trash2, ChevronLeft, ChevronDown, ArrowUp, CalendarCheck, CalendarPlus } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
-import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useMajorEvents, useEventsByIds, useNews, useListings, useFcbd, useFcbdTitles, useNotifications, useAppSettings, useListingOffers, useFollows, useConversations, useMessages, useItemMessages, usePoints, useReferrals, useMyRedemptions, useRewardOffers, useMerchantRewards } from './hooks/useShops'
+import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useMajorEvents, type EventRange, useEventsByIds, useNews, useListings, useFcbd, useFcbdTitles, useNotifications, useAppSettings, useListingOffers, useFollows, useConversations, useMessages, useItemMessages, usePoints, useReferrals, useMyRedemptions, useRewardOffers, useMerchantRewards } from './hooks/useShops'
 import { startCheckout } from './lib/stripe'
 import { supabase } from './lib/supabase'
 
@@ -437,6 +437,34 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal, unreadCount, unre
   )
 }
 
+const CAT_COLORS: Record<string, string> = { cards: '#38BDF8', comics: '#F59E0B', toys: '#10B981', collectibles: '#A78BFA' }
+const catColor = (c?: string) => CAT_COLORS[c || ''] || '#A78BFA'
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+function fmtEventDay(iso: string) {
+  const d = new Date(iso + 'T12:00:00')
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+}
+function dayHeader(iso: string) {
+  const today = new Date(); const t = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  const tm = new Date(today); tm.setDate(today.getDate() + 1)
+  const tmIso = `${tm.getFullYear()}-${String(tm.getMonth() + 1).padStart(2, '0')}-${String(tm.getDate()).padStart(2, '0')}`
+  const label = new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
+  return iso === t ? `Today · ${label}` : iso === tmIso ? `Tomorrow · ${label}` : label
+}
+// Pull store / time / price out of importer-generated titles & descriptions.
+function eventMeta(ev: any) {
+  const raw = String(ev.title || '')
+  const at = raw.lastIndexOf(' @ ')
+  const title = at > 0 ? raw.slice(0, at) : raw
+  const store = at > 0 ? raw.slice(at + 3) : (String(ev.location || '').split(',')[0] || '')
+  const desc = String(ev.description || '')
+  const time = desc.match(/Starts (\d{1,2}:\d{2} [AP]M)/)?.[1] || ''
+  const fee = desc.match(/Entry \$([\d.]+)/)?.[1]
+  const price = fee ? `$${fee}` : /Free entry/.test(desc) ? 'Free' : ''
+  const weekday = WEEKDAYS[new Date(ev.date + 'T12:00:00').getDay()]
+  return { title, store: store === ev.city ? '' : store, time, price, weekday }
+}
+
 const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DC','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY']
 
 export default function App() {
@@ -544,6 +572,18 @@ export default function App() {
     setEventStateRaw(st)
   }
   const [eventNearMiles, setEventNearMiles] = useState<number | null>(null)
+  const [eventRange, setEventRange] = useState<EventRange>('all')
+  const [eventSearchInput, setEventSearchInput] = useState('')
+  const [eventSearch, setEventSearch] = useState('')
+  const [expandedEventId, setExpandedEventId] = useState<string | null>(null)
+  const [headerCollapsed, setHeaderCollapsed] = useState(false)
+  const [showBackTop, setShowBackTop] = useState(false)
+  const [headerH, setHeaderH] = useState(0)
+  const [eventBarH, setEventBarH] = useState(0)
+  const headerRef = useRef<HTMLElement | null>(null)
+  const eventBarRef = useRef<HTMLDivElement | null>(null)
+  const eventSentinelRef = useRef<HTMLDivElement | null>(null)
+  const majorRowRef = useRef<HTMLDivElement | null>(null)
   const [userLat, setUserLat] = useState<number | null>(null)
   const [userLng, setUserLng] = useState<number | null>(null)
   const [locationLoading, setLocationLoading] = useState(true)
@@ -850,48 +890,102 @@ export default function App() {
 
   const eventNear = eventNearMiles && userLat && userLng ? { lat: userLat, lng: userLng, miles: eventNearMiles } : null
   const { events: filteredEvents, loading: eventsLoading, hasMore: eventsHasMore, loadMore: loadMoreEvents } =
-    useEvents({ state: eventState, category: eventFilter, near: eventNear })
-  const { events: majorEvents } = useMajorEvents(eventFilter)
+    useEvents({ state: eventState, category: eventFilter, near: eventNear, range: eventRange, search: eventSearch })
+  const { events: majorEvents } = useMajorEvents(eventFilter, eventSearch)
+
+  // Debounce the events search box (server-side filter).
+  useEffect(() => {
+    const t = setTimeout(() => setEventSearch(eventSearchInput.trim()), 300)
+    return () => clearTimeout(t)
+  }, [eventSearchInput])
+
+  // Collapse the mobile header once the page scrolls; show Back to top.
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY
+      setHeaderCollapsed(prev => (prev ? y > 20 : y > 90))
+      setShowBackTop(y > 1200)
+    }
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // Track header + sticky filter bar heights so date headers stick below them.
+  useEffect(() => {
+    const ro = new ResizeObserver(() => {
+      setHeaderH(headerRef.current?.offsetHeight || 0)
+      setEventBarH(eventBarRef.current?.offsetHeight || 0)
+    })
+    if (headerRef.current) ro.observe(headerRef.current)
+    if (eventBarRef.current) ro.observe(eventBarRef.current)
+    return () => ro.disconnect()
+  }, [activeSection, tab])
+
+  // Infinite scroll: load the next page when the sentinel nears the viewport.
+  useEffect(() => {
+    const el = eventSentinelRef.current
+    if (!el || !eventsHasMore) return
+    const io = new IntersectionObserver(entries => {
+      if (entries.some(e => e.isIntersecting)) loadMoreEvents()
+    }, { rootMargin: '800px 0px' })
+    io.observe(el)
+    return () => io.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventsHasMore, eventsLoading, filteredEvents.length, activeSection, tab])
+
+  // Group the (already date-ordered) list by day for sticky headers.
+  const eventGroups: { date: string; items: any[] }[] = []
+  for (const ev of filteredEvents) {
+    const last = eventGroups[eventGroups.length - 1]
+    if (last && last.date === ev.date) last.items.push(ev)
+    else eventGroups.push({ date: ev.date, items: [ev] })
+  }
   const eventStates = ['all', ...US_STATES]
 
-  const renderEventCard = (ev: any) => (
-
-                          <div key={ev.id} className="bg-zinc-50 rounded-3xl p-4 shadow-sm border border-zinc-100">
-                            <div className="flex items-start justify-between gap-3 mb-2">
-                              <div className="flex-1">
-                                <div className="flex gap-2 flex-wrap mb-2">
-                                  {(ev.categories || [ev.category]).map((cat: string) => (
-                                    <span key={cat} className="text-xs font-black px-2 py-0.5 rounded-lg uppercase"
-                                      style={cat === 'comics' ? { background: '#FEF3C7', color: '#92400E' }
-                                        : cat === 'cards' ? { background: '#E0F2FE', color: '#0369A1' }
-                                        : cat === 'toys' ? { background: '#D1FAE5', color: '#065F46' }
-                                        : { background: '#EDE9FE', color: '#5B21B6' }}>
-                                      {cat}
-                                    </span>
-                                  ))}
-                                </div>
-                                <p className="font-black text-base">{ev.title}</p>
-                                <p className="text-xs text-zinc-400 mt-1">{ev.location || ev.shops?.name}</p>
-                              </div>
-                              <div className="text-right flex-shrink-0">
-                                <span className="text-xs bg-zinc-100 px-2 py-1 rounded-lg font-mono font-bold block">{ev.date}</span>
-                                {ev.spots && <p className="text-xs text-zinc-400 mt-1">{ev.spots} spots</p>}
-                              </div>
-                            </div>
-                            {ev.description && <p className="text-xs text-zinc-500 leading-relaxed line-clamp-3">{ev.description}</p>}
-                            {(ev.ticket_url || ev.website) && (
-                              <a href={ev.ticket_url || ev.website} target="_blank" rel="noopener noreferrer"
-                                className="inline-block mt-2 text-xs font-black" style={{ color: '#7C3AED' }}>
-                                Details →
-                              </a>
-                            )}
-                            <button onClick={() => toggleRsvp(ev.id)}
-                              className="w-full mt-3 py-2.5 rounded-2xl text-xs font-black uppercase border-2 transition-all"
-                              style={rsvps.includes(ev.id) ? { background: '#F0FDF4', color: '#166534', borderColor: '#BBF7D0' } : { background: '#131615', color: '#9ca3af', borderColor: '#262B28' }}>
-                              {rsvps.includes(ev.id) ? '✓ Going' : 'RSVP'}
-                            </button>
-                          </div>
-  )
+  const renderEventCard = (ev: any) => {
+    const m = eventMeta(ev)
+    const open = expandedEventId === ev.id
+    const going = rsvps.includes(ev.id)
+    return (
+      <div key={ev.id} className="border-b border-zinc-100 last:border-b-0">
+        <div className="flex items-start gap-3 px-3 py-2.5 cursor-pointer" onClick={() => setExpandedEventId(open ? null : ev.id)}>
+          <span className="mt-1.5 h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ background: catColor((ev.categories || [])[0]) }} title={(ev.categories || []).join(', ')} />
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-sm leading-snug line-clamp-2">{m.title}</p>
+            <p className="text-xs text-zinc-400 mt-0.5 truncate">{[m.store, ev.city, m.time, m.price].filter(Boolean).join(' · ')}</p>
+            {ev.n_dates > 1 && (
+              <p className="text-[11px] mt-0.5 font-medium" style={{ color: '#0F9D8A' }}>
+                every {m.weekday}{ev.n_dates > 1 ? ` · +${ev.n_dates - 1} more date${ev.n_dates > 2 ? 's' : ''}` : ''}
+                <ChevronDown className={`inline h-3 w-3 ml-0.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+              </p>
+            )}
+          </div>
+          <button aria-label={going ? 'Going' : 'RSVP'} onClick={e => { e.stopPropagation(); toggleRsvp(ev.id) }}
+            className="h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 border"
+            style={going ? { background: '#F0FDF4', borderColor: '#BBF7D0', color: '#166534' } : { background: '#131615', borderColor: '#262B28', color: '#9ca3af' }}>
+            {going ? <CalendarCheck className="h-4 w-4" /> : <CalendarPlus className="h-4 w-4" />}
+          </button>
+        </div>
+        {open && (
+          <div className="px-3 pb-3 pl-8 space-y-2">
+            {ev.location && <p className="text-xs text-zinc-400">{ev.location}</p>}
+            {ev.description && <p className="text-xs text-zinc-500 leading-relaxed whitespace-pre-line">{ev.description}</p>}
+            {Array.isArray(ev.dates) && ev.dates.length > 1 && (
+              <div className="flex flex-wrap gap-1">
+                {ev.dates.map((d: string) => <span key={d} className="text-[11px] bg-zinc-100 px-2 py-0.5 rounded-lg font-mono">{fmtEventDay(d)}</span>)}
+              </div>
+            )}
+            {ev.spots > 0 && <p className="text-xs text-zinc-400">{ev.spots} spots</p>}
+            {(ev.ticket_url || ev.website) && (
+              <a href={ev.ticket_url || ev.website} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                className="inline-block text-xs font-black" style={{ color: '#7C3AED' }}>Details →</a>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   const isSignedIn = !!user
   const isMerchant = profile?.role === 'merchant'
@@ -1605,14 +1699,13 @@ export default function App() {
           </div>
         )}
 
-        <div className="flex-1 flex flex-col min-h-screen max-w-2xl mx-auto w-full md:max-w-none">
+        <div className="flex-1 min-w-0 flex flex-col min-h-screen max-w-2xl mx-auto w-full md:max-w-none">
 
           {/* HEADER */}
-          <header className="sticky top-0 z-20 px-4 pt-10 pb-3 md:pt-3 md:pb-3 border-b border-zinc-200 bg-[#0A0B0C]/95 backdrop-blur">
-            <div className="flex items-center justify-between gap-2 md:hidden">
+          <header ref={headerRef} className={`sticky top-0 z-20 px-4 ${headerCollapsed ? 'pt-3' : 'pt-10'} pb-3 md:pt-3 md:pb-3 border-b border-zinc-200 bg-[#0A0B0C]/95 backdrop-blur`}>
+            <div className={`items-center justify-between gap-2 md:hidden ${headerCollapsed ? 'hidden' : 'flex'}`}>
               <div className="min-w-0 flex-1">
-                <img src="/logo.png" alt="getOutpost.net" onClick={() => goTab('discover')} className="h-[75px] w-auto cursor-pointer" />
-                <p className="text-[15px] mt-0.5 whitespace-nowrap text-zinc-400">Every Shop. Every Drop. Near You.</p>
+                <img src="/logo.png" alt="getOutpost.net" onClick={() => goTab('discover')} className="h-[56px] w-auto cursor-pointer" />
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 {isSignedIn && (
@@ -1647,8 +1740,8 @@ export default function App() {
                 </button>
               </div>
             </div>
-            {tab === 'discover' && (
-              <div className="mt-3 relative md:hidden">
+            {tab === 'discover' && activeSection !== 'events' && (
+              <div className={`${headerCollapsed ? '' : 'mt-3'} relative md:hidden`}>
                 <Search className="absolute left-3.5 top-3 h-4 w-4 text-zinc-400" />
                 <input type="text" placeholder="Search shops, cities, tags"
                   value={search} onChange={e => { setSearch(e.target.value); searchEbay(e.target.value) }}
@@ -1657,7 +1750,7 @@ export default function App() {
             )}
           </header>
 
-          <main className="flex-1 overflow-y-auto pb-28 md:pb-8">
+          <main className="flex-1 min-w-0 pb-28 md:pb-8">
 
             {/* DISCOVER */}
             {tab === 'discover' && (
@@ -1795,98 +1888,113 @@ export default function App() {
                 )}
                 {/* Events section */}
                 {activeSection === 'events' && (
-                  <div className="space-y-3">
-                    <div className="rounded-3xl p-4 text-white" style={{ background: 'linear-gradient(135deg, #7C3AED, #6D28D9)' }}>
-                      <h2 className="font-black text-lg">Upcoming Events</h2>
-                      <p className="text-xs text-white/70 mt-0.5">Card shows, tournaments, signings near you</p>
-                    </div>
-                    {/* Event category filter */}
-                    <div className="flex gap-2 overflow-x-auto pb-1">
-                      {[
-                        { id: 'all', label: 'All', color: '#7C3AED' },
-                        { id: 'cards', label: 'Cards', color: '#38BDF8' },
-                        { id: 'comics', label: 'Comics', color: '#F59E0B' },
-                        { id: 'collectibles', label: 'Collectibles', color: '#A78BFA' },
-                        { id: 'toys', label: 'Toys', color: '#10B981' },
-                      ].map(f => (
-                        <button key={f.id} onClick={() => setEventFilter(f.id)}
-                          className="px-4 py-2 rounded-2xl text-xs font-black uppercase border-2 transition-all whitespace-nowrap flex-shrink-0"
-                          style={eventFilter === f.id ? { background: f.color, borderColor: f.color, color: 'white' } : { background: '#131615', borderColor: '#262B28', color: '#9ca3af' }}>
-                          {f.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* State dropdown */}
-                    <div className="flex items-center gap-2">
+                  <div className="space-y-3 min-w-0">
+                    {/* Location: state or near me */}
+                    <div className="flex items-center gap-2 min-w-0">
                       <MapPin className="h-3.5 w-3.5 text-zinc-400 flex-shrink-0" />
-                      <select
-                        value={eventState}
-                        onChange={e => setEventState(e.target.value)}
-                        className="flex-1 bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-2.5 text-sm font-black outline-none focus:border-zinc-300">
+                      <select value={eventState} onChange={e => { setEventState(e.target.value); setEventNearMiles(null) }}
+                        className="flex-1 min-w-0 bg-zinc-50 border border-zinc-100 rounded-xl px-3 py-2 text-sm font-bold outline-none">
                         {eventStates.map((state: string) => (
-                          <option key={state} value={state}>
-                            {state === 'all' ? '🇺🇸 All States' : state}
-                          </option>
+                          <option key={state} value={state}>{state === 'all' ? '🇺🇸 All States' : state}</option>
                         ))}
                       </select>
+                      {userLat && userLng && (
+                        <select value={eventNearMiles ?? ''} onChange={e => setEventNearMiles(e.target.value ? Number(e.target.value) : null)}
+                          className="bg-zinc-50 border border-zinc-100 rounded-xl px-2 py-2 text-xs font-bold outline-none">
+                          <option value="">By state</option>
+                          <option value="10">Near me · 10 mi</option>
+                          <option value="25">Near me · 25 mi</option>
+                          <option value="50">Near me · 50 mi</option>
+                        </select>
+                      )}
                     </div>
 
-                    {/* Near me (needs location) */}
-                    {userLat && userLng && (
-                      <div className="flex gap-2 overflow-x-auto">
-                        {[null, 10, 25, 50].map(m => (
-                          <button key={String(m)} onClick={() => setEventNearMiles(m)}
-                            className="px-3 py-1.5 rounded-2xl text-xs font-black uppercase border-2 whitespace-nowrap"
-                            style={eventNearMiles === m ? { background: '#0F9D8A', borderColor: '#0F9D8A', color: 'white' } : { background: '#131615', borderColor: '#262B28', color: '#9ca3af' }}>
-                            {m === null ? 'By state' : `Near me · ${m} mi`}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Major events: conventions & championships, always visible */}
+                    {/* Major events: contained horizontal row, arrows on desktop */}
                     {majorEvents.length > 0 && (
-                      <div className="space-y-2">
-                        <p className="text-xs font-black uppercase tracking-wide px-1" style={{ color: '#F59E0B' }}>⭐ Major events</p>
-                        <div className="flex gap-3 overflow-x-auto pb-1">
+                      <div className="min-w-0">
+                        <div className="flex items-center justify-between px-1 mb-1.5">
+                          <p className="text-xs font-black uppercase tracking-wide" style={{ color: '#F59E0B' }}>⭐ Major events</p>
+                          <div className="hidden md:flex gap-1">
+                            <button aria-label="Scroll left" onClick={() => majorRowRef.current?.scrollBy({ left: -480, behavior: 'smooth' })}
+                              className="h-7 w-7 rounded-full border border-zinc-200 flex items-center justify-center"><ChevronLeft className="h-4 w-4 text-zinc-400" /></button>
+                            <button aria-label="Scroll right" onClick={() => majorRowRef.current?.scrollBy({ left: 480, behavior: 'smooth' })}
+                              className="h-7 w-7 rounded-full border border-zinc-200 flex items-center justify-center"><ChevronRight className="h-4 w-4 text-zinc-400" /></button>
+                          </div>
+                        </div>
+                        <div ref={majorRowRef} className="flex gap-2 overflow-x-auto pb-1 w-full max-w-full snap-x" style={{ scrollbarWidth: 'none' }}>
                           {majorEvents.map((ev: any) => (
                             <a key={ev.id} href={ev.ticket_url || ev.website || undefined} target="_blank" rel="noopener noreferrer"
-                              className="flex-shrink-0 w-60 bg-zinc-50 rounded-2xl p-3 border border-zinc-100">
-                              <span className="text-[11px] bg-zinc-100 px-2 py-0.5 rounded-lg font-mono font-bold">{ev.date}{ev.end_date && ev.end_date !== ev.date ? ` → ${ev.end_date.slice(5)}` : ''}</span>
-                              <p className="font-black text-sm mt-1.5 line-clamp-2">{ev.title}</p>
-                              <p className="text-xs text-zinc-400 mt-0.5">{[ev.city, ev.state].filter(Boolean).join(', ')}</p>
+                              className="snap-start flex-shrink-0 w-48 bg-zinc-50 rounded-xl px-3 py-2 border border-zinc-100">
+                              <p className="text-[11px] font-mono text-zinc-400">{fmtEventDay(ev.date)}{ev.end_date && ev.end_date !== ev.date ? ` – ${fmtEventDay(ev.end_date).replace(/^\w+, /, '')}` : ''}</p>
+                              <p className="font-bold text-xs mt-0.5 line-clamp-2">{ev.title}</p>
+                              <p className="text-[11px] text-zinc-400 truncate">{[ev.city, ev.state].filter(Boolean).join(', ')}</p>
                             </a>
                           ))}
                         </div>
                       </div>
                     )}
 
-                    {/* Results count */}
-                    <p className="text-xs text-zinc-400 font-mono px-1">
-                      {eventsLoading && filteredEvents.length === 0 ? 'Loading events…' : `${filteredEvents.length}${eventsHasMore ? '+' : ''} local event${filteredEvents.length !== 1 ? 's' : ''} ${eventNear ? `within ${eventNearMiles} mi` : eventState !== 'all' ? `in ${eventState}` : 'nationwide'}`}
-                    </p>
+                    {/* Sticky filter bar: search, date chips, categories */}
+                    <div ref={eventBarRef} className="sticky z-10 -mx-4 px-4 py-2 space-y-2 bg-[#0A0B0C]/95 backdrop-blur border-b border-zinc-100"
+                      style={{ top: headerH }}>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
+                        <input type="search" value={eventSearchInput} onChange={e => setEventSearchInput(e.target.value)}
+                          placeholder="Search events, stores, cities"
+                          className="w-full bg-zinc-50 border border-zinc-100 rounded-full pl-9 pr-3 py-2 text-sm outline-none focus:border-zinc-300" />
+                      </div>
+                      <div className="flex gap-1.5 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+                        {([['all', 'All dates'], ['today', 'Today'], ['weekend', 'This weekend'], ['week', 'This week']] as [EventRange, string][]).map(([id, label]) => (
+                          <button key={id} onClick={() => setEventRange(id)}
+                            className="px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap border flex-shrink-0"
+                            style={eventRange === id ? { background: '#0F9D8A', borderColor: '#0F9D8A', color: 'white' } : { background: '#131615', borderColor: '#262B28', color: '#9ca3af' }}>
+                            {label}
+                          </button>
+                        ))}
+                        <span className="w-px bg-zinc-200 mx-1 flex-shrink-0" />
+                        {[['all', 'All'], ['cards', 'Cards'], ['comics', 'Comics'], ['collectibles', 'Collectibles'], ['toys', 'Toys']].map(([id, label]) => (
+                          <button key={id} onClick={() => setEventFilter(id)}
+                            className="px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap border flex-shrink-0 flex items-center gap-1"
+                            style={eventFilter === id ? { background: '#7C3AED', borderColor: '#7C3AED', color: 'white' } : { background: '#131615', borderColor: '#262B28', color: '#9ca3af' }}>
+                            {id !== 'all' && <span className="h-2 w-2 rounded-full" style={{ background: catColor(id) }} />}{label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Local events grouped by day */}
                     {filteredEvents.length === 0 && !eventsLoading ? (
                       <div className="text-center py-10 text-zinc-400">
                         <Calendar className="h-10 w-10 mx-auto mb-2 opacity-20" />
-                        <p className="text-sm font-mono">No events yet</p>
-                        <button onClick={() => setModal('submit')}
-                          className="mt-3 text-xs font-black px-4 py-2 rounded-xl text-white"
-                          style={{ background: '#7C3AED' }}>
+                        <p className="text-sm font-mono">No events match these filters</p>
+                        <button onClick={() => setModal('submit')} className="mt-3 text-xs font-black px-4 py-2 rounded-xl text-white" style={{ background: '#7C3AED' }}>
                           Submit an Event
                         </button>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {filteredEvents.map((ev: any) => renderEventCard(ev))}
-                        {eventsHasMore && (
-                          <button onClick={loadMoreEvents} disabled={eventsLoading}
-                            className="md:col-span-2 w-full py-3 rounded-2xl text-xs font-black uppercase border-2"
-                            style={{ background: '#131615', color: '#9ca3af', borderColor: '#262B28' }}>
-                            {eventsLoading ? 'Loading…' : 'Show more'}
-                          </button>
-                        )}
+                      <div className="space-y-3">
+                        {eventGroups.map(g => (
+                          <section key={g.date}>
+                            <h3 className="sticky z-[5] -mx-4 px-5 py-1.5 text-xs font-black uppercase tracking-wide text-zinc-400 bg-[#0A0B0C]/95 backdrop-blur"
+                              style={{ top: headerH + eventBarH }}>
+                              {dayHeader(g.date)} <span className="font-mono font-normal text-zinc-500">· {g.items.length}</span>
+                            </h3>
+                            <div className="bg-zinc-50 rounded-2xl border border-zinc-100 overflow-hidden md:grid md:grid-cols-2 md:gap-x-4">
+                              {g.items.map(ev => renderEventCard(ev))}
+                            </div>
+                          </section>
+                        ))}
+                        <div ref={eventSentinelRef} className="h-10 flex items-center justify-center text-xs text-zinc-400 font-mono">
+                          {eventsLoading ? 'Loading…' : eventsHasMore ? '' : filteredEvents.length ? 'That\u2019s everything' : ''}
+                        </div>
                       </div>
+                    )}
+                    {showBackTop && (
+                      <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Back to top"
+                        className="fixed right-4 bottom-28 md:bottom-8 z-30 h-11 w-11 rounded-full shadow-lg flex items-center justify-center text-white"
+                        style={{ background: '#7C3AED' }}>
+                        <ArrowUp className="h-5 w-5" />
+                      </button>
                     )}
                   </div>
                 )}
