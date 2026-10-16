@@ -97,7 +97,26 @@ function injectMeta(html: string, opts: { title: string; description: string; ur
     `<meta property="og:url" content="${opts.url}" />`
   )
 
+  // Keep canonical + Twitter card tags in sync with the page-specific values,
+  // otherwise every shop/city/listing page would declare the homepage canonical.
+  html = html.replace(
+    /<link rel="canonical" href="[\s\S]*?"\s*\/?>/,
+    `<link rel="canonical" href="${escapeHtml(opts.url)}" />`
+  )
+  html = html.replace(
+    /<meta name="twitter:title" content="[\s\S]*?"\s*\/?>/,
+    `<meta name="twitter:title" content="${title}" />`
+  )
+  html = html.replace(
+    /<meta name="twitter:description" content="[\s\S]*?"\s*\/?>/,
+    `<meta name="twitter:description" content="${description}" />`
+  )
+
   if (opts.image) {
+    html = html.replace(
+      /<meta name="twitter:image" content="[\s\S]*?"\s*\/?>/,
+      `<meta name="twitter:image" content="${escapeHtml(opts.image)}" />`
+    )
     const imageTag = `<meta property="og:image" content="${escapeHtml(opts.image)}" />`
     if (/<meta property="og:image"/.test(html)) {
       html = html.replace(/<meta property="og:image" content="[\s\S]*?"\s*\/?>/, imageTag)
@@ -168,7 +187,7 @@ export default async function middleware(request: Request) {
     }
   }
 
-  const html = meta ? injectMeta(originHtml, { ...meta, url: url.toString() }) : originHtml
+  const html = meta ? injectMeta(originHtml, { ...meta, url: url.origin + url.pathname }) : originHtml
 
   return new Response(html, {
     status: 200,
