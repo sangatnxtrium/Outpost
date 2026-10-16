@@ -1,7 +1,7 @@
 import React from 'react'
 import { ArrowLeft } from 'lucide-react'
 
-const LAST_UPDATED = 'June 28, 2026'
+const LAST_UPDATED = 'October 16, 2026'
 const COMPANY = 'Outpost'
 const EMAIL = 'legal@getoutpost.net'
 const WEBSITE = 'www.getoutpost.net'
@@ -40,6 +40,7 @@ export function PrivacyPolicy() {
             <p><strong>Account Information:</strong> When you create an account, we collect your email address and the username you choose.</p>
             <p><strong>Location Data:</strong> With your permission, we collect your device's location to show nearby collectibles shops, events, and community listings. When you post a marketplace listing or trade, we attach an <strong>approximate</strong> location to that post (your coordinates are rounded to roughly a neighborhood-sized area before they are stored) so other users can see about how far away an item is. We do not store or display your exact location for posts. You can disable location access at any time in your device settings.</p>
             <p><strong>Usage Data:</strong> We collect information about how you use the app, including shops you view, events you RSVP to, and trades and listings you post.</p>
+            <p><strong>Shop Claim Information:</strong> Shop owners who claim a listing provide business details, including an EIN. The EIN is used only to review ownership claims, is stored securely with our database provider, and is never shown publicly or sold.</p>
             <p><strong>Payment Information:</strong> Payments are processed by Stripe. We do not store your credit card information. Stripe's privacy policy applies to payment data.</p>
             <p><strong>User Content:</strong> Content you create — including trade posts, marketplace listings, shop photos, profile images, questions, and replies — is stored on our servers. <strong>Photos and images you upload are stored in publicly accessible storage,</strong> which means anyone with the image's link can view it. Do not upload images that contain sensitive personal information.</p>
           </Section>

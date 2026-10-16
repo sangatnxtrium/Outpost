@@ -3699,7 +3699,7 @@ export default function App() {
                 </div>
                 <div>
                   <p className="font-black text-xl">Claim Submitted!</p>
-                  <p className="text-sm text-zinc-400 mt-2">We'll verify your EIN within 24 hours and email you at <span className="font-bold text-zinc-600">{user?.email}</span></p>
+                  <p className="text-sm text-zinc-400 mt-2">We'll review your claim within 24 hours and email you at <span className="font-bold text-zinc-600">{user?.email}</span></p>
                 </div>
                 <button onClick={closeModal} className="w-full text-white font-black py-4 rounded-2xl text-sm uppercase"
                   style={{ background: 'linear-gradient(135deg, #0F9D8A, #14B8A6)' }}>Done</button>
