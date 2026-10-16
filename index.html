@@ -15,25 +15,78 @@
 
     <!-- Icons -->
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <link rel="apple-touch-icon" sizes="152x152" href="/icon-192.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png" />
     <link rel="apple-touch-icon" sizes="167x167" href="/icon-192.png" />
 
     <!-- SEO -->
-    <meta name="description" content="Every shop. Every drop. Near you. Discover collectibles shops, card stores, and comic shops in your area." />
-    <meta property="og:title" content="Outpost — Collectibles Shop Finder" />
-    <meta property="og:description" content="Every shop. Every drop. Near you." />
+    <meta name="description" content="Find card shops, comic stores and collectibles shops near you. Browse local drops and events, buy, sell and trade on the Outpost marketplace, and earn rewards." />
+    <link rel="canonical" href="https://www.getoutpost.net/" />
+    <meta property="og:site_name" content="Outpost" />
+    <meta property="og:title" content="Card, Comic &amp; Collectibles Shops Near You | Outpost" />
+    <meta property="og:description" content="Every Shop. Every Drop. Near You. Find local card, comic and collectibles shops, shop the marketplace, and earn rewards." />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://www.getoutpost.net" />
+    <meta property="og:url" content="https://www.getoutpost.net/" />
+    <meta property="og:image" content="https://www.getoutpost.net/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Outpost — Every Shop. Every Drop. Near You." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Card, Comic &amp; Collectibles Shops Near You | Outpost" />
+    <meta name="twitter:description" content="Every Shop. Every Drop. Near You. Find local card, comic and collectibles shops, shop the marketplace, and earn rewards." />
+    <meta name="twitter:image" content="https://www.getoutpost.net/og-image.png" />
+
+    <!-- Structured data -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://www.getoutpost.net/#organization",
+            "name": "Outpost",
+            "url": "https://www.getoutpost.net/",
+            "logo": "https://www.getoutpost.net/logo.png",
+            "slogan": "Every Shop. Every Drop. Near You."
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://www.getoutpost.net/#website",
+            "name": "Outpost",
+            "url": "https://www.getoutpost.net/",
+            "description": "Find card, comic and collectibles shops near you.",
+            "publisher": { "@id": "https://www.getoutpost.net/#organization" }
+          }
+        ]
+      }
+    </script>
 
     <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@800;900&display=swap" rel="stylesheet">
 
-    <title>Outpost — Every Shop. Every Drop. Near You.</title>
+    <title>Card, Comic &amp; Collectibles Shops Near You | Outpost</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Static fallback for crawlers / no-JS. React's createRoot().render() replaces everything inside #root.
+           middleware.ts swaps the content between the ssr markers for page-specific HTML. -->
+      <!--ssr-root-start-->
+      <main style="max-width:640px;margin:0 auto;padding:48px 20px;font-family:system-ui,sans-serif;color:#F5F5F4;background:#131615">
+        <h1>Outpost — Card, Comic &amp; Collectibles Shops Near You</h1>
+        <p>Every Shop. Every Drop. Near You.</p>
+        <ul>
+          <li><strong>Find shops:</strong> discover local card shops, comic stores and collectibles dealers, with hours, drops and events.</li>
+          <li><strong>Marketplace:</strong> buy, sell and trade cards, comics and collectibles with collectors in your area.</li>
+          <li><strong>Rewards:</strong> earn rewards for checking in and shopping local.</li>
+        </ul>
+        <p><a href="/marketplace" style="color:#0F9D8A">Browse the marketplace</a> · <a href="/for-shops" style="color:#0F9D8A">Shop owners: claim your listing</a></p>
+      </main>
+      <!--ssr-root-end-->
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

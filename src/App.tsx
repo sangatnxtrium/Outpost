@@ -3824,8 +3824,8 @@ export default function App() {
             <div className="mb-4 p-3 rounded-2xl flex items-center gap-2" style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)" }}>
               <span className="text-lg">🎉</span>
               <div>
-                <p className="text-xs font-black text-emerald-700">Free Until 2028</p>
-                <p className="text-xs text-emerald-600 mt-0.5">All plans are free until January 2028 — for everyone, no matter when you sign up. No credit card needed.</p>
+                <p className="text-xs font-black text-emerald-700">Founding Member: free for life</p>
+                <p className="text-xs text-emerald-600 mt-0.5">The first 1,000 members get a paid plan free forever, plus a numbered badge. Everyone else pays nothing until January 2028. No credit card needed.</p>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -3840,7 +3840,7 @@ export default function App() {
               <div className="rounded-3xl p-4 border-2 bg-zinc-50" style={{ borderColor: '#0F9D8A' }}>
                 <p className="font-black text-base" style={{ color: '#0F9D8A' }}>Elite Pass</p>
                 <p className="text-2xl font-black mt-0.5 mb-1">$1.99<span className="text-sm font-normal text-zinc-400">/mo</span></p>
-                <p className="text-xs font-black text-emerald-600 mb-3">FREE during launch</p>
+                <p className="text-xs font-black text-emerald-600 mb-3">Free until 2028</p>
                 {['Everything in Free','Save favorite shops','Activity notifications','Customize your profile'].map(f => (
                   <div key={f} className="flex items-center gap-2 py-1"><Check className="h-3.5 w-3.5" style={{ color: '#0F9D8A' }} /><p className="text-sm text-zinc-600">{f}</p></div>
                 ))}
@@ -3853,7 +3853,7 @@ export default function App() {
               <div className="rounded-3xl p-4 text-white" style={{ background: 'linear-gradient(135deg, #131615, #1A1E1C)' }}>
                 <p className="font-black text-base text-amber-400">Verified Store</p>
                 <p className="text-2xl font-black mt-0.5 mb-1">$2.99<span className="text-sm font-normal text-white/40">/mo</span></p>
-                <p className="text-xs font-black text-emerald-400 mb-3">FREE during launch</p>
+                <p className="text-xs font-black text-emerald-400 mb-3">Free until 2028</p>
                 {['Everything in Elite','Verified badge','Edit your shop details','Add up to 5 shop photos','Set your cover photo','Highlight a hot find','FCBD participating badge'].map(f => (
                   <div key={f} className="flex items-center gap-2 py-1"><Check className="h-3.5 w-3.5 text-amber-400" /><p className="text-sm text-white/70">{f}</p></div>
                 ))}

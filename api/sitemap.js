@@ -19,6 +19,14 @@ function escapeXml(s) {
     .replace(/>/g, '&gt;')
 }
 
+// listings and trade_posts have a created_at column (the app orders by it);
+// shops don't have a confirmed timestamp column, so they get no <lastmod>.
+function toDate(ts) {
+  if (!ts) return null
+  const d = new Date(ts)
+  return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10)
+}
+
 const sbHeaders = { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` }
 
 async function fetchAllPages(pathAndQuery) {
@@ -44,10 +52,10 @@ const fetchAllSlugs = () =>
 // Only active listings — a sold item's page shouldn't stay indexed/shared
 // once it's off the market.
 const fetchAllListingSlugs = () =>
-  fetchAllPages('listings?select=slug&slug=not.is.null&status=eq.active')
+  fetchAllPages('listings?select=slug,created_at&slug=not.is.null&status=eq.active')
 
 const fetchAllTradeSlugs = () =>
-  fetchAllPages('trade_posts?select=slug&slug=not.is.null')
+  fetchAllPages('trade_posts?select=slug,created_at&slug=not.is.null')
 
 export default async function handler(req, res) {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
@@ -72,6 +80,7 @@ export default async function handler(req, res) {
     { loc: `${SITE}/`, changefreq: 'daily', priority: '1.0' },
     { loc: `${SITE}/marketplace`, changefreq: 'daily', priority: '0.8' },
     { loc: `${SITE}/news`, changefreq: 'daily', priority: '0.5' },
+    { loc: `${SITE}/for-shops`, changefreq: 'monthly', priority: '0.6' },
     { loc: `${SITE}/fcbd`, changefreq: 'weekly', priority: '0.4' },
     { loc: `${SITE}/privacy`, changefreq: 'monthly', priority: '0.3' },
     { loc: `${SITE}/terms`, changefreq: 'monthly', priority: '0.3' },
@@ -91,12 +100,14 @@ export default async function handler(req, res) {
 
   const listingUrls = listings.map(l => ({
     loc: `${SITE}/marketplace/${escapeXml(l.slug)}`,
+    lastmod: toDate(l.created_at),
     changefreq: 'weekly',
     priority: '0.5',
   }))
 
   const tradeUrls = trades.map(t => ({
     loc: `${SITE}/marketplace/trade/${escapeXml(t.slug)}`,
+    lastmod: toDate(t.created_at),
     changefreq: 'weekly',
     priority: '0.5',
   }))
@@ -109,6 +120,7 @@ export default async function handler(req, res) {
     all.map(u =>
       `  <url>\n` +
       `    <loc>${u.loc}</loc>\n` +
+      (u.lastmod ? `    <lastmod>${u.lastmod}</lastmod>\n` : '') +
       `    <changefreq>${u.changefreq}</changefreq>\n` +
       `    <priority>${u.priority}</priority>\n` +
       `  </url>`
