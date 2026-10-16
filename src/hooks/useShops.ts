@@ -244,13 +244,57 @@ const todayISO = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+export type EventRange = 'all' | 'today' | 'weekend' | 'week'
 export type EventQuery = {
   state: string              // 2-letter code or 'all'
   category: string           // 'all' | 'cards' | 'comics' | ...
   near?: { lat: number; lng: number; miles: number } | null
+  range?: EventRange
+  search?: string
 }
 
+const isoDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+export function eventDateWindow(range: EventRange = 'all'): { from: string; to: string | null } {
+  const now = new Date()
+  const from = isoDay(now)
+  if (range === 'today') return { from, to: from }
+  if (range === 'week') { const t = new Date(now); t.setDate(t.getDate() + 6); return { from, to: isoDay(t) } }
+  if (range === 'weekend') {
+    const dow = now.getDay() // 0 Sun .. 6 Sat
+    const start = new Date(now)
+    if (dow >= 1 && dow <= 4) start.setDate(now.getDate() + (5 - dow)) // Mon-Thu -> Fri
+    const end = new Date(now)
+    end.setDate(now.getDate() + (dow === 0 ? 0 : 7 - dow)) // through Sunday
+    return { from: isoDay(start), to: isoDay(end) }
+  }
+  return { from, to: null }
+}
+
+// PostgREST filter strings can't contain these; strip them from user search.
+const cleanSearch = (q?: string) => (q || '').replace(/[,()*%\\:]/g, ' ').trim().slice(0, 60)
+
+// One series key per weekly store event (title + location + weekday).
+const seriesKey = (r: any) => {
+  const dow = new Date(r.date + 'T12:00:00').getDay()
+  return /^(wizards|ravensburger)/.test(r.source || '') ? `${(r.title || '').toLowerCase()}|${(r.location || '').toLowerCase()}|${dow}` : r.id
+}
+// Fallback when the events_feed view isn't installed: collapse within a page.
+function collapseClientSide(rows: any[]) {
+  const map = new Map<string, any>()
+  for (const r of rows) {
+    const k = seriesKey(r)
+    const cur = map.get(k)
+    if (!cur) map.set(k, { ...r, n_dates: 1, dates: [r.date] })
+    else { cur.n_dates += 1; if (cur.dates.length < 8) cur.dates.push(r.date) }
+  }
+  return [...map.values()]
+}
+
+let feedViewMissing = false
+
 // Local events (non-national), filtered server-side and paginated with .range().
+// Reads the events_feed view (one row per weekly series) and degrades to the
+// raw events table if the view hasn't been created yet.
 export function useEvents(q: EventQuery) {
   const [events, setEvents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -263,55 +307,72 @@ export function useEvents(q: EventQuery) {
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    let query = supabase
-      .from('events')
-      .select(EVENT_COLS)
-      .eq('is_active', true)
-      .not('is_national', 'is', true)
-      .gte('date', todayISO())
-    if (q.near) {
-      // Bounding box on the server; exact radius trimmed below.
-      const dLat = q.near.miles / 69
-      const dLng = q.near.miles / (69 * Math.max(0.2, Math.cos((q.near.lat * Math.PI) / 180)))
-      query = query.gte('lat', q.near.lat - dLat).lte('lat', q.near.lat + dLat)
-        .gte('lng', q.near.lng - dLng).lte('lng', q.near.lng + dLng)
-    } else if (q.state && q.state !== 'all') {
-      query = query.eq('state', q.state)
+    const win = eventDateWindow(q.range)
+    const search = cleanSearch(q.search)
+    const build = (table: 'events_feed' | 'events') => {
+      let query: any = supabase.from(table).select(table === 'events_feed' ? `${EVENT_COLS},source,n_dates,dates` : `${EVENT_COLS},source`)
+      if (table === 'events') query = query.eq('is_active', true).not('is_national', 'is', true)
+      query = query.gte('date', win.from)
+      if (win.to) query = query.lte('date', win.to)
+      if (q.near) {
+        const dLat = q.near.miles / 69
+        const dLng = q.near.miles / (69 * Math.max(0.2, Math.cos((q.near.lat * Math.PI) / 180)))
+        query = query.gte('lat', q.near.lat - dLat).lte('lat', q.near.lat + dLat)
+          .gte('lng', q.near.lng - dLng).lte('lng', q.near.lng + dLng)
+      } else if (q.state && q.state !== 'all') {
+        query = query.eq('state', q.state)
+      }
+      if (q.category && q.category !== 'all') query = query.contains('categories', [q.category])
+      if (search) query = query.or(`title.ilike.*${search}*,location.ilike.*${search}*,city.ilike.*${search}*`)
+      const from = page * EVENTS_PAGE_SIZE
+      return query.order('date', { ascending: true }).order('id', { ascending: true }).range(from, from + EVENTS_PAGE_SIZE)
     }
-    if (q.category && q.category !== 'all') query = query.contains('categories', [q.category])
-    const from = page * EVENTS_PAGE_SIZE
-    // Ask for one extra row to know whether there's another page.
-    query.order('date', { ascending: true }).order('id', { ascending: true })
-      .range(from, from + EVENTS_PAGE_SIZE)
-      .then(({ data, error }) => {
-        if (cancelled) return
-        let rows = error ? [] : (data || [])
-        const more = rows.length > EVENTS_PAGE_SIZE
-        rows = rows.slice(0, EVENTS_PAGE_SIZE)
-        if (q.near) {
-          const { lat, lng, miles } = q.near
-          rows = rows.filter((r: any) => r.lat != null && r.lng != null && milesBetween(lat, lng, r.lat, r.lng) <= miles)
-        }
-        setEvents(prev => (page === 0 ? rows : [...prev, ...rows]))
-        setHasMore(more)
-        setLoading(false)
+    const run = async () => {
+      let usedView = !feedViewMissing
+      let res = await build(usedView ? 'events_feed' : 'events')
+      if (usedView && res.error) {
+        // View not created yet (or not exposed): fall back for this session.
+        feedViewMissing = true
+        usedView = false
+        res = await build('events')
+      }
+      if (cancelled) return
+      let rows: any[] = res.error ? [] : (res.data || [])
+      const more = rows.length > EVENTS_PAGE_SIZE
+      rows = rows.slice(0, EVENTS_PAGE_SIZE)
+      if (q.near) {
+        const { lat, lng, miles } = q.near
+        rows = rows.filter((r: any) => r.lat != null && r.lng != null && milesBetween(lat, lng, r.lat, r.lng) <= miles)
+      }
+      if (!usedView) rows = collapseClientSide(rows)
+      setEvents(prev => {
+        if (page === 0) return rows
+        // Drop duplicates (fallback mode can repeat a series across pages).
+        const seen = new Set(prev.map((r: any) => seriesKey(r)))
+        return [...prev, ...rows.filter((r: any) => !seen.has(seriesKey(r)))]
       })
+      setHasMore(more)
+      setLoading(false)
+    }
+    run()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, page])
 
-  return { events, loading, hasMore, loadMore: () => setPage(p => p + 1) }
+  return { events, loading, hasMore, loadMore: () => { if (!loading) setPage(p => p + 1) } }
 }
 
 // Conventions & championships: always shown, small query.
-export function useMajorEvents(category: string) {
+export function useMajorEvents(category: string, search = '') {
   const [events, setEvents] = useState<any[]>([])
   useEffect(() => {
     let query = supabase.from('events').select(EVENT_COLS)
       .eq('is_active', true).eq('is_national', true).gte('date', todayISO())
     if (category && category !== 'all') query = query.contains('categories', [category])
+    const q = cleanSearch(search)
+    if (q) query = query.or(`title.ilike.*${q}*,city.ilike.*${q}*`)
     query.order('date', { ascending: true }).limit(60).then(({ data }) => setEvents(data || []))
-  }, [category])
+  }, [category, search])
   return { events }
 }
 
