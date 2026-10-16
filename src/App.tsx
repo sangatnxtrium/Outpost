@@ -3,7 +3,7 @@ import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Compass, MapPin, Search, Flame, X, Store, User, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, ShieldCheck, DollarSign, Plus, Check, Phone, Bell, Heart, Star, BookOpen, Send, Globe, Newspaper, Share2, MessageCircle, ArrowLeft, Trash2, ChevronLeft, ChevronDown, ArrowUp, CalendarCheck, CalendarPlus } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
-import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useMajorEvents, type EventRange, useEventsByIds, useNews, useListings, useFcbd, useFcbdTitles, useNotifications, useAppSettings, useListingOffers, useFollows, useConversations, useMessages, useItemMessages, usePoints, useReferrals, useMyRedemptions, useRewardOffers, useMerchantRewards } from './hooks/useShops'
+import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useMajorEvents, type EventRange, useEventsByIds, useNews, NEWS_CATEGORIES, useListings, useFcbd, useFcbdTitles, useNotifications, useAppSettings, useListingOffers, useFollows, useConversations, useMessages, useItemMessages, usePoints, useReferrals, useMyRedemptions, useRewardOffers, useMerchantRewards } from './hooks/useShops'
 import { startCheckout } from './lib/stripe'
 import { supabase } from './lib/supabase'
 
@@ -475,8 +475,17 @@ export default function App() {
   const { reviews, addReview } = useReviews(selectedShop?.id || '')
   const { checkinCount, userCheckedIn, checkIn } = useCheckins(selectedShop?.id || '')
   const { tradePosts, loading: tradePostsLoading, addTradePost, updateTradePost, deleteTradePost } = useTradePosts()
-  const { articles: newsArticles } = useNews()
   const [newsFilter, setNewsFilter] = useState('All')
+  const { articles: newsArticles, loading: newsLoading, hasMore: newsHasMore, loadMore: loadMoreNews } = useNews(newsFilter)
+  const [newsSentinel, setNewsSentinel] = useState<HTMLDivElement | null>(null)
+  useEffect(() => {
+    const el = newsSentinel
+    if (!el || !newsHasMore || newsLoading) return
+    const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) loadMoreNews() }, { rootMargin: '600px 0px' })
+    io.observe(el)
+    return () => io.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newsHasMore, newsLoading, newsArticles.length, newsSentinel, newsFilter])
   const { listings, loading: listingsLoading, uploadPhoto, createListing, updateListing, deleteListing } = useListings()
   const { items: notifications, unread: unreadCount, refetch: refetchNotifs, markAllRead } = useNotifications(user?.id || null)
   const { following, followingProfiles, toggleFollow } = useFollows(user?.id || null)
@@ -2251,8 +2260,8 @@ export default function App() {
                 </div>
 
                 {(() => {
-                  const cats = Array.from(new Set(newsArticles.map((a: any) => a.category).filter(Boolean)))
-                  const filtered = newsFilter === 'All' ? newsArticles : newsArticles.filter((a: any) => a.category === newsFilter)
+                  const cats = NEWS_CATEGORIES.slice(1) as readonly string[]
+                  const filtered = newsArticles
                   return (
                     <>
                       <div className="flex gap-2 overflow-x-auto pb-1">
@@ -2268,7 +2277,7 @@ export default function App() {
                       {filtered.length === 0 ? (
                         <div className="text-center py-16 text-zinc-400">
                           <Newspaper className="h-10 w-10 mx-auto mb-3 opacity-20" />
-                          <p className="text-sm">No headlines yet. Check back soon.</p>
+                          <p className="text-sm">{newsLoading ? 'Loading…' : 'No headlines yet. Check back soon.'}</p>
                         </div>
                       ) : (
                         <div className="space-y-2.5">
@@ -2289,6 +2298,11 @@ export default function App() {
                             </a>
                             )
                           })}
+                          <div ref={setNewsSentinel} className="h-10 flex items-center justify-center text-xs text-zinc-400 font-mono">
+                            {newsLoading ? 'Loading…' : newsHasMore
+                              ? <button onClick={loadMoreNews} className="px-3 py-1.5 rounded-full text-xs font-bold text-white" style={{ background: '#0F9D8A' }}>Load more</button>
+                              : "That's everything"}
+                          </div>
                         </div>
                       )}
                     </>

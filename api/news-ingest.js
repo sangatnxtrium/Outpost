@@ -12,6 +12,18 @@ const { SUPABASE_URL, SUPABASE_SERVICE_KEY, CRON_SECRET } = process.env
 
 const PER_SOURCE = 18 // max items kept per query per run
 const PRUNE_DAYS = 30 // delete articles older than this
+const COMICS_PRUNE_DAYS = 90 // low-volume category: keep longer
+
+// Built-in Comics searches, merged with news_sources rows (deduped by query).
+const DEFAULT_SOURCES = [
+  ['Marvel Comics', '"Marvel Comics"'],
+  ['DC Comics', '"DC Comics"'],
+  ['Image Comics', '"Image Comics"'],
+  ['Comic book new releases', '"comic book" new release'],
+  ['Free Comic Book Day', '"Free Comic Book Day"'],
+  ['Boom Studios', '"Boom Studios" OR "BOOM! Studios"'],
+  ['Dark Horse Comics', '"Dark Horse Comics"'],
+].map(([label, query]) => ({ label, query, category: 'Comics' }))
 
 function isAuthorized(req) {
   if (!CRON_SECRET) return true // no secret configured -> allow (set one in prod!)
@@ -86,14 +98,20 @@ export default async function handler(req, res) {
 
   const { data: sources, error: srcErr } = await supabase
     .from('news_sources').select('label, query, category').eq('active', true)
-  if (srcErr) return res.status(500).json({ error: srcErr.message })
-  if (!sources?.length) return res.status(200).json({ ok: true, note: 'no active sources', inserted: 0 })
+  if (srcErr) console.error('news-ingest: news_sources read failed', srcErr.message)
+  const byQuery = new Map()
+  for (const s of [...(sources || []), ...DEFAULT_SOURCES]) {
+    const k = s.query.trim().toLowerCase()
+    if (!byQuery.has(k)) byQuery.set(k, s)
+  }
+  // Comics first so cross-category URL dedupe doesn't starve it.
+  const allSources = [...byQuery.values()].sort((a, b) => (b.category === 'Comics') - (a.category === 'Comics'))
 
   const rows = []
   const seen = new Set()
   const perSource = {}
 
-  for (const src of sources) {
+  for (const src of allSources) {
     try {
       const resp = await fetch(feedUrl(src.query), {
         headers: { 'User-Agent': 'OutpostNews/1.0 (+https://www.getoutpost.net)' },
@@ -122,13 +140,19 @@ export default async function handler(req, res) {
       .from('news_articles')
       .upsert(rows, { onConflict: 'url', ignoreDuplicates: true })
       .select('id')
-    if (error) return res.status(500).json({ error: error.message, perSource })
+    if (error) {
+      console.error('news-ingest: upsert failed', error.message, JSON.stringify(perSource))
+      return res.status(500).json({ error: error.message, perSource })
+    }
     inserted = data?.length || 0
   }
 
   // Prune old articles so the table stays small.
   const cutoff = new Date(Date.now() - PRUNE_DAYS * 86400_000).toISOString()
-  await supabase.from('news_articles').delete().lt('published_at', cutoff)
+  await supabase.from('news_articles').delete().lt('published_at', cutoff).neq('category', 'Comics')
+  const comicsCutoff = new Date(Date.now() - COMICS_PRUNE_DAYS * 86400_000).toISOString()
+  await supabase.from('news_articles').delete().lt('published_at', comicsCutoff).eq('category', 'Comics')
 
-  return res.status(200).json({ ok: true, sources: sources.length, fetched: rows.length, inserted, perSource })
+  console.log('news-ingest', JSON.stringify({ sources: allSources.length, fetched: rows.length, inserted, perSource }))
+  return res.status(200).json({ ok: true, sources: allSources.length, fetched: rows.length, inserted, perSource })
 }
