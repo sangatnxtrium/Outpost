@@ -3,7 +3,7 @@ import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Compass, MapPin, Search, Flame, X, Store, User, ArrowLeftRight, Package, ChevronRight, Calendar, Menu, Navigation, Tag, Shield, ShieldCheck, DollarSign, Plus, Check, Phone, Bell, Heart, Star, BookOpen, Send, Globe, Newspaper, Share2, MessageCircle, ArrowLeft, Trash2 } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
-import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useNews, useListings, useFcbd, useFcbdTitles, useNotifications, useAppSettings, useListingOffers, useFollows, useConversations, useMessages, useItemMessages, usePoints, useReferrals, useMyRedemptions, useRewardOffers, useMerchantRewards } from './hooks/useShops'
+import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useMajorEvents, useEventsByIds, useNews, useListings, useFcbd, useFcbdTitles, useNotifications, useAppSettings, useListingOffers, useFollows, useConversations, useMessages, useItemMessages, usePoints, useReferrals, useMyRedemptions, useRewardOffers, useMerchantRewards } from './hooks/useShops'
 import { startCheckout } from './lib/stripe'
 import { supabase } from './lib/supabase'
 
@@ -437,6 +437,8 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal, unreadCount, unre
   )
 }
 
+const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DC','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY']
+
 export default function App() {
   const { user, profile, loading: authLoading, sendOtp, verifyOtp, signOut, updateProfile } = useAuth()
   const { shops, loading: shopsLoading, updateHotFind, updateShop } = useShops()
@@ -445,7 +447,6 @@ export default function App() {
   const { reviews, addReview } = useReviews(selectedShop?.id || '')
   const { checkinCount, userCheckedIn, checkIn } = useCheckins(selectedShop?.id || '')
   const { tradePosts, loading: tradePostsLoading, addTradePost, updateTradePost, deleteTradePost } = useTradePosts()
-  const { events: allEventsData } = useEvents()
   const { articles: newsArticles } = useNews()
   const [newsFilter, setNewsFilter] = useState('All')
   const { listings, loading: listingsLoading, uploadPhoto, createListing, updateListing, deleteListing } = useListings()
@@ -532,7 +533,17 @@ export default function App() {
   const initialRouteHandled = useRef(false)
   const [discoverView, setDiscoverView] = useState<'list' | 'map'>('list')
   const [eventFilter, setEventFilter] = useState('all')
-  const [eventState, setEventState] = useState('all')
+  // Default: last state the visitor picked, else geolocation (below), else Colorado.
+  const [eventState, setEventStateRaw] = useState<string>(() => {
+    try { return localStorage.getItem('outpost_event_state') || 'CO' } catch { return 'CO' }
+  })
+  const eventStateChosen = useRef<boolean>((() => { try { return !!localStorage.getItem('outpost_event_state') } catch { return false } })())
+  const setEventState = (st: string) => {
+    eventStateChosen.current = true
+    try { localStorage.setItem('outpost_event_state', st) } catch { /* noop */ }
+    setEventStateRaw(st)
+  }
+  const [eventNearMiles, setEventNearMiles] = useState<number | null>(null)
   const [userLat, setUserLat] = useState<number | null>(null)
   const [userLng, setUserLng] = useState<number | null>(null)
   const [locationLoading, setLocationLoading] = useState(true)
@@ -558,6 +569,12 @@ export default function App() {
   const [submitAddress, setSubmitAddress] = useState('')
   const [submitDetails, setSubmitDetails] = useState('')
   const [submitSent, setSubmitSent] = useState(false)
+  const [submitDate, setSubmitDate] = useState('')
+  const [submitCity, setSubmitCity] = useState('')
+  const [submitState, setSubmitState] = useState('')
+  const [submitWebsite, setSubmitWebsite] = useState('')
+  const [submitError, setSubmitError] = useState('')
+  const [submitBusy, setSubmitBusy] = useState(false)
   const [claimName, setClaimName] = useState('')
   const [claimAddress, setClaimAddress] = useState('')
   const [claimPhone, setClaimPhone] = useState('')
@@ -804,10 +821,7 @@ export default function App() {
     })
   const myListings = user ? listings.filter((l: any) => l.user_id === user.id) : []
   const myTrades = user ? tradePosts.filter((t: any) => t.user_id === user.id) : []
-  const myEvents = rsvps
-    .map((id: string) => allEventsData.find((e: any) => e.id === id))
-    .filter(Boolean)
-    .sort((a: any, b: any) => String(a.date).localeCompare(String(b.date)))
+  const { events: myEvents } = useEventsByIds(rsvps)
 
   const sortedTrades = [...tradePosts]
     .map((t: any) => ({ ...t, distance: userLat && userLng && t.lat && t.lng ? getDistance(userLat, userLng, t.lat, t.lng) : null }))
@@ -820,11 +834,63 @@ export default function App() {
       return a.distance - b.distance
     })
 
-  const allEvents = allEventsData
-  const eventStates = ['all', ...Array.from(new Set(allEventsData.map((ev: any) => ev.state).filter(Boolean))).sort()]
-  const filteredEvents = allEvents.filter((ev: any) =>
-    (eventFilter === 'all' || ev.category === eventFilter || (ev.categories && ev.categories.includes(eventFilter))) &&
-    (eventState === 'all' || ev.state === eventState)
+  // If the visitor never picked a state, use the state of the nearest shop to
+  // their geolocation.
+  useEffect(() => {
+    if (eventStateChosen.current || !userLat || !userLng || !shops.length) return
+    let best: any = null, bestD = Infinity
+    for (const sh of shops as any[]) {
+      if (!sh.lat || !sh.lng) continue
+      const d = (sh.lat - userLat) ** 2 + (sh.lng - userLng) ** 2
+      if (d < bestD) { bestD = d; best = sh }
+    }
+    const st = String(best?.address || '').match(/,\s*([A-Z]{2})\s+\d{5}/)?.[1]
+    if (st) setEventStateRaw(st)
+  }, [userLat, userLng, shops])
+
+  const eventNear = eventNearMiles && userLat && userLng ? { lat: userLat, lng: userLng, miles: eventNearMiles } : null
+  const { events: filteredEvents, loading: eventsLoading, hasMore: eventsHasMore, loadMore: loadMoreEvents } =
+    useEvents({ state: eventState, category: eventFilter, near: eventNear })
+  const { events: majorEvents } = useMajorEvents(eventFilter)
+  const eventStates = ['all', ...US_STATES]
+
+  const renderEventCard = (ev: any) => (
+
+                          <div key={ev.id} className="bg-zinc-50 rounded-3xl p-4 shadow-sm border border-zinc-100">
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <div className="flex-1">
+                                <div className="flex gap-2 flex-wrap mb-2">
+                                  {(ev.categories || [ev.category]).map((cat: string) => (
+                                    <span key={cat} className="text-xs font-black px-2 py-0.5 rounded-lg uppercase"
+                                      style={cat === 'comics' ? { background: '#FEF3C7', color: '#92400E' }
+                                        : cat === 'cards' ? { background: '#E0F2FE', color: '#0369A1' }
+                                        : cat === 'toys' ? { background: '#D1FAE5', color: '#065F46' }
+                                        : { background: '#EDE9FE', color: '#5B21B6' }}>
+                                      {cat}
+                                    </span>
+                                  ))}
+                                </div>
+                                <p className="font-black text-base">{ev.title}</p>
+                                <p className="text-xs text-zinc-400 mt-1">{ev.location || ev.shops?.name}</p>
+                              </div>
+                              <div className="text-right flex-shrink-0">
+                                <span className="text-xs bg-zinc-100 px-2 py-1 rounded-lg font-mono font-bold block">{ev.date}</span>
+                                {ev.spots && <p className="text-xs text-zinc-400 mt-1">{ev.spots} spots</p>}
+                              </div>
+                            </div>
+                            {ev.description && <p className="text-xs text-zinc-500 leading-relaxed line-clamp-3">{ev.description}</p>}
+                            {(ev.ticket_url || ev.website) && (
+                              <a href={ev.ticket_url || ev.website} target="_blank" rel="noopener noreferrer"
+                                className="inline-block mt-2 text-xs font-black" style={{ color: '#7C3AED' }}>
+                                Details →
+                              </a>
+                            )}
+                            <button onClick={() => toggleRsvp(ev.id)}
+                              className="w-full mt-3 py-2.5 rounded-2xl text-xs font-black uppercase border-2 transition-all"
+                              style={rsvps.includes(ev.id) ? { background: '#F0FDF4', color: '#166534', borderColor: '#BBF7D0' } : { background: '#131615', color: '#9ca3af', borderColor: '#262B28' }}>
+                              {rsvps.includes(ev.id) ? '✓ Going' : 'RSVP'}
+                            </button>
+                          </div>
   )
 
   const isSignedIn = !!user
@@ -1766,11 +1832,41 @@ export default function App() {
                       </select>
                     </div>
 
+                    {/* Near me (needs location) */}
+                    {userLat && userLng && (
+                      <div className="flex gap-2 overflow-x-auto">
+                        {[null, 10, 25, 50].map(m => (
+                          <button key={String(m)} onClick={() => setEventNearMiles(m)}
+                            className="px-3 py-1.5 rounded-2xl text-xs font-black uppercase border-2 whitespace-nowrap"
+                            style={eventNearMiles === m ? { background: '#0F9D8A', borderColor: '#0F9D8A', color: 'white' } : { background: '#131615', borderColor: '#262B28', color: '#9ca3af' }}>
+                            {m === null ? 'By state' : `Near me · ${m} mi`}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Major events: conventions & championships, always visible */}
+                    {majorEvents.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-black uppercase tracking-wide px-1" style={{ color: '#F59E0B' }}>⭐ Major events</p>
+                        <div className="flex gap-3 overflow-x-auto pb-1">
+                          {majorEvents.map((ev: any) => (
+                            <a key={ev.id} href={ev.ticket_url || ev.website || undefined} target="_blank" rel="noopener noreferrer"
+                              className="flex-shrink-0 w-60 bg-zinc-50 rounded-2xl p-3 border border-zinc-100">
+                              <span className="text-[11px] bg-zinc-100 px-2 py-0.5 rounded-lg font-mono font-bold">{ev.date}{ev.end_date && ev.end_date !== ev.date ? ` → ${ev.end_date.slice(5)}` : ''}</span>
+                              <p className="font-black text-sm mt-1.5 line-clamp-2">{ev.title}</p>
+                              <p className="text-xs text-zinc-400 mt-0.5">{[ev.city, ev.state].filter(Boolean).join(', ')}</p>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Results count */}
                     <p className="text-xs text-zinc-400 font-mono px-1">
-                      {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''} {eventState !== 'all' ? `in ${eventState}` : 'nationwide'}
+                      {eventsLoading && filteredEvents.length === 0 ? 'Loading events…' : `${filteredEvents.length}${eventsHasMore ? '+' : ''} local event${filteredEvents.length !== 1 ? 's' : ''} ${eventNear ? `within ${eventNearMiles} mi` : eventState !== 'all' ? `in ${eventState}` : 'nationwide'}`}
                     </p>
-                    {filteredEvents.length === 0 ? (
+                    {filteredEvents.length === 0 && !eventsLoading ? (
                       <div className="text-center py-10 text-zinc-400">
                         <Calendar className="h-10 w-10 mx-auto mb-2 opacity-20" />
                         <p className="text-sm font-mono">No events yet</p>
@@ -1782,37 +1878,14 @@ export default function App() {
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {filteredEvents.map((ev: any) => (
-                          <div key={ev.id} className="bg-zinc-50 rounded-3xl p-4 shadow-sm border border-zinc-100">
-                            <div className="flex items-start justify-between gap-3 mb-2">
-                              <div className="flex-1">
-                                <div className="flex gap-2 flex-wrap mb-2">
-                                  {(ev.categories || [ev.category]).map((cat: string) => (
-                                    <span key={cat} className="text-xs font-black px-2 py-0.5 rounded-lg uppercase"
-                                      style={cat === 'comics' ? { background: '#FEF3C7', color: '#92400E' }
-                                        : cat === 'cards' ? { background: '#E0F2FE', color: '#0369A1' }
-                                        : cat === 'toys' ? { background: '#D1FAE5', color: '#065F46' }
-                                        : { background: '#EDE9FE', color: '#5B21B6' }}>
-                                      {cat}
-                                    </span>
-                                  ))}
-                                </div>
-                                <p className="font-black text-base">{ev.title}</p>
-                                <p className="text-xs text-zinc-400 mt-1">{ev.location || ev.shops?.name}</p>
-                              </div>
-                              <div className="text-right flex-shrink-0">
-                                <span className="text-xs bg-zinc-100 px-2 py-1 rounded-lg font-mono font-bold block">{ev.date}</span>
-                                {ev.spots && <p className="text-xs text-zinc-400 mt-1">{ev.spots} spots</p>}
-                              </div>
-                            </div>
-                            {ev.description && <p className="text-xs text-zinc-500 leading-relaxed">{ev.description}</p>}
-                            <button onClick={() => toggleRsvp(ev.id)}
-                              className="w-full mt-3 py-2.5 rounded-2xl text-xs font-black uppercase border-2 transition-all"
-                              style={rsvps.includes(ev.id) ? { background: '#F0FDF4', color: '#166534', borderColor: '#BBF7D0' } : { background: '#131615', color: '#9ca3af', borderColor: '#262B28' }}>
-                              {rsvps.includes(ev.id) ? '✓ Going' : 'RSVP'}
-                            </button>
-                          </div>
-                        ))}
+                        {filteredEvents.map((ev: any) => renderEventCard(ev))}
+                        {eventsHasMore && (
+                          <button onClick={loadMoreEvents} disabled={eventsLoading}
+                            className="md:col-span-2 w-full py-3 rounded-2xl text-xs font-black uppercase border-2"
+                            style={{ background: '#131615', color: '#9ca3af', borderColor: '#262B28' }}>
+                            {eventsLoading ? 'Loading…' : 'Show more'}
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -3934,13 +4007,54 @@ export default function App() {
                 <input type="text" value={submitAddress} onChange={e => setSubmitAddress(e.target.value)}
                   placeholder={submitType === 'shop' ? 'Address' : 'Location / venue'}
                   className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none" />
+                {submitType === 'event' && (
+                  <>
+                    <input type="date" value={submitDate} onChange={e => setSubmitDate(e.target.value)}
+                      min={new Date().toISOString().slice(0, 10)}
+                      className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none" />
+                    <div className="grid grid-cols-3 gap-2">
+                      <input type="text" value={submitCity} onChange={e => setSubmitCity(e.target.value)} placeholder="City"
+                        className="col-span-2 w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none" />
+                      <input type="text" value={submitState} onChange={e => setSubmitState(e.target.value.toUpperCase().slice(0, 2))} placeholder="ST"
+                        className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none" />
+                    </div>
+                    <input type="url" value={submitWebsite} onChange={e => setSubmitWebsite(e.target.value)} placeholder="Website or ticket link (optional)"
+                      className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none" />
+                  </>
+                )}
                 <textarea value={submitDetails} onChange={e => setSubmitDetails(e.target.value)}
-                  placeholder={submitType === 'shop' ? 'What do they sell? Hours? Website?' : 'Date, time, description...'}
+                  placeholder={submitType === 'shop' ? 'What do they sell? Hours? Website?' : 'Time, description, entry fee...'}
                   rows={3}
                   className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none resize-none" />
+                {submitError && <p className="text-xs font-bold text-red-500">{submitError}</p>}
                 <button
                   onClick={async () => {
                     if (!submitName.trim()) return
+                    setSubmitError('')
+                    if (submitType === 'event') {
+                      if (!submitDate || !submitCity.trim()) { setSubmitError('Event name, date and city are required.'); return }
+                      setSubmitBusy(true)
+                      try {
+                        const r = await fetch('/api/submit-event', {
+                          method: 'POST',
+                          headers: { 'content-type': 'application/json' },
+                          body: JSON.stringify({
+                            title: submitName, date: submitDate, city: submitCity, state: submitState,
+                            location: submitAddress, description: submitDetails, website: submitWebsite,
+                            user_id: user?.id || null, email: user?.email || '',
+                          }),
+                        })
+                        const j = await r.json().catch(() => ({}))
+                        if (!r.ok) { setSubmitError(j.error || 'Could not submit. Please try again.'); return }
+                        setSubmitDate(''); setSubmitCity(''); setSubmitState(''); setSubmitWebsite('')
+                        setSubmitSent(true)
+                      } catch {
+                        setSubmitError('Network error. Please try again.')
+                      } finally {
+                        setSubmitBusy(false)
+                      }
+                      return
+                    }
                     await supabase.from('shop_claims').insert({
                       user_id: user?.id || '00000000-0000-0000-0000-000000000000',
                       username: profile?.username || 'anonymous',
@@ -3948,17 +4062,17 @@ export default function App() {
                       shop_name: submitName,
                       shop_address: submitAddress,
                       phone: '',
-                      category: submitType === 'event' ? 'event' : 'cards',
+                      category: 'cards',
                       hours: submitDetails,
                       ein: 'SUBMISSION',
                       status: 'pending',
                     })
                     setSubmitSent(true)
                   }}
-                  disabled={!submitName.trim()}
+                  disabled={!submitName.trim() || submitBusy}
                   className="w-full text-white font-black py-3.5 rounded-2xl text-sm uppercase disabled:opacity-40"
                   style={{ background: 'linear-gradient(135deg, #7C3AED, #6D28D9)' }}>
-                  Submit for Review
+                  {submitBusy ? 'Submitting…' : 'Submit for Review'}
                 </button>
               </div>
             )}

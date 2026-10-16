@@ -108,6 +108,7 @@ export function normalizeSerpApiEvent(ev, ref = new Date()) {
 // Normalize one Ticketmaster Discovery event. These come with clean dates + coords.
 export function normalizeTicketmasterEvent(ev) {
   if (!ev || !ev.name) return null
+  if (!isAllowedTicketmasterClass(ev)) return null
 
   const date = ev.dates?.start?.localDate || null
   if (!date) return null
@@ -138,6 +139,7 @@ export function normalizeTicketmasterEvent(ev) {
     is_national: false,
     lat,
     lng,
+    end_date: ev.dates?.end?.localDate || null,
     source: 'ticketmaster',
     external_id: ev.id || makeDedupeKey(ev.name, date, city),
   }
@@ -182,4 +184,18 @@ export const SERP_QUERIES = [
   'toy show',
 ]
 
-export const TM_KEYWORDS = ['comic con', 'card show', 'collectibles', 'pop culture expo']
+// Tight, collector-specific phrases only. Broad words ("collectibles",
+// "pop culture expo") matched rodeos, comedy and concerts.
+export const TM_KEYWORDS = ['comic con', 'comicon', 'fan expo', 'card show', 'trading card', 'pokemon', 'magic the gathering', 'toy show', 'collectibles show']
+
+// Ticketmaster segments/genres that are never collector events.
+const TM_BAD_SEGMENTS = /^(sports|music|film)$/i
+const TM_BAD_GENRES = /(rodeo|comedy|wrestling|hockey|basketball|football|baseball|soccer|motorsports|boxing|mma|theatre|classical|rock|pop|country|hip-hop|r&b|latin|jazz|religious)/i
+export function isAllowedTicketmasterClass(ev) {
+  const c = ev?.classifications?.[0] || {}
+  const seg = c.segment?.name || ''
+  const genre = `${c.genre?.name || ''} ${c.subGenre?.name || ''} ${c.type?.name || ''}`
+  if (TM_BAD_SEGMENTS.test(seg)) return false
+  if (TM_BAD_GENRES.test(genre)) return false
+  return true
+}

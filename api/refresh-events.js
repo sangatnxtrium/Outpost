@@ -8,6 +8,11 @@ import {
   SERP_QUERIES,
   TM_KEYWORDS,
 } from './_lib/events.js'
+import { fetchAllLocal, isRelevantEvent, matchShops } from './_lib/local-events.js'
+import { NATIONAL_EVENTS } from './_lib/national-events.js'
+
+// Local sources make many requests; give the function room (Vercel caps by plan).
+export const config = { maxDuration: 300 }
 
 // ---------------------------------------------------------------------------
 // /api/refresh-events  —  triggered by Vercel Cron (see vercel.json) or manually.
@@ -21,9 +26,12 @@ const {
   SUPABASE_SERVICE_KEY,
   SERPAPI_KEY,
   TICKETMASTER_KEY,
-  GOOGLE_GEOCODE_KEY,
+  GOOGLE_GEOCODE_KEY: GEOCODE_KEY_ENV,
+  GOOGLE_API_KEY,
   CRON_SECRET,
 } = process.env
+// Prefer a dedicated geocoding key; fall back to the general Google key.
+const GOOGLE_GEOCODE_KEY = GEOCODE_KEY_ENV || GOOGLE_API_KEY
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
@@ -127,11 +135,33 @@ export default async function handler(req, res) {
   const started = Date.now()
 
   // 1. Gather from all live sources
-  const [serp, tm] = await Promise.all([fetchSerpApi(ref), fetchTicketmaster()])
-  const raw = [...serp, ...tm]
+  const [serp, tm, local] = await Promise.all([fetchSerpApi(ref), fetchTicketmaster(), fetchAllLocal()])
+  const national = NATIONAL_EVENTS.filter((e) => e.confirmed).map((e) => ({
+    ...e,
+    location: [e.venue, e.city, e.state].filter(Boolean).join(', '),
+    ticket_url: '',
+    image_url: '',
+    source: 'curated',
+    external_id: e.source_url,
+    description: `${e.description} Source: ${e.source_url}`,
+  }))
+  const raw = [...national, ...serp, ...tm, ...local.rows].filter(isRelevantEvent)
 
   // 2. Collapse duplicates (cross-source), preferring rows with coordinates
   const deduped = dedupeEvents(raw)
+
+  // 2b. Link store events to Outpost shops (shop_id) by name + address/proximity
+  let shopsMatched = 0
+  {
+    const shops = []
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase.from('shops').select('id,name,address,lat,lng').range(from, from + 999)
+      if (error || !data?.length) break
+      shops.push(...data)
+      if (data.length < 1000) break
+    }
+    shopsMatched = matchShops(deduped, shops)
+  }
 
   // 3. Geocode anything still missing coordinates
   await geocodeMissing(deduped)
@@ -152,6 +182,8 @@ export default async function handler(req, res) {
       image_url: r.image_url || '',
       categories: r.categories,
       is_national: r.is_national,
+      end_date: r.end_date || null,
+      shop_id: r.shop_id || null,
       lat: r.lat,
       lng: r.lng,
       source: r.source,
@@ -173,6 +205,31 @@ export default async function handler(req, res) {
     else upserted += count ?? chunk.length
   }
 
+  // 4b. Regenerate store events: hide future rows from store platforms that
+  //     were not seen this run (cancelled, or a projected week that changed).
+  if (!errors.length) {
+    const { error: staleErr } = await supabase
+      .from('events')
+      .update({ is_active: false })
+      .in('source', ['wizards', 'ravensburger', 'wizards-recurring', 'ravensburger-recurring'])
+      .gte('date', todayISO)
+      .lt('last_seen_at', nowSeen)
+    if (staleErr) errors.push(`stale: ${staleErr.message}`)
+  }
+
+  // 4c. One-time cleanup that is safe to repeat: hide junk the old Ticketmaster
+  //     keywords pulled in, and legacy null-dedupe rows the curated list replaces.
+  {
+    const { error: junkErr } = await supabase.from('events').update({ is_active: false })
+      .eq('is_active', true).neq('source', 'curated')
+      .or('title.ilike.%comedy%,title.ilike.%open mic%,title.ilike.%rodeo%,title.ilike.%wild card round%,title.ilike.%burlesque%')
+    if (junkErr) errors.push(`junk: ${junkErr.message}`)
+    const { error: legErr } = await supabase.from('events').update({ is_active: false })
+      .is('dedupe_key', null)
+      .in('title', ['WonderCon 2027', 'C2E2 2027', 'Yu-Gi-Oh! YCS — Orlando', 'MagicCon: Atlanta 2026 (World Championship)'])
+    if (legErr) errors.push(`legacy: ${legErr.message}`)
+  }
+
   // 5. Soft-expire anything whose date has passed (keeps history, hides from UI)
   const { error: expErr, count: expiredCount } = await supabase
     .from('events')
@@ -185,7 +242,8 @@ export default async function handler(req, res) {
   return res.status(200).json({
     ok: errors.length === 0,
     ms: Date.now() - started,
-    fetched: { serpapi: serp.length, ticketmaster: tm.length },
+    fetched: { serpapi: serp.length, ticketmaster: tm.length, national: national.length, local: local.stats },
+    shopsMatched,
     deduped: deduped.length,
     upserted,
     expired: expiredCount ?? 0,

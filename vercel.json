@@ -3,15 +3,44 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "crons": [
-    { "path": "/api/refresh-events", "schedule": "0 9 * * 1" },
-    { "path": "/api/news-ingest", "schedule": "0 8 * * *" }
+    {
+      "path": "/api/refresh-events",
+      "schedule": "0 9 * * 1"
+    },
+    {
+      "path": "/api/news-ingest",
+      "schedule": "0 8 * * *"
+    }
   ],
   "rewrites": [
-    { "source": "/img/:ref", "destination": "/api/photo?pp=:ref" },
-    { "source": "/admin", "destination": "/index.html" },
-    { "source": "/privacy", "destination": "/index.html" },
-    { "source": "/terms", "destination": "/index.html" },
-    { "source": "/sitemap.xml", "destination": "/api/sitemap" },
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
-  ]
+    {
+      "source": "/img/:ref",
+      "destination": "/api/photo?pp=:ref"
+    },
+    {
+      "source": "/admin",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/terms",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/sitemap"
+    },
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "functions": {
+    "api/refresh-events.js": {
+      "maxDuration": 300
+    }
+  }
 }
