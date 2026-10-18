@@ -358,9 +358,9 @@ function ItemMessages({ threads, loading, isOwner, currentUserId, isSignedIn, dr
           )}
           <div className="flex items-center gap-2">
             <input value={draft} onChange={(e: any) => setDraft(e.target.value)} placeholder="Hi, I am interested in this item"
-              className="flex-1 bg-zinc-50 border border-zinc-200 rounded-full px-4 py-2.5 text-sm focus:outline-none" />
+              className="flex-1 bg-zinc-50 border border-zinc-200 rounded-md px-4 py-2.5 text-sm focus:outline-none" />
             <button onClick={() => { if (draft.trim()) { onSend(draft); setDraft('') } }} disabled={!draft.trim()}
-              className="h-10 px-4 rounded-full text-sm font-medium text-white disabled:opacity-50 flex-shrink-0" style={{ background: '#EF3E36' }}>
+              className="h-10 px-4 rounded-md text-sm font-medium text-white disabled:opacity-50 flex-shrink-0" style={{ background: '#EF3E36' }}>
               Send
             </button>
           </div>
@@ -1632,12 +1632,12 @@ export default function App() {
           </button>
           <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5 items-start">
             {s.hot_find && (
-              <span className="text-[11px] text-white px-2 py-1 rounded-full inline-flex items-center gap-1 shadow-sm" style={{ background: '#EF3E36' }}>
+              <span className="text-[11px] text-white px-2 py-1 rounded-md inline-flex items-center gap-1 shadow-sm" style={{ background: '#EF3E36' }}>
                 <Flame className="h-3 w-3" /> Hot find
               </span>
             )}
             {fcbdShopIds.has(s.id) && (
-              <span className="text-[11px] text-white px-2 py-1 rounded-full inline-flex items-center gap-1 shadow-sm" style={{ background: '#1d4ed8' }}>
+              <span className="text-[11px] text-white px-2 py-1 rounded-md inline-flex items-center gap-1 shadow-sm" style={{ background: '#1d4ed8' }}>
                 <BookOpen className="h-3 w-3" /> FCBD
               </span>
             )}
@@ -1651,7 +1651,7 @@ export default function App() {
           </div>
           <div className="flex items-center gap-1.5 mt-2 flex-wrap">
             {cats.slice(0, 3).map((cat: string) => (
-              <span key={cat} className="text-[11px] text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded-full capitalize">{cat}</span>
+              <span key={cat} className="text-[11px] text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded-md capitalize">{cat}</span>
             ))}
           </div>
         </div>
@@ -1715,7 +1715,7 @@ export default function App() {
         <Sidebar tab={tab} setTab={goTab} isSignedIn={isSignedIn} profile={profile} setModal={setModal} unreadCount={unreadCount} unreadMessages={unreadMessages} />
 
         {shareCopied && (
-          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[80] bg-zinc-900 text-white text-xs font-medium px-4 py-2 rounded-full shadow-lg">
+          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[80] bg-zinc-900 text-white text-xs font-medium px-4 py-2 rounded-md shadow-lg">
             Link copied!
           </div>
         )}
@@ -1756,7 +1756,7 @@ export default function App() {
                 <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-zinc-400" />
                 <input type="text" placeholder="Search shops, cities, tags"
                   value={search} onChange={e => { setSearch(e.target.value); searchEbay(e.target.value) }}
-                  className="w-full bg-zinc-50 border border-zinc-200 rounded-full pl-10 pr-4 py-2.5 text-sm outline-none focus:border-zinc-400 focus:bg-zinc-50 transition-colors" />
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-md pl-10 pr-4 py-2.5 text-sm outline-none focus:border-zinc-400 focus:bg-zinc-50 transition-colors" />
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <button onClick={() => setModal('notifications')} aria-label="Notifications" className="relative h-9 w-9 rounded-full flex items-center justify-center border border-zinc-200 bg-zinc-50 hover:bg-zinc-50 transition-all">
@@ -1765,10 +1765,10 @@ export default function App() {
                     <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold text-white flex items-center justify-center" style={{ background: '#EF3E36' }}>{unreadCount > 9 ? '9+' : unreadCount}</span>
                   )}
                 </button>
-                <button onClick={() => setModal('sub')} className="px-4 py-2 rounded-full text-xs font-medium border border-zinc-200 text-zinc-700 hover:bg-zinc-50 transition-all">
+                <button onClick={() => setModal('sub')} className="px-4 py-2 rounded-md text-xs font-medium border border-zinc-200 text-zinc-700 hover:bg-zinc-50 transition-all">
                   {!isSignedIn ? 'Pro' : profile?.tier === 'store' ? 'Store' : profile?.tier === 'elite' ? 'Elite' : isMerchant ? 'Merchant' : 'Pro'}
                 </button>
-                <button onClick={() => isSignedIn ? goTab('profile') : setModal('auth')} className="px-4 py-2 rounded-full text-xs font-medium text-white transition-all" style={{ background: '#EF3E36' }}>
+                <button onClick={() => isSignedIn ? goTab('profile') : setModal('auth')} className="px-4 py-2 rounded-md text-xs font-medium text-white transition-all" style={{ background: '#EF3E36' }}>
                   {isSignedIn ? `@${profile?.username}` : 'Sign in'}
                 </button>
               </div>
@@ -1778,7 +1778,7 @@ export default function App() {
                 <Search className="absolute left-3.5 top-3 h-4 w-4 text-zinc-400" />
                 <input type="text" placeholder="Search shops, cities, tags"
                   value={search} onChange={e => { setSearch(e.target.value); searchEbay(e.target.value) }}
-                  className="w-full rounded-full pl-10 pr-4 py-3 text-sm outline-none bg-zinc-50 border border-zinc-200 focus:border-zinc-400 focus:bg-zinc-50 transition-colors" />
+                  className="w-full rounded-md pl-10 pr-4 py-3 text-sm outline-none bg-zinc-50 border border-zinc-200 focus:border-zinc-400 focus:bg-zinc-50 transition-colors" />
               </div>
             )}
           </header>
@@ -1820,19 +1820,19 @@ export default function App() {
                 )}
 
                 {/* Section toggle */}
-                <div className="inline-flex rounded-full border border-zinc-200 p-0.5 bg-zinc-50">
+                <div className="inline-flex rounded-md border border-zinc-200 p-0.5 bg-zinc-50">
                   <button onClick={() => setActiveSection('shops')}
-                    className="px-4 py-1.5 rounded-full text-[13px] font-medium transition-all"
+                    className="px-4 py-1.5 rounded-md text-[13px] font-medium transition-all"
                     style={activeSection === 'shops' ? { background: '#EF3E36', color: 'white' } : { color: '#C2C8C4' }}>
                     Shops
                   </button>
                   <button onClick={() => setActiveSection('events')}
-                    className="px-4 py-1.5 rounded-full text-[13px] font-medium transition-all"
+                    className="px-4 py-1.5 rounded-md text-[13px] font-medium transition-all"
                     style={activeSection === 'events' ? { background: '#EF3E36', color: 'white' } : { color: '#C2C8C4' }}>
                     Events
                   </button>
                   <button onClick={() => setActiveSection('fcbd')}
-                    className="px-4 py-1.5 rounded-full text-[13px] font-medium transition-all"
+                    className="px-4 py-1.5 rounded-md text-[13px] font-medium transition-all"
                     style={activeSection === 'fcbd' ? { background: '#EF3E36', color: 'white' } : { color: '#C2C8C4' }}>
                     FCBD
                   </button>
@@ -1849,7 +1849,7 @@ export default function App() {
                       { id: 'toys', label: 'Toys' },
                     ].map(f => (
                       <button key={f.id} onClick={() => setFilter(f.id)}
-                        className="px-4 py-1.5 rounded-full text-[13px] font-medium border transition-all whitespace-nowrap flex-shrink-0"
+                        className="px-4 py-1.5 rounded-md text-[13px] font-medium border transition-all whitespace-nowrap flex-shrink-0"
                         style={filter === f.id ? { background: '#EF3E36', borderColor: '#EF3E36', color: 'white' } : { background: '#0F2740', borderColor: '#1E446B', color: '#C2C8C4' }}>
                         {f.label}
                       </button>
@@ -1866,12 +1866,12 @@ export default function App() {
                       Within {radius} miles
                       <span className="text-xs font-medium" style={{ color: '#EF3E36' }}>· Change</span>
                     </button>
-                    <div className="ml-auto inline-flex rounded-full border border-zinc-200 p-0.5 bg-zinc-50 flex-shrink-0">
+                    <div className="ml-auto inline-flex rounded-md border border-zinc-200 p-0.5 bg-zinc-50 flex-shrink-0">
                       <button onClick={() => setDiscoverView('list')}
-                        className="px-3 py-1 rounded-full text-xs font-bold transition-all"
+                        className="px-3 py-1 rounded-md text-xs font-bold transition-all"
                         style={discoverView === 'list' ? { background: '#EF3E36', color: 'white' } : { color: '#C2C8C4' }}>List</button>
                       <button onClick={() => setDiscoverView('map')}
-                        className="px-3 py-1 rounded-full text-xs font-bold transition-all"
+                        className="px-3 py-1 rounded-md text-xs font-bold transition-all"
                         style={discoverView === 'map' ? { background: '#EF3E36', color: 'white' } : { color: '#C2C8C4' }}>Map</button>
                     </div>
                   </div>
@@ -1901,7 +1901,7 @@ export default function App() {
                     <p className="text-sm font-mono">
                       {urlCity ? `No shops found in ${unslugCity(urlCity)}` : `No shops found within ${radius} miles`}
                     </p>
-                    {!urlCity && <button onClick={() => { setLocTarget('discover'); setLocRadius(radius); setModal('setlocation') }} className="mt-3 text-xs font-bold px-4 py-2 rounded-full text-white op-press" style={{ background: '#EF3E36' }}>Widen your radius</button>}
+                    {!urlCity && <button onClick={() => { setLocTarget('discover'); setLocRadius(radius); setModal('setlocation') }} className="mt-3 text-xs font-bold px-4 py-2 rounded-md text-white op-press" style={{ background: '#EF3E36' }}>Widen your radius</button>}
                   </div>
                 )}
                 {activeSection === 'shops' && discoverReady && filteredShops.length > 0 && (
@@ -2001,12 +2001,12 @@ export default function App() {
                         <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
                         <input type="search" value={eventSearchInput} onChange={e => setEventSearchInput(e.target.value)}
                           placeholder="Search events, stores, cities"
-                          className="w-full bg-zinc-50 border border-zinc-100 rounded-full pl-9 pr-3 py-2 text-sm outline-none focus:border-zinc-300" />
+                          className="w-full bg-zinc-50 border border-zinc-100 rounded-md pl-9 pr-3 py-2 text-sm outline-none focus:border-zinc-300" />
                       </div>
                       <div className="flex gap-1.5 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
                         {([['all', 'All dates'], ['today', 'Today'], ['weekend', 'This weekend'], ['week', 'This week']] as [EventRange, string][]).map(([id, label]) => (
                           <button key={id} onClick={() => setEventRange(id)}
-                            className="px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap border flex-shrink-0"
+                            className="px-3 py-1 rounded-md text-xs font-bold whitespace-nowrap border flex-shrink-0"
                             style={eventRange === id ? { background: '#EF3E36', borderColor: '#EF3E36', color: 'white' } : { background: '#0F2740', borderColor: '#1E446B', color: '#9ca3af' }}>
                             {label}
                           </button>
@@ -2014,7 +2014,7 @@ export default function App() {
                         <span className="w-px bg-zinc-200 mx-1 flex-shrink-0" />
                         {[['all', 'All'], ['cards', 'Cards'], ['comics', 'Comics'], ['collectibles', 'Collectibles'], ['toys', 'Toys']].map(([id, label]) => (
                           <button key={id} onClick={() => setEventFilter(id)}
-                            className="px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap border flex-shrink-0 flex items-center gap-1"
+                            className="px-3 py-1 rounded-md text-xs font-bold whitespace-nowrap border flex-shrink-0 flex items-center gap-1"
                             style={eventFilter === id ? { background: '#7C3AED', borderColor: '#7C3AED', color: 'white' } : { background: '#0F2740', borderColor: '#1E446B', color: '#9ca3af' }}>
                             {id !== 'all' && <span className="h-2 w-2 rounded-full" style={{ background: catColor(id) }} />}{label}
                           </button>
@@ -2085,7 +2085,7 @@ export default function App() {
                   <p className="text-xs uppercase tracking-widest opacity-80">Free Comic Book Day</p>
                   <h2 className="text-2xl font-bold mt-1">FCBD {FCBD_YEAR}</h2>
                   <p className="text-sm opacity-90 mt-1">{FCBD_DATE_LABEL} · date tentative</p>
-                  <div className="mt-4 inline-flex items-baseline gap-2 bg-white/20 rounded-full px-4 py-1.5">
+                  <div className="mt-4 inline-flex items-baseline gap-2 bg-white/20 rounded-md px-4 py-1.5">
                     <span className="text-xl font-bold">{fcbdDaysLeft}</span>
                     <span className="text-xs opacity-90">days to go</span>
                   </div>
@@ -2168,16 +2168,16 @@ export default function App() {
             {tab === 'marketplace' && (
               <div className="p-4 space-y-4">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="inline-flex rounded-full border border-zinc-200 p-0.5 bg-zinc-50">
+                  <div className="inline-flex rounded-md border border-zinc-200 p-0.5 bg-zinc-50">
                     <button onClick={() => setMktSection('sale')}
-                      className="px-4 py-1.5 rounded-full text-[13px] font-medium transition-all"
+                      className="px-4 py-1.5 rounded-md text-[13px] font-medium transition-all"
                       style={mktSection === 'sale' ? { background: '#EF3E36', color: 'white' } : { color: '#C2C8C4' }}>For Sale</button>
                     <button onClick={() => setMktSection('trade')}
-                      className="px-4 py-1.5 rounded-full text-[13px] font-medium transition-all"
+                      className="px-4 py-1.5 rounded-md text-[13px] font-medium transition-all"
                       style={mktSection === 'trade' ? { background: '#EF3E36', color: 'white' } : { color: '#C2C8C4' }}>Trades</button>
                   </div>
                   <button onClick={() => isSignedIn ? (setMktPhotos([]), setEditingListingId(null), setEditingTradeId(null), setModal(mktSection === 'sale' ? 'listsale' : 'posttrade')) : setModal('auth')}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium text-white flex-shrink-0"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium text-white flex-shrink-0"
                     style={{ background: '#EF3E36' }}>
                     <Plus className="h-4 w-4" /> {mktSection === 'sale' ? 'List an item' : 'Post a trade'}
                   </button>
@@ -2219,7 +2219,7 @@ export default function App() {
                     { id: 'toys', label: 'Toys' },
                   ].map(f => (
                     <button key={f.id} onClick={() => setMktFilter(f.id)}
-                      className="px-4 py-1.5 rounded-full text-[13px] font-medium border transition-all whitespace-nowrap flex-shrink-0"
+                      className="px-4 py-1.5 rounded-md text-[13px] font-medium border transition-all whitespace-nowrap flex-shrink-0"
                       style={mktFilter === f.id ? { background: '#EF3E36', borderColor: '#EF3E36', color: 'white' } : { background: '#0F2740', borderColor: '#1E446B', color: '#C2C8C4' }}>
                       {f.label}
                     </button>
@@ -2231,7 +2231,7 @@ export default function App() {
                     <Tag className="h-10 w-10 mx-auto mb-3 opacity-20" />
                     <p className="text-sm">No listings yet. Be the first to list something.</p>
                     <button onClick={() => isSignedIn ? (setMktPhotos([]), setEditingListingId(null), setModal('listsale')) : setModal('auth')}
-                      className="mt-4 px-5 py-2 rounded-full text-sm font-medium text-white" style={{ background: '#EF3E36' }}>
+                      className="mt-4 px-5 py-2 rounded-md text-sm font-medium text-white" style={{ background: '#EF3E36' }}>
                       List an item
                     </button>
                   </div>
@@ -2248,7 +2248,7 @@ export default function App() {
                         <div className="p-3">
                           <div className="flex items-center gap-1.5">
                             <p className="font-display font-bold text-xl leading-none px-1.5 py-0.5 rounded-md" style={{ color: '#113150', background: '#F6F1E7' }}>${Number(item.price).toLocaleString()}</p>
-                            {item.quantity > 1 && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-zinc-100 text-zinc-500">Qty: {item.quantity}</span>}
+                            {item.quantity > 1 && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-zinc-100 text-zinc-500">Qty: {item.quantity}</span>}
                           </div>
                           <h3 className="text-[14px] text-zinc-900 leading-snug truncate mt-0.5">{item.title}</h3>
                           <div className="flex items-center gap-1.5 text-[12px] text-zinc-500 mt-1">
@@ -2268,7 +2268,7 @@ export default function App() {
                     <ArrowLeftRight className="h-10 w-10 mx-auto mb-3 opacity-20" />
                     <p className="text-sm">No trades posted yet. Put up what you have.</p>
                     <button onClick={() => isSignedIn ? (setMktPhotos([]), setEditingTradeId(null), setModal('posttrade')) : setModal('auth')}
-                      className="mt-4 px-5 py-2 rounded-full text-sm font-medium text-white" style={{ background: '#EF3E36' }}>Post a trade</button>
+                      className="mt-4 px-5 py-2 rounded-md text-sm font-medium text-white" style={{ background: '#EF3E36' }}>Post a trade</button>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -2285,11 +2285,11 @@ export default function App() {
                         {p.image_url && <img src={p.image_url} alt="" loading="lazy" className="w-full h-32 object-cover rounded-xl mb-3" />}
                         <div className="space-y-2">
                           <div className="flex gap-2 items-start">
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 mt-0.5" style={{ background: '#F0FDF4', color: '#166534' }}>HAS</span>
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md flex-shrink-0 mt-0.5" style={{ background: '#F0FDF4', color: '#166534' }}>HAS</span>
                             <p className="text-[13px] font-medium text-zinc-900">{p.offer}</p>
                           </div>
                           <div className="flex gap-2 items-start">
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 mt-0.5" style={{ background: '#FEF2F2', color: '#991B1B' }}>WANTS</span>
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md flex-shrink-0 mt-0.5" style={{ background: '#FEF2F2', color: '#991B1B' }}>WANTS</span>
                             <p className="text-[13px] font-medium" style={{ color: '#EF3E36' }}>{p.look_for}</p>
                           </div>
                         </div>
@@ -2318,7 +2318,7 @@ export default function App() {
                       <div className="flex gap-2 overflow-x-auto pb-1">
                         {['All', ...cats].map((c: string) => (
                           <button key={c} onClick={() => setNewsFilter(c)}
-                            className="px-3.5 py-1.5 rounded-full text-xs font-bold flex-shrink-0 border transition-all"
+                            className="px-3.5 py-1.5 rounded-md text-xs font-bold flex-shrink-0 border transition-all"
                             style={newsFilter === c ? { background: '#EF3E36', borderColor: '#EF3E36', color: 'white' } : { background: '#0F2740', borderColor: '#1E446B', color: '#C2C8C4' }}>
                             {c}
                           </button>
@@ -2351,7 +2351,7 @@ export default function App() {
                           })}
                           <div ref={setNewsSentinel} className="h-10 flex items-center justify-center text-xs text-zinc-400 font-mono">
                             {newsLoading ? 'Loading…' : newsHasMore
-                              ? <button onClick={loadMoreNews} className="px-3 py-1.5 rounded-full text-xs font-bold text-white" style={{ background: '#EF3E36' }}>Load more</button>
+                              ? <button onClick={loadMoreNews} className="px-3 py-1.5 rounded-md text-xs font-bold text-white" style={{ background: '#EF3E36' }}>Load more</button>
                               : "That's everything"}
                           </div>
                         </div>
@@ -2400,7 +2400,7 @@ export default function App() {
                     <div className="p-3 border-t border-zinc-100 flex items-center gap-2 flex-shrink-0">
                       <input value={messageDraft} onChange={e => setMessageDraft(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter' && messageDraft.trim()) { sendThreadMessage(messageDraft); setMessageDraft('') } }}
-                        placeholder="Message…" className="flex-1 bg-zinc-50 border border-zinc-200 rounded-full px-4 py-2.5 text-sm focus:outline-none" />
+                        placeholder="Message…" className="flex-1 bg-zinc-50 border border-zinc-200 rounded-md px-4 py-2.5 text-sm focus:outline-none" />
                       <button onClick={() => { if (messageDraft.trim()) { sendThreadMessage(messageDraft); setMessageDraft('') } }}
                         className="h-10 w-10 rounded-full flex items-center justify-center text-white flex-shrink-0" style={{ background: '#EF3E36' }}>
                         <Send className="h-4 w-4" />
@@ -2451,7 +2451,7 @@ export default function App() {
                       {profile?.banner_url
                         ? <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.35)' }} />
                         : <div className="absolute bottom-0 right-0 w-32 h-32 rounded-full opacity-20" style={{ background: 'white', transform: 'translate(20%,20%)' }} />}
-                      <button onClick={openEditProfile} className="absolute top-4 right-4 z-10 text-xs font-medium px-3 py-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.25)' }}>Edit</button>
+                      <button onClick={openEditProfile} className="absolute top-4 right-4 z-10 text-xs font-medium px-3 py-1.5 rounded-md" style={{ background: 'rgba(255,255,255,0.25)' }}>Edit</button>
                       <div className="relative">
                         <div className="h-14 w-14 rounded-3xl flex items-center justify-center mb-3 overflow-hidden" style={{ background: 'rgba(255,255,255,0.2)' }}>
                           {profile?.avatar_url
@@ -2607,7 +2607,7 @@ export default function App() {
                                   {r.status === 'pending' ? (
                                     <span className="text-sm font-mono font-black tracking-widest flex-shrink-0 ml-2" style={{ color: '#fca997' }}>{r.code}</span>
                                   ) : (
-                                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 flex-shrink-0 ml-2">{r.status}</span>
+                                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 flex-shrink-0 ml-2">{r.status}</span>
                                   )}
                                 </div>
                               ))}
@@ -2719,12 +2719,12 @@ export default function App() {
                                     ? <img src={l.image_url} alt={l.title} className="w-full h-full object-cover" />
                                     : <div className="w-full h-full flex items-center justify-center text-zinc-300"><Package className="h-6 w-6" /></div>}
                                   {l.status === 'sold' && (
-                                    <span className="absolute top-1 left-1 text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-zinc-800/90 text-white">Sold</span>
+                                    <span className="absolute top-1 left-1 text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md bg-zinc-800/90 text-white">Sold</span>
                                   )}
                                 </div>
                                 <div className="flex items-center gap-1 mt-1">
                                   <p className="text-[11px] font-medium truncate" style={{ color: '#EF3E36' }}>${Number(l.price).toLocaleString()}</p>
-                                  {l.quantity > 1 && <span className="text-[9px] font-semibold px-1 py-0.5 rounded-full bg-zinc-100 text-zinc-500 shrink-0">x{l.quantity}</span>}
+                                  {l.quantity > 1 && <span className="text-[9px] font-semibold px-1 py-0.5 rounded-md bg-zinc-100 text-zinc-500 shrink-0">x{l.quantity}</span>}
                                 </div>
                               </button>
                             ))}
@@ -2876,7 +2876,7 @@ export default function App() {
                 <ShopThumb s={selectedShop} className="h-44 w-full rounded-3xl border border-zinc-200" />
               </div>
               {isMerchant && (selectedShop as any).owner_id === user?.id && (
-                <label className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white cursor-pointer shadow-lg" style={{ background: 'rgba(0,0,0,0.6)' }}>
+                <label className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold text-white cursor-pointer shadow-lg" style={{ background: 'rgba(0,0,0,0.6)' }}>
                   <Plus className="h-3.5 w-3.5" />{galleryBusy ? 'Uploading…' : 'Change cover'}
                   <input type="file" accept="image/*" onChange={handleSwapCover} className="hidden" disabled={galleryBusy} />
                 </label>
@@ -3418,7 +3418,7 @@ export default function App() {
                             {it._kind === 'listing'
                               ? <div className="flex items-center gap-1">
                                   <p className="text-sm font-semibold" style={{ color: '#EF3E36' }}>${Number(it.price).toLocaleString()}</p>
-                                  {it.quantity > 1 && <span className="text-[9px] font-semibold px-1 py-0.5 rounded-full bg-zinc-100 text-zinc-500">Qty: {it.quantity}</span>}
+                                  {it.quantity > 1 && <span className="text-[9px] font-semibold px-1 py-0.5 rounded-md bg-zinc-100 text-zinc-500">Qty: {it.quantity}</span>}
                                 </div>
                               : <p className="text-[11px] font-semibold text-emerald-700">TRADE</p>}
                             <p className="text-xs text-zinc-700 truncate">{it._kind === 'listing' ? it.title : it.offer}</p>
@@ -3466,16 +3466,16 @@ export default function App() {
                 <div className="flex items-center gap-2">
                   <p className="text-2xl font-semibold" style={{ color: '#EF3E36' }}>${Number(selectedListing.price).toLocaleString()}</p>
                   {selectedListing.quantity > 1 && (
-                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-500">Qty: {selectedListing.quantity}</span>
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-500">Qty: {selectedListing.quantity}</span>
                   )}
                   {selectedListing.status === 'sold' && (
-                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-zinc-800 text-white">Sold</span>
+                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-zinc-800 text-white">Sold</span>
                   )}
                 </div>
                 <h3 className="text-lg font-semibold text-zinc-900 mt-0.5">{selectedListing.title}</h3>
                 <div className="flex items-center gap-2 text-[13px] text-zinc-500 mt-1 flex-wrap">
-                  {selectedListing.condition && <span className="bg-zinc-100 px-2 py-0.5 rounded-full">{selectedListing.condition}</span>}
-                  {selectedListing.category && <span className="bg-zinc-100 px-2 py-0.5 rounded-full capitalize">{selectedListing.category}</span>}
+                  {selectedListing.condition && <span className="bg-zinc-100 px-2 py-0.5 rounded-md">{selectedListing.condition}</span>}
+                  {selectedListing.category && <span className="bg-zinc-100 px-2 py-0.5 rounded-md capitalize">{selectedListing.category}</span>}
                   {selectedListing.distance != null && <span>· {fmtDist(selectedListing.distance)} away</span>}
                 </div>
               </div>
@@ -3770,14 +3770,14 @@ export default function App() {
               )}
               <div className="space-y-2">
                 {selectedTrade.completed_with && (
-                  <span className="inline-block text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-zinc-800 text-white">Traded</span>
+                  <span className="inline-block text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-zinc-800 text-white">Traded</span>
                 )}
                 <div className="flex gap-2 items-start">
-                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 mt-0.5" style={{ background: '#F0FDF4', color: '#166534' }}>HAS</span>
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md flex-shrink-0 mt-0.5" style={{ background: '#F0FDF4', color: '#166534' }}>HAS</span>
                   <p className="text-sm font-medium text-zinc-900">{selectedTrade.offer}</p>
                 </div>
                 <div className="flex gap-2 items-start">
-                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 mt-0.5" style={{ background: '#FEF2F2', color: '#991B1B' }}>WANTS</span>
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md flex-shrink-0 mt-0.5" style={{ background: '#FEF2F2', color: '#991B1B' }}>WANTS</span>
                   <p className="text-sm font-medium" style={{ color: '#EF3E36' }}>{selectedTrade.look_for}</p>
                 </div>
               </div>

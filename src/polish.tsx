@@ -80,7 +80,7 @@ export function CountUp({ value, duration = 900, className, style }: { value: nu
 
 // Floating "+N" pill that rises and fades.
 export function PlusPill({ text }: { text: string }) {
-  return <span className="op-plus pointer-events-none absolute -top-2 right-0 text-xs font-display px-2 py-0.5 rounded-full" style={{ background: BRAND.cream, color: BRAND.navy }}>{text}</span>
+  return <span className="op-plus pointer-events-none absolute -top-2 right-0 text-xs font-display px-2 py-0.5 rounded-md" style={{ background: BRAND.cream, color: BRAND.navy }}>{text}</span>
 }
 
 // ---------------------------------------------------------------- countdown
@@ -222,7 +222,7 @@ export function FoundingReveal({ number, tier, onClose }: { number: number; tier
         <p className="font-display text-sm tracking-[0.25em]" style={{ color: BRAND.cream }}>FOUNDING MEMBER</p>
         <p className="font-display text-7xl leading-none my-3" style={{ color: BRAND.cream }}>#{String(number).padStart(4, '0')}</p>
         <p className="text-sm text-white/85">Lifetime free {tier}. Forever.</p>
-        <button onClick={onClose} className="mt-6 font-display tracking-wide px-6 py-2.5 rounded-full" style={{ background: BRAND.cream, color: BRAND.navy }}>LET'S GO</button>
+        <button onClick={onClose} className="mt-6 font-display tracking-wide px-6 py-2.5 rounded-md" style={{ background: BRAND.cream, color: BRAND.navy }}>LET'S GO</button>
       </div>
     </div>
   )
