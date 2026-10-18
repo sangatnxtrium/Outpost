@@ -7,6 +7,7 @@ import { FACEBOOK_URL, FacebookIcon } from './FacebookLink'
 import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useMajorEvents, type EventRange, useEventsByIds, useNews, NEWS_CATEGORIES, useListings, useFcbd, useFcbdTitles, useNotifications, useAppSettings, useListingOffers, useFollows, useConversations, useMessages, useItemMessages, usePoints, useReferrals, useMyRedemptions, useRewardOffers, useMerchantRewards } from './hooks/useShops'
 import { startCheckout } from './lib/stripe'
 import { supabase } from './lib/supabase'
+import { toast, Toaster, celebrate, CountUp, PlusPill, CountdownChip, CountdownBig, eventStart, TiltCard, SkeletonGrid, SkeletonRows, useFoundingCount, FoundingProgress, FoundingReveal } from './polish'
 
 type TabType = 'discover' | 'classifieds' | 'marketplace' | 'news' | 'profile' | 'messages'
 type ModalType = 'none' | 'sub' | 'auth' | 'notifications' | 'shop' | 'menu' | 'claim' | 'additem' | 'submit' | 'listsale' | 'listingdetail' | 'posttrade' | 'tradedetail' | 'editprofile' | 'setlocation' | 'userprofile'
@@ -76,23 +77,28 @@ function DropBanner({ shops }: { shops: any[] }) {
     }, 3000)
     return () => clearInterval(interval)
   }, [drops.length])
+  const touchX = useRef<number | null>(null)
   if (!drops.length) return null
-  const shop = drops[idx]
+  const shop = drops[idx % drops.length]
+  const go = (d: number) => { setFade(false); setTimeout(() => { setIdx(i => (i + d + drops.length) % drops.length); setFade(true) }, 150) }
   return (
-    <div className="rounded-3xl p-4 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #131615, #1A1E1C)' }}>
-      <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-10" style={{ background: '#0F9D8A', transform: 'translate(30%,-30%)' }} />
+    <div className="rounded-3xl p-4 text-white relative overflow-hidden op-in select-none" style={{ background: 'linear-gradient(135deg, #113150, #0A1A2B)', border: '1px solid rgba(239,62,54,0.35)' }}
+      onTouchStart={e => { touchX.current = e.touches[0].clientX }}
+      onTouchEnd={e => { if (touchX.current == null) return; const dx = e.changedTouches[0].clientX - touchX.current; touchX.current = null; if (Math.abs(dx) > 40 && drops.length > 1) go(dx < 0 ? 1 : -1) }}>
+      <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-10" style={{ background: '#EF3E36', transform: 'translate(30%,-30%)' }} />
       <div className="flex items-center gap-2 mb-2">
-        <Flame className="h-4 w-4 text-orange-400" />
-        <span className="text-xs font-black uppercase tracking-widest text-orange-400">Latest Drop</span>
+        <span className="text-[10px] font-display px-1.5 py-0.5 rounded inline-flex items-center gap-1" style={{ background: '#EF3E36' }}><i className="op-dot" />LIVE</span>
+        <Flame className="h-4 w-4" style={{ color: '#FFD166' }} />
+        <span className="text-sm font-display uppercase tracking-widest" style={{ color: '#F6F1E7' }}>Latest Drop</span>
         {drops.length > 1 && (
           <div className="flex gap-1 ml-auto">
             {drops.map((_: any, i: number) => (
-              <div key={i} className="w-1.5 h-1.5 rounded-full transition-all" style={{ background: i === idx ? '#0F9D8A' : 'rgba(255,255,255,0.2)' }} />
+              <div key={i} className="w-1.5 h-1.5 rounded-full transition-all" style={{ background: i === idx ? '#EF3E36' : 'rgba(255,255,255,0.2)' }} />
             ))}
           </div>
         )}
       </div>
-      <p className="text-sm font-bold leading-snug opacity-90 transition-opacity duration-300" style={{ opacity: fade ? 1 : 0 }}>"{shop.hot_find}"</p>
+      <p className="text-base font-bold leading-snug transition-all duration-300" style={{ opacity: fade ? 1 : 0, transform: fade ? 'none' : 'translateX(-8px)' }}>"{shop.hot_find}"</p>
       <p className="text-xs mt-1 font-mono transition-opacity duration-300" style={{ color: 'rgba(255,255,255,0.4)', opacity: fade ? 1 : 0 }}>{shop.name}</p>
     </div>
   )
@@ -167,8 +173,8 @@ function RadiusPicker({ lat, lng, radiusMiles }: { lat: number, lng: number, rad
     const map = L.map(elRef.current, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false }).setView([lat, lng], 9)
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map)
     mapRef.current = map
-    circleRef.current = L.circle([lat, lng], { radius: radiusMiles * 1609.34, color: '#0F9D8A', weight: 1.5, fillColor: '#0F9D8A', fillOpacity: 0.15 }).addTo(map)
-    dotRef.current = L.circleMarker([lat, lng], { radius: 6, color: '#fff', weight: 2, fillColor: '#0F9D8A', fillOpacity: 1 }).addTo(map)
+    circleRef.current = L.circle([lat, lng], { radius: radiusMiles * 1609.34, color: '#EF3E36', weight: 1.5, fillColor: '#EF3E36', fillOpacity: 0.15 }).addTo(map)
+    dotRef.current = L.circleMarker([lat, lng], { radius: 6, color: '#fff', weight: 2, fillColor: '#EF3E36', fillOpacity: 1 }).addTo(map)
     setTimeout(() => { map.invalidateSize(); fit() }, 150)
     return () => { map.remove(); mapRef.current = null }
   }, [])
@@ -226,7 +232,7 @@ function timeAgo(iso: string | null | undefined): string {
 }
 
 const STANDING_STYLE: Record<string, { bg: string; fg: string }> = {
-  New:         { bg: '#1A1E1C', fg: '#ACB3AE' },
+  New:         { bg: '#143456', fg: '#ACB3AE' },
   Member:      { bg: '#E0F2FE', fg: '#0369A1' },
   Established: { bg: '#EDE9FE', fg: '#6D28D9' },
   Trusted:     { bg: '#FEF3C7', fg: '#B45309' },
@@ -265,7 +271,7 @@ function StarPicker({ value, onChange, size = 'md' }: { value: number; onChange:
     <div className="flex items-center gap-1">
       {[1, 2, 3, 4, 5].map(n => (
         <button key={n} type="button" onClick={() => onChange(n)} aria-label={`${n} star`}>
-          <Star className={cls} style={n <= value ? { fill: '#F59E0B', color: '#F59E0B' } : { color: '#3A403C' }} />
+          <Star className={cls} style={n <= value ? { fill: '#F59E0B', color: '#F59E0B' } : { color: '#2E5880' }} />
         </button>
       ))}
     </div>
@@ -295,7 +301,7 @@ function SellerOfferRow({ offer, onAccept, onDecline, onCounter }: { offer: any;
             className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-xs focus:outline-none" />
           <div className="flex gap-2">
             <button onClick={() => { const amt = parseFloat(counterAmount); if (amt > 0) { onCounter(amt, counterMessage); setCounterOpen(false) } }}
-              disabled={!counterAmount} className="flex-1 py-2 rounded-xl text-xs font-medium text-white disabled:opacity-50" style={{ background: '#0F9D8A' }}>Send counter</button>
+              disabled={!counterAmount} className="flex-1 py-2 rounded-xl text-xs font-medium text-white disabled:opacity-50" style={{ background: '#EF3E36' }}>Send counter</button>
             <button onClick={() => setCounterOpen(false)} className="flex-1 py-2 rounded-xl text-xs font-medium border border-zinc-200 text-zinc-500">Cancel</button>
           </div>
         </div>
@@ -312,7 +318,7 @@ function ItemMessages({ threads, loading, isOwner, currentUserId, isSignedIn, dr
     <div className="pt-4 mt-1 border-t border-zinc-100">
       <p className="font-semibold text-zinc-900 text-sm mb-2">Messages</p>
       {!isSignedIn ? (
-        <button onClick={onSignIn} className="text-xs font-medium" style={{ color: '#0F9D8A' }}>Sign in to send a message</button>
+        <button onClick={onSignIn} className="text-xs font-medium" style={{ color: '#EF3E36' }}>Sign in to send a message</button>
       ) : isOwner ? (
         <>
           {loading && <p className="text-xs text-zinc-400">Loading…</p>}
@@ -343,7 +349,7 @@ function ItemMessages({ threads, loading, isOwner, currentUserId, isSignedIn, dr
               {threads[0].messages.map((m: any) => (
                 <div key={m.id} className={`flex ${m.sender_id === currentUserId ? 'justify-end' : 'justify-start'}`}>
                   <div className="max-w-[80%] rounded-2xl px-3 py-1.5 text-sm"
-                    style={m.sender_id === currentUserId ? { background: '#0F9D8A', color: 'white' } : { background: '#1A1E1C', color: '#F5F5F4' }}>
+                    style={m.sender_id === currentUserId ? { background: '#EF3E36', color: 'white' } : { background: '#143456', color: '#F5F5F4' }}>
                     {m.body}
                   </div>
                 </div>
@@ -354,7 +360,7 @@ function ItemMessages({ threads, loading, isOwner, currentUserId, isSignedIn, dr
             <input value={draft} onChange={(e: any) => setDraft(e.target.value)} placeholder="Hi, I am interested in this item"
               className="flex-1 bg-zinc-50 border border-zinc-200 rounded-full px-4 py-2.5 text-sm focus:outline-none" />
             <button onClick={() => { if (draft.trim()) { onSend(draft); setDraft('') } }} disabled={!draft.trim()}
-              className="h-10 px-4 rounded-full text-sm font-medium text-white disabled:opacity-50 flex-shrink-0" style={{ background: '#0F9D8A' }}>
+              className="h-10 px-4 rounded-full text-sm font-medium text-white disabled:opacity-50 flex-shrink-0" style={{ background: '#EF3E36' }}>
               Send
             </button>
           </div>
@@ -395,12 +401,12 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal, unreadCount, unre
       {items.map(({ id, icon: Icon, label }) => (
         <button key={id} onClick={() => setTab(id as TabType)}
           className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all font-medium text-sm"
-          style={tab === id ? { background: '#0F9D8A', color: 'white' } : { color: '#C2C8C4' }}>
+          style={tab === id ? { background: '#EF3E36', color: 'white' } : { color: '#C2C8C4' }}>
           <Icon className="h-4 w-4 flex-shrink-0" />
           {label}
           {id === 'messages' && unreadMessages > 0 && (
             <span className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold text-white flex items-center justify-center"
-              style={{ background: tab === id ? 'rgba(255,255,255,0.3)' : '#0F9D8A' }}>{unreadMessages > 9 ? '9+' : unreadMessages}</span>
+              style={{ background: tab === id ? 'rgba(255,255,255,0.3)' : '#EF3E36' }}>{unreadMessages > 9 ? '9+' : unreadMessages}</span>
           )}
         </button>
       ))}
@@ -410,7 +416,7 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal, unreadCount, unre
           <Bell className="h-4 w-4" />
           Notifications
           {unreadCount > 0 && (
-            <span className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold text-white flex items-center justify-center" style={{ background: '#0F9D8A' }}>{unreadCount > 9 ? '9+' : unreadCount}</span>
+            <span className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold text-white flex items-center justify-center" style={{ background: '#EF3E36' }}>{unreadCount > 9 ? '9+' : unreadCount}</span>
           )}
         </button>
         {isSignedIn ? (
@@ -421,7 +427,7 @@ function Sidebar({ tab, setTab, isSignedIn, profile, setModal, unreadCount, unre
         ) : (
           <button onClick={() => setModal('auth')}
             className="w-full py-2.5 rounded-xl text-sm font-medium text-white transition-all"
-            style={{ background: '#0F9D8A' }}>
+            style={{ background: '#EF3E36' }}>
             Sign in
           </button>
         )}
@@ -490,7 +496,7 @@ export default function App() {
   const { listings, loading: listingsLoading, uploadPhoto, createListing, updateListing, deleteListing } = useListings()
   const { items: notifications, unread: unreadCount, refetch: refetchNotifs, markAllRead } = useNotifications(user?.id || null)
   const { following, followingProfiles, toggleFollow } = useFollows(user?.id || null)
-  const { balance: opBalance, claimFoundingMember } = usePoints(user?.id || null)
+  const { balance: opBalance, claimFoundingMember, refetch: refetchPoints } = usePoints(user?.id || null)
   const { referralCode, referredBy, referredUsers, claimReferral } = useReferrals(user?.id || null)
 
   // Capture ?ref=CODE from an invite link before it's routed away, and claim
@@ -902,6 +908,19 @@ export default function App() {
   const { events: filteredEvents, loading: eventsLoading, hasMore: eventsHasMore, loadMore: loadMoreEvents } =
     useEvents({ state: eventState, category: eventFilter, near: eventNear, range: eventRange, search: eventSearch })
   const { events: majorEvents } = useMajorEvents(eventFilter, eventSearch)
+  // Hero data: head-only count of active local events in the next 7 days,
+  // the soonest national show, and listings created in the last week.
+  const [eventsThisWeek, setEventsThisWeek] = useState<number | null>(null)
+  useEffect(() => {
+    const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    const t = new Date(); const w = new Date(); w.setDate(t.getDate() + 7)
+    supabase.from('events').select('id', { count: 'exact', head: true }).eq('is_active', true).gte('date', iso(t)).lte('date', iso(w))
+      .then(({ count, error }) => setEventsThisWeek(error ? null : (count ?? 0)))
+  }, [])
+  const nextMajor = majorEvents[0] || null
+  const { founding, refetchFounding } = useFoundingCount()
+  const [foundingReveal, setFoundingReveal] = useState<number | null>(null)
+  const [checkinFx, setCheckinFx] = useState<string | null>(null)
 
   // Debounce the events search box (server-side filter).
   useEffect(() => {
@@ -962,10 +981,10 @@ export default function App() {
         <div className="flex items-start gap-3 px-3 py-2.5 cursor-pointer" onClick={() => setExpandedEventId(open ? null : ev.id)}>
           <span className="mt-1.5 h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ background: catColor((ev.categories || [])[0]) }} title={(ev.categories || []).join(', ')} />
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-sm leading-snug line-clamp-2">{m.title}</p>
+            <p className="font-bold text-sm leading-snug line-clamp-2"><span className="float-right ml-2"><CountdownChip start={eventStart(ev.date, m.time)} end={ev.end_date && ev.end_date !== ev.date ? eventStart(ev.end_date, '11:59 PM') : m.time ? new Date(eventStart(ev.date, m.time).getTime() + 4 * 36e5) : undefined} /></span>{m.title}</p>
             <p className="text-xs text-zinc-400 mt-0.5 truncate">{[m.store, ev.city, m.time, m.price].filter(Boolean).join(' · ')}</p>
             {ev.n_dates > 1 && (
-              <p className="text-[11px] mt-0.5 font-medium" style={{ color: '#0F9D8A' }}>
+              <p className="text-[11px] mt-0.5 font-medium" style={{ color: '#EF3E36' }}>
                 every {m.weekday}{ev.n_dates > 1 ? ` · +${ev.n_dates - 1} more date${ev.n_dates > 2 ? 's' : ''}` : ''}
                 <ChevronDown className={`inline h-3 w-3 ml-0.5 transition-transform ${open ? 'rotate-180' : ''}`} />
               </p>
@@ -973,7 +992,7 @@ export default function App() {
           </div>
           <button aria-label={going ? 'Going' : 'RSVP'} onClick={e => { e.stopPropagation(); toggleRsvp(ev.id) }}
             className="h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 border"
-            style={going ? { background: '#F0FDF4', borderColor: '#BBF7D0', color: '#166534' } : { background: '#131615', borderColor: '#262B28', color: '#9ca3af' }}>
+            style={going ? { background: '#F0FDF4', borderColor: '#BBF7D0', color: '#166534' } : { background: '#0F2740', borderColor: '#1E446B', color: '#9ca3af' }}>
             {going ? <CalendarCheck className="h-4 w-4" /> : <CalendarPlus className="h-4 w-4" />}
           </button>
         </div>
@@ -998,6 +1017,8 @@ export default function App() {
   }
 
   const isSignedIn = !!user
+  const activeListingsCount = listings.filter((l: any) => l.status !== 'sold').length
+  const newListingsWeek = listings.filter((l: any) => l.status !== 'sold' && l.created_at && Date.now() - new Date(l.created_at).getTime() < 7 * 864e5).length
   const isMerchant = profile?.role === 'merchant'
   const myShop = shops.find((s: any) => s.owner_id === user?.id) || null
 
@@ -1338,9 +1359,9 @@ export default function App() {
     setCheckoutLoading(true)
     const { error, upgraded } = await startCheckout(tier, user.email || '', user.id)
     setCheckoutLoading(false)
-    if (error) { alert(error); return }
+    if (error) { toast(error, 'error'); return }
     if (upgraded) {
-      alert(`🎉 You're now on the ${tier === 'elite' ? 'Elite' : 'Verified Store'} plan — free until 2028!`)
+      (toast(`🎉 You're now on the ${tier === 'elite' ? 'Elite' : 'Verified Store'} plan — free until 2028!`, 'success'), celebrate())
       setModal('none')
       window.location.reload()
     }
@@ -1351,7 +1372,7 @@ export default function App() {
     if (!inpRev.trim() || !user || !selectedShop) return
     if ((selectedShop as any).owner_id === user.id) return
     const { error } = await addReview(selectedShop.id, user.id, profile?.username || 'Guest', inpRev, 5)
-    if (error) { alert(error); return }
+    if (error) { toast(error, 'error'); return }
     setInpRev('')
   }
 
@@ -1581,9 +1602,9 @@ export default function App() {
 
   if (authLoading || shopsLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0A0B0C, #1A1E1C)' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0A1A2B, #143456)' }}>
         <div className="text-center space-y-4">
-          <div className="h-16 w-16 rounded-3xl flex items-center justify-center mx-auto" style={{ background: 'linear-gradient(135deg, #0F9D8A, #14B8A6)' }}>
+          <div className="h-16 w-16 rounded-3xl flex items-center justify-center mx-auto" style={{ background: 'linear-gradient(135deg, #EF3E36, #FF6B5E)' }}>
             <Compass className="h-8 w-8 text-white animate-spin" />
           </div>
           <p className="text-white/40 text-xs font-mono uppercase tracking-widest">Loading Outpost...</p>
@@ -1596,22 +1617,22 @@ export default function App() {
     const cats = s.categories?.length > 0 ? s.categories : (s.category ? [s.category] : [])
     const isSaved = savedShops.includes(s.id)
     return (
-      <div
+      <TiltCard
         onMouseEnter={() => setHoverShopId(s.id)}
         onMouseLeave={() => setHoverShopId(null)}
         onClick={() => openShop(s)}
-        className="relative bg-zinc-50 rounded-2xl border border-zinc-200 overflow-hidden text-left cursor-pointer transition-all hover:shadow-md">
+        className="bg-zinc-50 rounded-2xl border border-zinc-200 overflow-hidden text-left cursor-pointer">
         <div className="relative">
           <ShopThumb s={s} className="w-full aspect-[4/3]" />
           <button
             onClick={(e) => { e.stopPropagation(); toggleSaveShop(s.id) }}
             aria-label={isSaved ? 'Saved' : 'Save shop'}
             className="absolute top-2.5 right-2.5 h-8 w-8 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm">
-            <Heart className="h-[18px] w-[18px] transition-colors" style={isSaved ? { color: '#0F9D8A', fill: '#0F9D8A' } : { color: '#C2C8C4' }} />
+            <Heart key={isSaved ? 'on' : 'off'} className={`h-[18px] w-[18px] transition-colors ${isSaved ? 'op-pop' : ''}`} style={isSaved ? { color: '#EF3E36', fill: '#EF3E36' } : { color: '#C2C8C4' }} />
           </button>
           <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5 items-start">
             {s.hot_find && (
-              <span className="text-[11px] text-white px-2 py-1 rounded-full inline-flex items-center gap-1 shadow-sm" style={{ background: '#0F9D8A' }}>
+              <span className="text-[11px] text-white px-2 py-1 rounded-full inline-flex items-center gap-1 shadow-sm" style={{ background: '#EF3E36' }}>
                 <Flame className="h-3 w-3" /> Hot find
               </span>
             )}
@@ -1623,7 +1644,7 @@ export default function App() {
           </div>
         </div>
         <div className="p-3">
-          <h3 className="font-semibold text-[15px] leading-snug text-zinc-900 truncate">{s.name}</h3>
+          <h3 className="font-display font-bold text-[17px] leading-snug text-zinc-900 truncate">{s.name}</h3>
           <div className="flex items-center gap-1.5 text-[13px] text-zinc-500 mt-0.5">
             {s.rating != null && <span className="flex items-center gap-0.5"><Star className="h-3.5 w-3.5 text-amber-500" fill="currentColor" />{s.rating}</span>}
             {s.distance !== null && s.distance !== undefined && <span>· {s.distance.toFixed(1)} mi</span>}
@@ -1634,14 +1655,16 @@ export default function App() {
             ))}
           </div>
         </div>
-      </div>
+      </TiltCard>
     )
   }
 
   return (
-    <div className="min-h-screen text-[#F5F5F4] font-sans" style={{ background: '#0A0B0C' }}>
+    <div className="min-h-screen text-[#F5F5F4] font-sans" style={{ background: '#0A1A2B' }}>
+      <Toaster />
+      {foundingReveal != null && <FoundingReveal number={foundingReveal} tier={profile?.role === 'merchant' ? 'Store tier' : 'Elite Pass'} onClose={() => setFoundingReveal(null)} />}
       {showOnboarding && (
-        <div className="fixed inset-0 z-[60] flex flex-col" style={{ background: '#0A0B0C' }}>
+        <div className="fixed inset-0 z-[60] flex flex-col" style={{ background: '#0A1A2B' }}>
           <div className="flex-1 flex flex-col items-center justify-center px-6 max-w-md mx-auto w-full text-center">
             {onbStep === 1 ? (
               <>
@@ -1651,7 +1674,7 @@ export default function App() {
                   Outpost shows card shops, comic stores, drops, and deals around you. Turn on location so we can sort everything by distance.
                 </p>
                 <button onClick={() => { requestLocation(); setOnbStep(2) }}
-                  className="mt-8 w-full py-3.5 rounded-2xl text-sm font-bold text-white flex items-center justify-center gap-2" style={{ background: '#0F9D8A' }}>
+                  className="mt-8 w-full py-3.5 rounded-2xl text-sm font-bold text-white flex items-center justify-center gap-2" style={{ background: '#EF3E36' }}>
                   <Navigation className="h-4 w-4" /> Use my location
                 </button>
                 <button onClick={() => setOnbStep(2)} className="mt-3 text-sm text-zinc-400">Not now</button>
@@ -1669,13 +1692,13 @@ export default function App() {
                   ].map(c => (
                     <button key={c.id} onClick={() => setOnbInterest(onbInterest === c.id ? null : c.id)}
                       className="py-4 rounded-2xl text-sm font-bold border-2 transition-all"
-                      style={onbInterest === c.id ? { borderColor: '#0F9D8A', background: 'rgba(15,157,138,0.06)', color: '#0F9D8A' } : { borderColor: '#262B28', background: '#131615', color: '#C2C8C4' }}>
+                      style={onbInterest === c.id ? { borderColor: '#EF3E36', background: 'rgba(239,62,54,0.06)', color: '#EF3E36' } : { borderColor: '#1E446B', background: '#0F2740', color: '#C2C8C4' }}>
                       {c.label}
                     </button>
                   ))}
                 </div>
                 <button onClick={finishOnboarding}
-                  className="mt-8 w-full py-3.5 rounded-2xl text-sm font-bold text-white" style={{ background: '#0F9D8A' }}>
+                  className="mt-8 w-full py-3.5 rounded-2xl text-sm font-bold text-white" style={{ background: '#EF3E36' }}>
                   {onbInterest ? `Explore ${onbInterest}` : 'Explore all shops'}
                 </button>
                 <button onClick={finishOnboarding} className="mt-3 text-sm text-zinc-400">Skip</button>
@@ -1683,8 +1706,8 @@ export default function App() {
             )}
           </div>
           <div className="flex items-center justify-center gap-2 pb-10">
-            <div className="h-1.5 rounded-full transition-all" style={{ width: onbStep === 1 ? 20 : 8, background: onbStep === 1 ? '#0F9D8A' : '#3A403C' }} />
-            <div className="h-1.5 rounded-full transition-all" style={{ width: onbStep === 2 ? 20 : 8, background: onbStep === 2 ? '#0F9D8A' : '#3A403C' }} />
+            <div className="h-1.5 rounded-full transition-all" style={{ width: onbStep === 1 ? 20 : 8, background: onbStep === 1 ? '#EF3E36' : '#2E5880' }} />
+            <div className="h-1.5 rounded-full transition-all" style={{ width: onbStep === 2 ? 20 : 8, background: onbStep === 2 ? '#EF3E36' : '#2E5880' }} />
           </div>
         </div>
       )}
@@ -1712,14 +1735,14 @@ export default function App() {
         <div className="flex-1 min-w-0 flex flex-col min-h-screen max-w-2xl mx-auto w-full md:max-w-none">
 
           {/* HEADER */}
-          <header ref={headerRef} className={`sticky top-0 z-20 px-4 ${headerCollapsed ? 'pt-3' : 'pt-10'} pb-3 md:pt-3 md:pb-3 border-b border-zinc-200 bg-[#0A0B0C]/95 backdrop-blur`}>
+          <header ref={headerRef} className={`sticky top-0 z-20 px-4 ${headerCollapsed ? 'pt-3' : 'pt-10'} pb-3 md:pt-3 md:pb-3 border-b border-zinc-200 bg-[#0A1A2B]/95 backdrop-blur`}>
             <div className={`items-center justify-between gap-2 md:hidden ${headerCollapsed ? 'hidden' : 'flex'}`}>
               <div className="min-w-0 flex-1">
                 <img src="/logo.png" alt="getOutpost.net" onClick={() => goTab('discover')} className="h-[56px] w-auto cursor-pointer" />
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 {isSignedIn && (
-                  <div className="px-3 py-1.5 rounded-lg font-medium text-xs text-white" style={{ background: '#0F9D8A' }}>
+                  <div className="px-3 py-1.5 rounded-lg font-medium text-xs text-white" style={{ background: '#EF3E36' }}>
                     @{profile?.username}
                   </div>
                 )}
@@ -1739,13 +1762,13 @@ export default function App() {
                 <button onClick={() => setModal('notifications')} aria-label="Notifications" className="relative h-9 w-9 rounded-full flex items-center justify-center border border-zinc-200 bg-zinc-50 hover:bg-zinc-50 transition-all">
                   <Bell className="h-4 w-4 text-zinc-500" />
                   {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold text-white flex items-center justify-center" style={{ background: '#0F9D8A' }}>{unreadCount > 9 ? '9+' : unreadCount}</span>
+                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold text-white flex items-center justify-center" style={{ background: '#EF3E36' }}>{unreadCount > 9 ? '9+' : unreadCount}</span>
                   )}
                 </button>
                 <button onClick={() => setModal('sub')} className="px-4 py-2 rounded-full text-xs font-medium border border-zinc-200 text-zinc-700 hover:bg-zinc-50 transition-all">
                   {!isSignedIn ? 'Pro' : profile?.tier === 'store' ? 'Store' : profile?.tier === 'elite' ? 'Elite' : isMerchant ? 'Merchant' : 'Pro'}
                 </button>
-                <button onClick={() => isSignedIn ? goTab('profile') : setModal('auth')} className="px-4 py-2 rounded-full text-xs font-medium text-white transition-all" style={{ background: '#0F9D8A' }}>
+                <button onClick={() => isSignedIn ? goTab('profile') : setModal('auth')} className="px-4 py-2 rounded-full text-xs font-medium text-white transition-all" style={{ background: '#EF3E36' }}>
                   {isSignedIn ? `@${profile?.username}` : 'Sign in'}
                 </button>
               </div>
@@ -1760,26 +1783,57 @@ export default function App() {
             )}
           </header>
 
-          <main className="flex-1 min-w-0 pb-28 md:pb-8">
+          <main key={tab} className="flex-1 min-w-0 pb-28 md:pb-8 op-fade">
 
             {/* DISCOVER */}
             {tab === 'discover' && (
               <div className="p-4 space-y-4">
+                {activeSection === 'shops' && !urlCity && (
+                  <div className="rounded-3xl p-4 md:p-5 relative overflow-hidden op-in" style={{ background: 'linear-gradient(120deg, #EF3E36 0%, #C62A23 45%, #113150 100%)' }}>
+                    <div className="absolute -right-16 -top-20 h-48 w-48 rounded-full opacity-[0.08] pointer-events-none" style={{ background: '#F6F1E7' }} />
+                    <p className="font-display text-[13px] tracking-[0.2em] uppercase" style={{ color: 'rgba(246,241,231,0.85)' }}>Every shop · Every drop</p>
+                    <div className="grid grid-cols-3 gap-2 mt-2 relative">
+                      {[
+                        { n: discoverReady ? filteredShops.length : 0, l: userLat ? `shops within ${radius} mi` : 'shops' },
+                        { n: eventsThisWeek ?? 0, l: 'events this week · US', hide: eventsThisWeek == null, onClick: () => { setActiveSection('events'); setEventRange('week') } },
+                        newListingsWeek > 0
+                          ? { n: newListingsWeek, l: 'new listings · 7d', onClick: () => goTab('marketplace') }
+                          : { n: activeListingsCount, l: 'items for sale', onClick: () => goTab('marketplace') },
+                      ].map((c, i) => (
+                        <button key={i} onClick={c.onClick} disabled={!c.onClick} className="text-left op-press rounded-2xl px-3 py-2" style={{ background: 'rgba(10,26,43,0.35)' }}>
+                          <p className="font-display text-3xl md:text-4xl leading-none" style={{ color: '#F6F1E7' }}>{c.hide ? '—' : <CountUp value={c.n} />}</p>
+                          <p className="text-[11px] mt-1 leading-tight" style={{ color: 'rgba(246,241,231,0.8)' }}>{c.l}</p>
+                        </button>
+                      ))}
+                    </div>
+                    {nextMajor && (
+                      <a href={nextMajor.ticket_url || nextMajor.website || undefined} target="_blank" rel="noopener noreferrer"
+                        className="mt-3 flex items-center gap-3 rounded-2xl px-3 py-2 relative" style={{ background: 'rgba(10,26,43,0.55)' }}>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-display tracking-[0.18em] uppercase" style={{ color: '#FFD166' }}>Next big show</p>
+                          <p className="text-sm font-bold truncate text-white">{nextMajor.title}</p>
+                        </div>
+                        <CountdownBig start={eventStart(nextMajor.date)} />
+                      </a>
+                    )}
+                  </div>
+                )}
+
                 {/* Section toggle */}
                 <div className="inline-flex rounded-full border border-zinc-200 p-0.5 bg-zinc-50">
                   <button onClick={() => setActiveSection('shops')}
                     className="px-4 py-1.5 rounded-full text-[13px] font-medium transition-all"
-                    style={activeSection === 'shops' ? { background: '#0F9D8A', color: 'white' } : { color: '#C2C8C4' }}>
+                    style={activeSection === 'shops' ? { background: '#EF3E36', color: 'white' } : { color: '#C2C8C4' }}>
                     Shops
                   </button>
                   <button onClick={() => setActiveSection('events')}
                     className="px-4 py-1.5 rounded-full text-[13px] font-medium transition-all"
-                    style={activeSection === 'events' ? { background: '#0F9D8A', color: 'white' } : { color: '#C2C8C4' }}>
+                    style={activeSection === 'events' ? { background: '#EF3E36', color: 'white' } : { color: '#C2C8C4' }}>
                     Events
                   </button>
                   <button onClick={() => setActiveSection('fcbd')}
                     className="px-4 py-1.5 rounded-full text-[13px] font-medium transition-all"
-                    style={activeSection === 'fcbd' ? { background: '#0F9D8A', color: 'white' } : { color: '#C2C8C4' }}>
+                    style={activeSection === 'fcbd' ? { background: '#EF3E36', color: 'white' } : { color: '#C2C8C4' }}>
                     FCBD
                   </button>
                 </div>
@@ -1796,7 +1850,7 @@ export default function App() {
                     ].map(f => (
                       <button key={f.id} onClick={() => setFilter(f.id)}
                         className="px-4 py-1.5 rounded-full text-[13px] font-medium border transition-all whitespace-nowrap flex-shrink-0"
-                        style={filter === f.id ? { background: '#0F9D8A', borderColor: '#0F9D8A', color: 'white' } : { background: '#131615', borderColor: '#262B28', color: '#C2C8C4' }}>
+                        style={filter === f.id ? { background: '#EF3E36', borderColor: '#EF3E36', color: 'white' } : { background: '#0F2740', borderColor: '#1E446B', color: '#C2C8C4' }}>
                         {f.label}
                       </button>
                     ))}
@@ -1808,17 +1862,17 @@ export default function App() {
                   <div className="flex items-center gap-2 px-0.5">
                     <button onClick={() => { setLocTarget('discover'); setLocRadius(radius); setModal('setlocation') }}
                       className="flex items-center gap-2 px-3.5 py-2 rounded-2xl border border-zinc-200 bg-zinc-50 text-sm text-zinc-700">
-                      <Navigation className="h-4 w-4" style={{ color: '#0F9D8A' }} />
+                      <Navigation className="h-4 w-4" style={{ color: '#EF3E36' }} />
                       Within {radius} miles
-                      <span className="text-xs font-medium" style={{ color: '#0F9D8A' }}>· Change</span>
+                      <span className="text-xs font-medium" style={{ color: '#EF3E36' }}>· Change</span>
                     </button>
                     <div className="ml-auto inline-flex rounded-full border border-zinc-200 p-0.5 bg-zinc-50 flex-shrink-0">
                       <button onClick={() => setDiscoverView('list')}
                         className="px-3 py-1 rounded-full text-xs font-bold transition-all"
-                        style={discoverView === 'list' ? { background: '#0F9D8A', color: 'white' } : { color: '#C2C8C4' }}>List</button>
+                        style={discoverView === 'list' ? { background: '#EF3E36', color: 'white' } : { color: '#C2C8C4' }}>List</button>
                       <button onClick={() => setDiscoverView('map')}
                         className="px-3 py-1 rounded-full text-xs font-bold transition-all"
-                        style={discoverView === 'map' ? { background: '#0F9D8A', color: 'white' } : { color: '#C2C8C4' }}>Map</button>
+                        style={discoverView === 'map' ? { background: '#EF3E36', color: 'white' } : { color: '#C2C8C4' }}>Map</button>
                     </div>
                   </div>
                 )}
@@ -1829,7 +1883,7 @@ export default function App() {
                     </p>
                     <button
                       onClick={() => { setUrlCity(null); window.history.pushState({}, '', '/') }}
-                      className="text-xs font-medium underline flex-shrink-0" style={{ color: '#0F9D8A' }}>
+                      className="text-xs font-medium underline flex-shrink-0" style={{ color: '#EF3E36' }}>
                       View all shops
                     </button>
                   </div>
@@ -1840,23 +1894,18 @@ export default function App() {
                   </div>
                 )}
                 {activeSection === 'shops' && !urlCity && <DropBanner shops={shops} />}
-                {activeSection === 'shops' && !discoverReady && (
-                  <div className="text-center py-12">
-                    <div className="h-8 w-8 rounded-full border-2 border-zinc-200 border-t-zinc-500 animate-spin mx-auto mb-3" />
-                    <p className="text-sm text-zinc-400 font-mono">Finding shops near you...</p>
-                  </div>
-                )}
+                {activeSection === 'shops' && !discoverReady && <SkeletonGrid n={8} />}
                 {activeSection === 'shops' && discoverReady && filteredShops.length === 0 && !locationDenied && (
                   <div className="text-center py-12 text-zinc-400">
                     <MapPin className="h-10 w-10 mx-auto mb-2 opacity-20" />
                     <p className="text-sm font-mono">
                       {urlCity ? `No shops found in ${unslugCity(urlCity)}` : `No shops found within ${radius} miles`}
                     </p>
-                    {!urlCity && <p className="text-xs mt-1">Try increasing your radius</p>}
+                    {!urlCity && <button onClick={() => { setLocTarget('discover'); setLocRadius(radius); setModal('setlocation') }} className="mt-3 text-xs font-bold px-4 py-2 rounded-full text-white op-press" style={{ background: '#EF3E36' }}>Widen your radius</button>}
                   </div>
                 )}
                 {activeSection === 'shops' && discoverReady && filteredShops.length > 0 && (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 op-stagger">
                     {filteredShops.map((s: any) => <ShopCard key={s.id} s={s} />)}
                   </div>
                 )}
@@ -1876,7 +1925,7 @@ export default function App() {
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
                               <span className="text-xs font-bold px-2 py-0.5 rounded-lg inline-block mb-2"
-                                style={item.condition === 'Graded' ? { background: '#EDE9FE', color: '#5B21B6' } : { background: '#1A1E1C', color: '#ACB3AE' }}>
+                                style={item.condition === 'Graded' ? { background: '#EDE9FE', color: '#5B21B6' } : { background: '#143456', color: '#ACB3AE' }}>
                                 {item.condition}
                               </span>
                               <p className="font-bold text-sm leading-tight">{item.title}</p>
@@ -1938,6 +1987,7 @@ export default function App() {
                               <p className="text-[11px] font-mono text-zinc-400">{fmtEventDay(ev.date)}{ev.end_date && ev.end_date !== ev.date ? ` – ${fmtEventDay(ev.end_date).replace(/^\w+, /, '')}` : ''}</p>
                               <p className="font-bold text-xs mt-0.5 line-clamp-2">{ev.title}</p>
                               <p className="text-[11px] text-zinc-400 truncate">{[ev.city, ev.state].filter(Boolean).join(', ')}</p>
+                              <div className="mt-1.5 leading-none"><CountdownChip start={eventStart(ev.date)} end={ev.end_date ? eventStart(ev.end_date, '11:59 PM') : undefined} /></div>
                             </a>
                           ))}
                         </div>
@@ -1945,7 +1995,7 @@ export default function App() {
                     )}
 
                     {/* Sticky filter bar: search, date chips, categories */}
-                    <div ref={eventBarRef} className="sticky z-10 -mx-4 px-4 py-2 space-y-2 bg-[#0A0B0C]/95 backdrop-blur border-b border-zinc-100"
+                    <div ref={eventBarRef} className="sticky z-10 -mx-4 px-4 py-2 space-y-2 bg-[#0A1A2B]/95 backdrop-blur border-b border-zinc-100"
                       style={{ top: headerH }}>
                       <div className="relative">
                         <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
@@ -1957,7 +2007,7 @@ export default function App() {
                         {([['all', 'All dates'], ['today', 'Today'], ['weekend', 'This weekend'], ['week', 'This week']] as [EventRange, string][]).map(([id, label]) => (
                           <button key={id} onClick={() => setEventRange(id)}
                             className="px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap border flex-shrink-0"
-                            style={eventRange === id ? { background: '#0F9D8A', borderColor: '#0F9D8A', color: 'white' } : { background: '#131615', borderColor: '#262B28', color: '#9ca3af' }}>
+                            style={eventRange === id ? { background: '#EF3E36', borderColor: '#EF3E36', color: 'white' } : { background: '#0F2740', borderColor: '#1E446B', color: '#9ca3af' }}>
                             {label}
                           </button>
                         ))}
@@ -1965,7 +2015,7 @@ export default function App() {
                         {[['all', 'All'], ['cards', 'Cards'], ['comics', 'Comics'], ['collectibles', 'Collectibles'], ['toys', 'Toys']].map(([id, label]) => (
                           <button key={id} onClick={() => setEventFilter(id)}
                             className="px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap border flex-shrink-0 flex items-center gap-1"
-                            style={eventFilter === id ? { background: '#7C3AED', borderColor: '#7C3AED', color: 'white' } : { background: '#131615', borderColor: '#262B28', color: '#9ca3af' }}>
+                            style={eventFilter === id ? { background: '#7C3AED', borderColor: '#7C3AED', color: 'white' } : { background: '#0F2740', borderColor: '#1E446B', color: '#9ca3af' }}>
                             {id !== 'all' && <span className="h-2 w-2 rounded-full" style={{ background: catColor(id) }} />}{label}
                           </button>
                         ))}
@@ -1973,7 +2023,7 @@ export default function App() {
                     </div>
 
                     {/* Local events grouped by day */}
-                    {filteredEvents.length === 0 && !eventsLoading ? (
+                    {filteredEvents.length === 0 && eventsLoading ? <SkeletonRows n={6} /> : filteredEvents.length === 0 && !eventsLoading ? (
                       <div className="text-center py-10 text-zinc-400">
                         <Calendar className="h-10 w-10 mx-auto mb-2 opacity-20" />
                         <p className="text-sm font-mono">No events match these filters</p>
@@ -1985,7 +2035,7 @@ export default function App() {
                       <div className="space-y-3">
                         {eventGroups.map(g => (
                           <section key={g.date}>
-                            <h3 className="sticky z-[5] -mx-4 px-5 py-1.5 text-xs font-black uppercase tracking-wide text-zinc-400 bg-[#0A0B0C]/95 backdrop-blur"
+                            <h3 className="sticky z-[5] -mx-4 px-5 py-1.5 text-xs font-black uppercase tracking-wide text-zinc-400 bg-[#0A1A2B]/95 backdrop-blur"
                               style={{ top: headerH + eventBarH }}>
                               {dayHeader(g.date)} <span className="font-mono font-normal text-zinc-500">· {g.items.length}</span>
                             </h3>
@@ -2012,9 +2062,9 @@ export default function App() {
                 {activeSection === 'shops' && (
                   <button onClick={() => isSignedIn ? openClaimModal() : setModal('auth')}
                     className="w-full rounded-3xl p-4 border-2 border-dashed text-center"
-                    style={{ borderColor: '#0F9D8A', background: 'rgba(15,157,138,0.04)' }}>
-                    <Store className="h-5 w-5 mx-auto mb-1" style={{ color: '#0F9D8A' }} />
-                    <p className="font-black text-sm" style={{ color: '#0F9D8A' }}>Own a shop? Claim your listing</p>
+                    style={{ borderColor: '#EF3E36', background: 'rgba(239,62,54,0.04)' }}>
+                    <Store className="h-5 w-5 mx-auto mb-1" style={{ color: '#EF3E36' }} />
+                    <p className="font-black text-sm" style={{ color: '#EF3E36' }}>Own a shop? Claim your listing</p>
                     <p className="text-xs text-zinc-400 mt-0.5">Verified with EIN · Free to claim</p>
                   </button>
                 )}
@@ -2030,7 +2080,7 @@ export default function App() {
             {/* FCBD */}
             {activeSection === 'fcbd' && (
               <div className="space-y-4 max-w-3xl">
-                <div className="rounded-3xl p-5 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #0F9D8A, #14B8A6)' }}>
+                <div className="rounded-3xl p-5 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #EF3E36, #FF6B5E)' }}>
                   <BookOpen className="absolute -right-4 -top-4 h-28 w-28 opacity-10" />
                   <p className="text-xs uppercase tracking-widest opacity-80">Free Comic Book Day</p>
                   <h2 className="text-2xl font-bold mt-1">FCBD {FCBD_YEAR}</h2>
@@ -2070,7 +2120,7 @@ export default function App() {
                 {myShop && (
                   <div className="bg-zinc-50 rounded-2xl border border-zinc-200 p-3 flex items-center gap-2 text-sm text-zinc-500">
                     <BookOpen className="h-4 w-4 flex-shrink-0" style={{ color: '#1d4ed8' }} />
-                    <span>Manage your shop's FCBD participation from your <button onClick={() => goTab('profile')} className="font-medium underline" style={{ color: '#0F9D8A' }}>Profile</button>.</span>
+                    <span>Manage your shop's FCBD participation from your <button onClick={() => goTab('profile')} className="font-medium underline" style={{ color: '#EF3E36' }}>Profile</button>.</span>
                   </div>
                 )}
 
@@ -2100,7 +2150,7 @@ export default function App() {
                                 <h3 className="font-semibold text-zinc-900 truncate">{s.name}</h3>
                                 {dist != null && <span className="text-xs text-zinc-400 flex-shrink-0">{dist.toFixed(1)} mi</span>}
                               </div>
-                              {p.offers && <p className="text-[13px] mt-1 line-clamp-2" style={{ color: '#0F9D8A' }}><span className="font-medium">Offer: </span>{p.offers}</p>}
+                              {p.offers && <p className="text-[13px] mt-1 line-clamp-2" style={{ color: '#EF3E36' }}><span className="font-medium">Offer: </span>{p.offers}</p>}
                             </div>
                           </div>
                         )
@@ -2121,14 +2171,14 @@ export default function App() {
                   <div className="inline-flex rounded-full border border-zinc-200 p-0.5 bg-zinc-50">
                     <button onClick={() => setMktSection('sale')}
                       className="px-4 py-1.5 rounded-full text-[13px] font-medium transition-all"
-                      style={mktSection === 'sale' ? { background: '#0F9D8A', color: 'white' } : { color: '#C2C8C4' }}>For Sale</button>
+                      style={mktSection === 'sale' ? { background: '#EF3E36', color: 'white' } : { color: '#C2C8C4' }}>For Sale</button>
                     <button onClick={() => setMktSection('trade')}
                       className="px-4 py-1.5 rounded-full text-[13px] font-medium transition-all"
-                      style={mktSection === 'trade' ? { background: '#0F9D8A', color: 'white' } : { color: '#C2C8C4' }}>Trades</button>
+                      style={mktSection === 'trade' ? { background: '#EF3E36', color: 'white' } : { color: '#C2C8C4' }}>Trades</button>
                   </div>
                   <button onClick={() => isSignedIn ? (setMktPhotos([]), setEditingListingId(null), setEditingTradeId(null), setModal(mktSection === 'sale' ? 'listsale' : 'posttrade')) : setModal('auth')}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium text-white flex-shrink-0"
-                    style={{ background: '#0F9D8A' }}>
+                    style={{ background: '#EF3E36' }}>
                     <Plus className="h-4 w-4" /> {mktSection === 'sale' ? 'List an item' : 'Post a trade'}
                   </button>
                 </div>
@@ -2148,10 +2198,10 @@ export default function App() {
                 <button onClick={() => { setLocTarget('community'); setLocRadius(typeof mktRadius === 'number' ? mktRadius : 50); setModal('setlocation') }}
                   className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-2xl border border-zinc-200 bg-zinc-50">
                   <span className="flex items-center gap-2 text-sm text-zinc-700">
-                    <Navigation className="h-4 w-4" style={{ color: '#0F9D8A' }} />
+                    <Navigation className="h-4 w-4" style={{ color: '#EF3E36' }} />
                     {mktRadius === 'any' ? 'Anywhere' : `Within ${mktRadius} miles`}
                   </span>
-                  <span className="text-xs font-medium" style={{ color: '#0F9D8A' }}>Change</span>
+                  <span className="text-xs font-medium" style={{ color: '#EF3E36' }}>Change</span>
                 </button>
                 {!userLat && mktRadius !== 'any' && (
                   <p className="text-xs text-zinc-400">Set your location to see items near you.</p>
@@ -2170,26 +2220,26 @@ export default function App() {
                   ].map(f => (
                     <button key={f.id} onClick={() => setMktFilter(f.id)}
                       className="px-4 py-1.5 rounded-full text-[13px] font-medium border transition-all whitespace-nowrap flex-shrink-0"
-                      style={mktFilter === f.id ? { background: '#0F9D8A', borderColor: '#0F9D8A', color: 'white' } : { background: '#131615', borderColor: '#262B28', color: '#C2C8C4' }}>
+                      style={mktFilter === f.id ? { background: '#EF3E36', borderColor: '#EF3E36', color: 'white' } : { background: '#0F2740', borderColor: '#1E446B', color: '#C2C8C4' }}>
                       {f.label}
                     </button>
                   ))}
                 </div>
 
-                {sortedListings.length === 0 ? (
+                {sortedListings.length === 0 && listingsLoading ? <SkeletonGrid n={6} square /> : sortedListings.length === 0 ? (
                   <div className="text-center py-16 text-zinc-400">
                     <Tag className="h-10 w-10 mx-auto mb-3 opacity-20" />
                     <p className="text-sm">No listings yet. Be the first to list something.</p>
                     <button onClick={() => isSignedIn ? (setMktPhotos([]), setEditingListingId(null), setModal('listsale')) : setModal('auth')}
-                      className="mt-4 px-5 py-2 rounded-full text-sm font-medium text-white" style={{ background: '#0F9D8A' }}>
+                      className="mt-4 px-5 py-2 rounded-full text-sm font-medium text-white" style={{ background: '#EF3E36' }}>
                       List an item
                     </button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 op-stagger">
                     {sortedListings.map((item: any) => (
-                      <div key={item.id} onClick={() => openListing(item)}
-                        className="bg-zinc-50 rounded-2xl border border-zinc-200 overflow-hidden cursor-pointer transition-all hover:shadow-md text-left">
+                      <TiltCard key={item.id} onClick={() => openListing(item)}
+                        className="bg-zinc-50 rounded-2xl border border-zinc-200 overflow-hidden cursor-pointer text-left">
                         <div className="aspect-square bg-zinc-100">
                           {item.image_url
                             ? <img src={item.image_url} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
@@ -2197,7 +2247,7 @@ export default function App() {
                         </div>
                         <div className="p-3">
                           <div className="flex items-center gap-1.5">
-                            <p className="font-semibold text-zinc-900" style={{ color: '#0F9D8A' }}>${Number(item.price).toLocaleString()}</p>
+                            <p className="font-display font-bold text-xl leading-none px-1.5 py-0.5 rounded-md" style={{ color: '#113150', background: '#F6F1E7' }}>${Number(item.price).toLocaleString()}</p>
                             {item.quantity > 1 && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-zinc-100 text-zinc-500">Qty: {item.quantity}</span>}
                           </div>
                           <h3 className="text-[14px] text-zinc-900 leading-snug truncate mt-0.5">{item.title}</h3>
@@ -2206,7 +2256,7 @@ export default function App() {
                             {item.distance != null && <span>· {fmtDist(item.distance)}</span>}
                           </div>
                         </div>
-                      </div>
+                      </TiltCard>
                     ))}
                   </div>
                 )}
@@ -2218,7 +2268,7 @@ export default function App() {
                     <ArrowLeftRight className="h-10 w-10 mx-auto mb-3 opacity-20" />
                     <p className="text-sm">No trades posted yet. Put up what you have.</p>
                     <button onClick={() => isSignedIn ? (setMktPhotos([]), setEditingTradeId(null), setModal('posttrade')) : setModal('auth')}
-                      className="mt-4 px-5 py-2 rounded-full text-sm font-medium text-white" style={{ background: '#0F9D8A' }}>Post a trade</button>
+                      className="mt-4 px-5 py-2 rounded-full text-sm font-medium text-white" style={{ background: '#EF3E36' }}>Post a trade</button>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -2240,7 +2290,7 @@ export default function App() {
                           </div>
                           <div className="flex gap-2 items-start">
                             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 mt-0.5" style={{ background: '#FEF2F2', color: '#991B1B' }}>WANTS</span>
-                            <p className="text-[13px] font-medium" style={{ color: '#0F9D8A' }}>{p.look_for}</p>
+                            <p className="text-[13px] font-medium" style={{ color: '#EF3E36' }}>{p.look_for}</p>
                           </div>
                         </div>
                       </button>
@@ -2269,13 +2319,13 @@ export default function App() {
                         {['All', ...cats].map((c: string) => (
                           <button key={c} onClick={() => setNewsFilter(c)}
                             className="px-3.5 py-1.5 rounded-full text-xs font-bold flex-shrink-0 border transition-all"
-                            style={newsFilter === c ? { background: '#0F9D8A', borderColor: '#0F9D8A', color: 'white' } : { background: '#131615', borderColor: '#262B28', color: '#C2C8C4' }}>
+                            style={newsFilter === c ? { background: '#EF3E36', borderColor: '#EF3E36', color: 'white' } : { background: '#0F2740', borderColor: '#1E446B', color: '#C2C8C4' }}>
                             {c}
                           </button>
                         ))}
                       </div>
 
-                      {filtered.length === 0 ? (
+                      {filtered.length === 0 && newsLoading ? <SkeletonRows n={6} /> : filtered.length === 0 ? (
                         <div className="text-center py-16 text-zinc-400">
                           <Newspaper className="h-10 w-10 mx-auto mb-3 opacity-20" />
                           <p className="text-sm">{newsLoading ? 'Loading…' : 'No headlines yet. Check back soon.'}</p>
@@ -2289,19 +2339,19 @@ export default function App() {
                             <a key={a.id} href={a.url} target="_blank" rel="noopener noreferrer"
                               className="block bg-zinc-50 rounded-2xl border border-zinc-200 p-4 hover:shadow-md transition-all">
                               <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                                {a.source_name && <span className="text-[11px] font-bold px-2 py-0.5 rounded-md" style={{ background: '#1A1E1C', color: '#D8DDD9' }}>{a.source_name}</span>}
+                                {a.source_name && <span className="text-[11px] font-bold px-2 py-0.5 rounded-md" style={{ background: '#143456', color: '#D8DDD9' }}>{a.source_name}</span>}
                                 <span className="text-[11px] font-bold px-2 py-0.5 rounded-md" style={{ background: '#FEF3C7', color: '#92400E' }}>{a.category}</span>
                                 <span className="text-[11px] text-zinc-400">{timeAgo(a.published_at)}</span>
                               </div>
                               <p className="font-bold text-[15px] leading-snug text-zinc-900">{a.title}</p>
                               {showDesc && <p className="text-xs text-zinc-500 leading-relaxed mt-1.5 line-clamp-2">{desc}</p>}
-                              <p className="text-[11px] font-medium mt-2" style={{ color: '#0F9D8A' }}>Read full story →</p>
+                              <p className="text-[11px] font-medium mt-2" style={{ color: '#EF3E36' }}>Read full story →</p>
                             </a>
                             )
                           })}
                           <div ref={setNewsSentinel} className="h-10 flex items-center justify-center text-xs text-zinc-400 font-mono">
                             {newsLoading ? 'Loading…' : newsHasMore
-                              ? <button onClick={loadMoreNews} className="px-3 py-1.5 rounded-full text-xs font-bold text-white" style={{ background: '#0F9D8A' }}>Load more</button>
+                              ? <button onClick={loadMoreNews} className="px-3 py-1.5 rounded-full text-xs font-bold text-white" style={{ background: '#EF3E36' }}>Load more</button>
                               : "That's everything"}
                           </div>
                         </div>
@@ -2341,7 +2391,7 @@ export default function App() {
                       {threadMessages.map((m: any) => (
                         <div key={m.id} className={`flex ${m.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
                           <div className="max-w-[75%] rounded-2xl px-3.5 py-2 text-sm"
-                            style={m.sender_id === user?.id ? { background: '#0F9D8A', color: 'white' } : { background: '#1A1E1C', color: '#F5F5F4' }}>
+                            style={m.sender_id === user?.id ? { background: '#EF3E36', color: 'white' } : { background: '#143456', color: '#F5F5F4' }}>
                             {m.body}
                           </div>
                         </div>
@@ -2352,7 +2402,7 @@ export default function App() {
                         onKeyDown={e => { if (e.key === 'Enter' && messageDraft.trim()) { sendThreadMessage(messageDraft); setMessageDraft('') } }}
                         placeholder="Message…" className="flex-1 bg-zinc-50 border border-zinc-200 rounded-full px-4 py-2.5 text-sm focus:outline-none" />
                       <button onClick={() => { if (messageDraft.trim()) { sendThreadMessage(messageDraft); setMessageDraft('') } }}
-                        className="h-10 w-10 rounded-full flex items-center justify-center text-white flex-shrink-0" style={{ background: '#0F9D8A' }}>
+                        className="h-10 w-10 rounded-full flex items-center justify-center text-white flex-shrink-0" style={{ background: '#EF3E36' }}>
                         <Send className="h-4 w-4" />
                       </button>
                     </div>
@@ -2376,7 +2426,7 @@ export default function App() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
                               <p className="font-semibold text-sm text-zinc-900 truncate">@{c.profile?.username || 'user'}</p>
-                              {c.unread > 0 && <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: '#0F9D8A' }} />}
+                              {c.unread > 0 && <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: '#EF3E36' }} />}
                             </div>
                             <p className={`text-xs truncate ${c.unread > 0 ? 'text-zinc-700 font-medium' : 'text-zinc-400'}`}>
                               {c.lastMessage.sender_id === user?.id ? 'You: ' : ''}{c.lastMessage.body}
@@ -2397,7 +2447,7 @@ export default function App() {
                     <div className="rounded-3xl p-5 text-white relative overflow-hidden"
                       style={profile?.banner_url
                         ? { backgroundImage: `url(${profile.banner_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-                        : { background: 'linear-gradient(135deg, #0F9D8A, #14B8A6)' }}>
+                        : { background: 'linear-gradient(135deg, #EF3E36, #FF6B5E)' }}>
                       {profile?.banner_url
                         ? <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.35)' }} />
                         : <div className="absolute bottom-0 right-0 w-32 h-32 rounded-full opacity-20" style={{ background: 'white', transform: 'translate(20%,20%)' }} />}
@@ -2418,7 +2468,7 @@ export default function App() {
                       <div className="bg-zinc-50 rounded-3xl p-4 shadow-sm border border-zinc-100 mb-3">
                         <div className="flex items-center justify-between mb-2">
                           <p className="text-xs font-black uppercase text-zinc-400">Community Standing</p>
-                          <button onClick={() => setShowStandingInfo(v => !v)} className="text-xs font-medium" style={{ color: '#0F9D8A' }}>How it works</button>
+                          <button onClick={() => setShowStandingInfo(v => !v)} className="text-xs font-medium" style={{ color: '#EF3E36' }}>How it works</button>
                         </div>
                         <StandingBadge standing={standingMap[user.id]?.standing || 'New'} verified={standingMap[user.id]?.is_verified_seller} size="lg" />
                         <RatingBadge avgRating={standingMap[user.id]?.avg_rating} count={standingMap[user.id]?.ratings_count} />
@@ -2473,19 +2523,20 @@ export default function App() {
                     {user && profile && !profile.is_founding_member && (
                       <button onClick={async () => {
                           const { number, error } = await claimFoundingMember()
-                          if (error) alert(error)
-                          else alert(`Welcome, Founding Member #${number}! Lifetime free ${profile.role === 'merchant' ? 'Store' : 'Elite'}, forever.`)
+                          if (error) toast(error, 'error')
+                          else { setFoundingReveal(number || 0); refetchFounding() }
                         }}
-                        className="w-full text-left rounded-3xl p-4 shadow-sm mb-3 text-white relative overflow-hidden"
-                        style={{ background: 'linear-gradient(135deg, #7C3AED, #5B21B6)' }}>
-                        <p className="text-xs font-black uppercase text-white/60">Limited · 1,000 spots</p>
-                        <p className="font-black text-base mt-1">Become a Founding Member</p>
-                        <p className="text-xs text-white/70 mt-1">Lifetime free {profile.role === 'merchant' ? 'Store tier' : 'Elite'} and a serial-numbered badge on your profile — forever.</p>
+                        className="w-full text-left rounded-3xl p-4 shadow-sm mb-3 text-white relative overflow-hidden op-press"
+                        style={{ background: 'linear-gradient(135deg, #EF3E36, #113150)', border: '1px solid rgba(246,241,231,0.25)' }}>
+                        <p className="text-xs font-display tracking-[0.18em] uppercase text-white/70">Limited · first {(founding?.cap ?? 1000).toLocaleString()} only</p>
+                        <p className="font-display text-2xl mt-0.5">Become a Founding Member</p>
+                        <p className="text-xs text-white/80 mt-1">Lifetime free {profile.role === 'merchant' ? 'Store tier' : 'Elite'} and a serial-numbered badge on your profile — forever.</p>
+                        {founding && <FoundingProgress claimed={founding.claimed} cap={founding.cap} />}
                       </button>
                     )}
 
                     {user && profile?.is_founding_member && (
-                      <div className="rounded-3xl p-4 shadow-sm mb-3 text-white relative overflow-hidden flex items-center gap-3" style={{ background: 'linear-gradient(135deg, #7C3AED, #5B21B6)' }}>
+                      <div className="rounded-3xl p-4 shadow-sm mb-3 text-white relative overflow-hidden flex items-center gap-3" style={{ background: 'linear-gradient(135deg, #EF3E36, #113150)', border: '1px solid rgba(246,241,231,0.3)' }}>
                         <Shield className="h-8 w-8 flex-shrink-0" />
                         <div>
                           <p className="font-black text-sm">Founding Member #{profile.founding_member_number}</p>
@@ -2495,12 +2546,12 @@ export default function App() {
                     )}
 
                     {user && (
-                      <div className="rounded-3xl p-4 shadow-sm border border-zinc-100 mb-3 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #131615, #1A1E1C)' }}>
+                      <div className="rounded-3xl p-4 shadow-sm border border-zinc-100 mb-3 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #0F2740, #143456)' }}>
                         <div className="flex items-center justify-between">
                           <p className="text-xs font-black uppercase text-white/50">Outpost Rewards</p>
                           <button onClick={() => setShowRewardsInfo(v => !v)} className="text-[11px] font-bold text-white/60 underline">How it works</button>
                         </div>
-                        <p className="text-3xl font-black mt-1">{opBalance.toLocaleString()} <span className="text-sm font-bold text-white/60">OP</span></p>
+                        <p className="text-4xl font-display mt-1"><CountUp value={opBalance} /> <span className="text-sm font-bold text-white/60">OP</span></p>
                         {showRewardsInfo && (
                           <div className="mt-3 pt-3 border-t border-white/10 space-y-1.5 text-xs text-white/70 leading-relaxed">
                             <p><span className="font-bold text-white">Earning OP:</span> right now, invite friends — you get 500 OP the moment they join with your code, and another 500 OP the first time they check into a shop (we verify they're actually there before it counts).</p>
@@ -2514,7 +2565,7 @@ export default function App() {
                           <div className="flex items-center gap-2 mt-2">
                             <div className="flex-1 bg-white/10 rounded-xl px-3 py-2 font-mono text-sm tracking-widest">{referralCode || '…'}</div>
                             <button onClick={() => referralCode && shareUrl(`/?ref=${referralCode}`, 'Join me on Outpost')}
-                              className="px-3 py-2 rounded-xl text-xs font-black text-white flex-shrink-0" style={{ background: '#0F9D8A' }}>
+                              className="px-3 py-2 rounded-xl text-xs font-black text-white flex-shrink-0" style={{ background: '#EF3E36' }}>
                               {shareCopied ? 'Copied!' : 'Share'}
                             </button>
                           </div>
@@ -2532,8 +2583,8 @@ export default function App() {
                                 className="flex-1 bg-white/10 border border-white/10 rounded-xl px-3 py-2 text-sm font-mono tracking-widest text-white placeholder:text-white/30 outline-none" />
                               <button onClick={async () => {
                                   const { error } = await claimReferral(referralCodeInput)
-                                  if (error) alert(error)
-                                  else { setReferralCodeInput(''); alert('Code applied!') }
+                                  if (error) toast(error, 'error')
+                                  else { setReferralCodeInput(''); toast('Code applied!', 'success') }
                                 }}
                                 disabled={referralCodeInput.length < 6}
                                 className="px-3 py-2 rounded-xl text-xs font-black text-white disabled:opacity-40 flex-shrink-0" style={{ background: '#059669' }}>
@@ -2603,7 +2654,7 @@ export default function App() {
                           <span className="text-sm text-zinc-700">We're participating</span>
                           <button onClick={() => { setFcbdParticipating(!fcbdParticipating); setFcbdSaved(false) }}
                             className="relative w-12 h-7 rounded-full transition-colors flex-shrink-0"
-                            style={{ background: fcbdParticipating ? '#0F9D8A' : '#3A403C' }}>
+                            style={{ background: fcbdParticipating ? '#EF3E36' : '#2E5880' }}>
                             <span className="absolute top-1 h-5 w-5 rounded-full bg-zinc-50 transition-all" style={{ left: fcbdParticipating ? '24px' : '4px' }} />
                           </button>
                         </div>
@@ -2613,7 +2664,7 @@ export default function App() {
                             className="w-full mt-2 bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none resize-none" />
                         )}
                         <button onClick={handleFcbdSave} disabled={fcbdSaving}
-                          className="w-full mt-3 py-2.5 rounded-2xl text-sm font-medium text-white disabled:opacity-60" style={{ background: '#0F9D8A' }}>
+                          className="w-full mt-3 py-2.5 rounded-2xl text-sm font-medium text-white disabled:opacity-60" style={{ background: '#EF3E36' }}>
                           {fcbdSaving ? 'Saving…' : fcbdSaved ? 'Saved ✓' : 'Save'}
                         </button>
                       </div>
@@ -2625,7 +2676,7 @@ export default function App() {
                         <div className="space-y-2">
                           {myEvents.map((ev: any) => (
                             <button key={ev.id} onClick={() => { goTab('discover'); setActiveSection('events') }}
-                              className="w-full flex items-center justify-between gap-3 p-3 rounded-2xl text-left hover:bg-zinc-50 transition-all" style={{ background: '#131615' }}>
+                              className="w-full flex items-center justify-between gap-3 p-3 rounded-2xl text-left hover:bg-zinc-50 transition-all" style={{ background: '#0F2740' }}>
                               <div className="min-w-0">
                                 <p className="font-bold text-sm text-zinc-900 truncate">{ev.title}</p>
                                 <p className="text-xs text-zinc-400 truncate">{ev.location || ev.shops?.name || ''}</p>
@@ -2672,7 +2723,7 @@ export default function App() {
                                   )}
                                 </div>
                                 <div className="flex items-center gap-1 mt-1">
-                                  <p className="text-[11px] font-medium truncate" style={{ color: '#0F9D8A' }}>${Number(l.price).toLocaleString()}</p>
+                                  <p className="text-[11px] font-medium truncate" style={{ color: '#EF3E36' }}>${Number(l.price).toLocaleString()}</p>
                                   {l.quantity > 1 && <span className="text-[9px] font-semibold px-1 py-0.5 rounded-full bg-zinc-100 text-zinc-500 shrink-0">x{l.quantity}</span>}
                                 </div>
                               </button>
@@ -2683,7 +2734,7 @@ export default function App() {
                           <div className="space-y-1.5">
                             {myTrades.map((t: any) => (
                               <div key={t.id} className="text-xs text-zinc-600 bg-zinc-50 rounded-xl px-3 py-2">
-                                <span className="font-medium text-emerald-700">HAS</span> {t.offer} · <span className="font-medium" style={{ color: '#0F9D8A' }}>WANTS</span> {t.look_for}
+                                <span className="font-medium text-emerald-700">HAS</span> {t.offer} · <span className="font-medium" style={{ color: '#EF3E36' }}>WANTS</span> {t.look_for}
                               </div>
                             ))}
                           </div>
@@ -2711,19 +2762,38 @@ export default function App() {
                     </div>
                   </>
                 ) : (
-                  <div className="text-center py-16 space-y-5">
-                    <div className="h-20 w-20 rounded-3xl flex items-center justify-center mx-auto" style={{ background: 'linear-gradient(135deg, #131615, #1A1E1C)' }}>
-                      <User className="h-10 w-10 text-white/40" />
+                  <div className="space-y-3 op-stagger">
+                    <div className="rounded-3xl p-5 relative overflow-hidden" style={{ background: 'linear-gradient(140deg, #EF3E36, #B8211B 55%, #113150)' }}>
+                      <img src="/icon-192.png" alt="" className="absolute -right-4 -top-4 h-28 w-28 rounded-3xl opacity-25 rotate-12" />
+                      <p className="font-display text-[13px] tracking-[0.2em] uppercase" style={{ color: 'rgba(246,241,231,0.85)' }}>Join Outpost · free</p>
+                      <h2 className="font-display text-3xl leading-tight mt-1" style={{ color: '#F6F1E7' }}>Your collector HQ</h2>
+                      <p className="text-sm text-white/85 mt-1">Check into shops, earn OP, trade with collectors near you.</p>
+                      <button onClick={() => setModal('auth')} className="mt-4 w-full font-display text-lg tracking-wide py-3 rounded-2xl op-press" style={{ background: '#F6F1E7', color: '#113150' }}>
+                        JOIN FREE
+                      </button>
+                      <button onClick={() => setModal('auth')} className="mt-2 w-full text-xs text-white/80 underline">Already have an account? Sign in</button>
                     </div>
-                    <div>
-                      <p className="font-black text-xl">Not signed in</p>
-                      <p className="text-sm text-zinc-400 mt-2 leading-relaxed">Sign in to post trades, list items for sale, and leave reviews</p>
+                    {founding && founding.claimed < founding.cap && (
+                      <div className="rounded-3xl p-4 border" style={{ background: '#113150', borderColor: 'rgba(246,241,231,0.18)' }}>
+                        <p className="text-[11px] font-display tracking-[0.18em] uppercase" style={{ color: '#FFD166' }}>Founding Member · limited</p>
+                        <p className="font-display text-xl mt-0.5" style={{ color: '#F6F1E7' }}>Elite Pass free for life — first {founding.cap.toLocaleString()} only</p>
+                        <p className="text-xs text-zinc-500 mt-1">Plus a serial-numbered badge on your profile, forever.</p>
+                        <FoundingProgress claimed={founding.claimed} cap={founding.cap} />
+                      </div>
+                    )}
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { icon: MapPin, t: 'Check in', d: 'Visit shops, rack up check-ins' },
+                        { icon: Star, t: 'Earn OP', d: 'Redeem for shop rewards' },
+                        { icon: ArrowLeftRight, t: 'Trade', d: 'Buy, sell & swap locally' },
+                      ].map(({ icon: I, t, d }) => (
+                        <div key={t} className="rounded-2xl p-3 bg-zinc-50 border border-zinc-100">
+                          <I className="h-5 w-5" style={{ color: '#EF3E36' }} />
+                          <p className="font-display text-base mt-1.5" style={{ color: '#F6F1E7' }}>{t}</p>
+                          <p className="text-[11px] text-zinc-500 leading-snug">{d}</p>
+                        </div>
+                      ))}
                     </div>
-                    <button onClick={() => setModal('auth')}
-                      className="text-white font-black px-10 py-4 rounded-2xl text-sm uppercase"
-                      style={{ background: 'linear-gradient(135deg, #0F9D8A, #14B8A6)' }}>
-                      Sign In
-                    </button>
                   </div>
                 )}
 
@@ -2747,7 +2817,7 @@ export default function App() {
 
           {/* MOBILE BOTTOM NAV */}
           <nav className="md:hidden fixed bottom-4 left-4 right-4 rounded-full px-2 py-2.5 flex items-center justify-around z-20 border"
-            style={{ background: 'rgba(19,22,21,0.92)', backdropFilter: 'blur(20px)', borderColor: 'rgba(255,255,255,0.08)', boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}>
+            style={{ background: 'rgba(10,26,43,0.92)', backdropFilter: 'blur(20px)', borderColor: 'rgba(255,255,255,0.08)', boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}>
             {[
               { id: 'discover', icon: Search, label: 'Discover' },
               { id: 'marketplace', icon: Store, label: 'Marketplace' },
@@ -2757,14 +2827,14 @@ export default function App() {
             ].map(({ id, icon: Icon, label }) => (
               <button key={id} onClick={() => goTab(id as TabType)}
                 className="flex flex-col items-center gap-1 px-2 transition-all relative">
-                <div className="h-9 w-9 rounded-xl flex items-center justify-center transition-all relative"
-                  style={tab === id ? { background: 'linear-gradient(135deg, #0F9D8A, #14B8A6)' } : {}}>
+                <div key={tab === id ? 'a' : 'i'} className={`h-9 w-9 rounded-xl flex items-center justify-center transition-all relative ${tab === id ? 'op-pop' : ''}`}
+                  style={tab === id ? { background: 'linear-gradient(135deg, #EF3E36, #FF6B5E)', boxShadow: '0 4px 14px rgba(239,62,54,0.45)' } : {}}>
                   <Icon className="h-4 w-4" style={{ color: tab === id ? 'white' : '#9ca3af' }} />
                   {id === 'messages' && unreadMessages > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5 rounded-full text-[8px] font-bold text-white flex items-center justify-center" style={{ background: '#0F9D8A' }}>{unreadMessages > 9 ? '9+' : unreadMessages}</span>
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5 rounded-full text-[8px] font-bold text-white flex items-center justify-center" style={{ background: '#EF3E36' }}>{unreadMessages > 9 ? '9+' : unreadMessages}</span>
                   )}
                 </div>
-                <span className="text-[9px] font-bold uppercase" style={{ color: tab === id ? '#0F9D8A' : '#9ca3af' }}>{label}</span>
+                <span className="text-[9px] font-bold uppercase" style={{ color: tab === id ? '#EF3E36' : '#9ca3af' }}>{label}</span>
               </button>
             ))}
           </nav>
@@ -2773,8 +2843,8 @@ export default function App() {
 
       {/* SHOP DETAIL */}
       {modal === 'shop' && selectedShop && (
-        <div className="fixed inset-0 z-50 flex flex-col overflow-hidden md:inset-y-0 md:right-0 md:left-56" style={{ background: '#0A0B0C' }}>
-          <div className="px-4 pt-12 md:pt-4 pb-4 flex items-center gap-3 flex-shrink-0" style={{ background: 'linear-gradient(135deg, #131615, #1A1E1C)' }}>
+        <div className="fixed inset-0 z-50 flex flex-col overflow-hidden md:inset-y-0 md:right-0 md:left-56" style={{ background: '#0A1A2B' }}>
+          <div className="px-4 pt-12 md:pt-4 pb-4 flex items-center gap-3 flex-shrink-0" style={{ background: 'linear-gradient(135deg, #0F2740, #143456)' }}>
             <button onClick={closeShop} className="h-9 w-9 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.15)' }}>
               <X className="h-4 w-4 text-white" />
             </button>
@@ -2838,7 +2908,7 @@ export default function App() {
                   <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent((selectedShop as any).address)}`}
                     target="_blank" rel="noopener noreferrer" aria-label="Directions"
                     className="h-11 w-11 flex items-center justify-center rounded-2xl text-white"
-                    style={{ background: 'linear-gradient(135deg, #0F9D8A, #14B8A6)' }}>
+                    style={{ background: 'linear-gradient(135deg, #EF3E36, #FF6B5E)' }}>
                     <Navigation className="h-4 w-4" />
                   </a>
                   {(selectedShop as any).phone && (
@@ -2852,7 +2922,7 @@ export default function App() {
                     <a href={(selectedShop as any).website.startsWith('http') ? (selectedShop as any).website : `https://${(selectedShop as any).website}`}
                       target="_blank" rel="noopener noreferrer" aria-label="Website"
                       className="h-11 w-11 flex items-center justify-center rounded-2xl text-white"
-                      style={{ background: '#262B28' }}>
+                      style={{ background: '#1E446B' }}>
                       <Globe className="h-4 w-4" />
                     </a>
                   )}
@@ -2874,8 +2944,8 @@ export default function App() {
               <button onClick={async () => {
                 if (!confirm(`Claim ${selectedShop.name} as your shop?`)) return
                 await supabase.from('shops').update({ owner_id: user?.id }).eq('id', selectedShop.id)
-                alert('Shop claimed! You can now post drops and manage your listing.')
-                window.location.reload()
+                toast('Shop claimed! You can now post drops and manage your listing.', 'success'); celebrate()
+                setTimeout(() => window.location.reload(), 1500)
               }}
                 className="w-full rounded-3xl p-4 border-2 border-dashed text-center"
                 style={{ borderColor: '#059669', background: 'rgba(5,150,105,0.04)' }}>
@@ -2886,7 +2956,7 @@ export default function App() {
             )}
 
             {(selectedShop.hot_find || (isMerchant && (selectedShop as any).owner_id === user?.id)) && (
-              <div className="rounded-3xl p-4 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #131615, #1A1E1C)' }}>
+              <div className="rounded-3xl p-4 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #0F2740, #143456)' }}>
                 <div className="flex items-center gap-2 mb-2">
                   <Flame className="h-4 w-4 text-orange-400" />
                   <span className="text-xs font-black uppercase tracking-widest text-orange-400">Live Floor Drop</span>
@@ -2910,9 +2980,9 @@ export default function App() {
             {isSignedIn && !(selectedShop as any).owner_id && (
               <button onClick={() => openClaimModal(selectedShop)}
                 className="w-full rounded-3xl p-4 border-2 border-dashed text-center"
-                style={{ borderColor: '#0F9D8A', background: 'rgba(15,157,138,0.04)' }}>
-                <Store className="h-5 w-5 mx-auto mb-1" style={{ color: '#0F9D8A' }} />
-                <p className="font-black text-sm" style={{ color: '#0F9D8A' }}>Own this shop? Claim it</p>
+                style={{ borderColor: '#EF3E36', background: 'rgba(239,62,54,0.04)' }}>
+                <Store className="h-5 w-5 mx-auto mb-1" style={{ color: '#EF3E36' }} />
+                <p className="font-black text-sm" style={{ color: '#EF3E36' }}>Own this shop? Claim it</p>
                 <p className="text-xs text-zinc-400 mt-0.5">Verify to edit details &amp; get the owner badge</p>
               </button>
             )}
@@ -2931,7 +3001,7 @@ export default function App() {
                     setEditingInfo(!editingInfo)
                   }}
                     className="text-xs font-black px-3 py-1.5 rounded-xl"
-                    style={{ background: editingInfo ? '#0F9D8A' : '#1A1E1C', color: editingInfo ? 'white' : '#ACB3AE' }}>
+                    style={{ background: editingInfo ? '#EF3E36' : '#143456', color: editingInfo ? 'white' : '#ACB3AE' }}>
                     {editingInfo ? 'Cancel' : 'Edit'}
                   </button>
                 </div>
@@ -2954,7 +3024,7 @@ export default function App() {
                 ) : (
                   <div className="space-y-1.5 text-sm text-zinc-600">
                     {(selectedShop as any).website
-                      ? <p>🌐 <a href={(selectedShop as any).website.startsWith('http') ? (selectedShop as any).website : `https://${(selectedShop as any).website}`} target="_blank" rel="noopener noreferrer" className="underline break-all" style={{ color: '#0F9D8A' }}>{(selectedShop as any).website}</a></p>
+                      ? <p>🌐 <a href={(selectedShop as any).website.startsWith('http') ? (selectedShop as any).website : `https://${(selectedShop as any).website}`} target="_blank" rel="noopener noreferrer" className="underline break-all" style={{ color: '#EF3E36' }}>{(selectedShop as any).website}</a></p>
                       : <p className="text-zinc-400">No website yet — tap Edit to add yours.</p>}
                     {(selectedShop as any).phone && <p>📞 {(selectedShop as any).phone}</p>}
                     {(selectedShop as any).hours && <p>🕑 {(selectedShop as any).hours}</p>}
@@ -2997,7 +3067,7 @@ export default function App() {
                   <p className="text-xs font-black uppercase text-zinc-400">Shop Categories</p>
                   <button onClick={() => { setEditingCategories(!editingCategories); setShopCategories((selectedShop as any).categories || []) }}
                     className="text-xs font-black px-3 py-1.5 rounded-xl"
-                    style={{ background: editingCategories ? '#0F9D8A' : '#1A1E1C', color: editingCategories ? 'white' : '#ACB3AE' }}>
+                    style={{ background: editingCategories ? '#EF3E36' : '#143456', color: editingCategories ? 'white' : '#ACB3AE' }}>
                     {editingCategories ? 'Cancel' : 'Edit'}
                   </button>
                 </div>
@@ -3013,7 +3083,7 @@ export default function App() {
                             : cat === 'comics' ? { background: '#FEF3C7', borderColor: '#D97706', color: '#D97706' }
                             : cat === 'toys' ? { background: '#D1FAE5', borderColor: '#059669', color: '#059669' }
                             : { background: '#EDE9FE', borderColor: '#7C3AED', color: '#7C3AED' }
-                            : { background: '#131615', borderColor: '#262B28', color: '#9ca3af' }}>
+                            : { background: '#0F2740', borderColor: '#1E446B', color: '#9ca3af' }}>
                           {cat === 'cards' ? '🃏' : cat === 'comics' ? '📚' : cat === 'toys' ? '🧸' : '🏆'} {cat}
                         </button>
                       ))}
@@ -3053,14 +3123,14 @@ export default function App() {
                   <span className="text-xs font-black uppercase text-zinc-400">Events</span>
                 </div>
                 {(selectedShop as any).events.map((ev: any) => (
-                  <div key={ev.id} className="flex items-center justify-between p-3 rounded-2xl mb-2" style={{ background: '#131615' }}>
+                  <div key={ev.id} className="flex items-center justify-between p-3 rounded-2xl mb-2" style={{ background: '#0F2740' }}>
                     <div>
                       <span className="text-xs bg-zinc-200 px-2 py-0.5 rounded-lg font-mono font-bold mr-2">{ev.date}</span>
                       <span className="text-sm font-bold">{ev.title}</span>
                     </div>
                     <button onClick={() => toggleRsvp(ev.id)}
                       className="text-xs font-black uppercase px-3 py-1.5 rounded-xl border-2"
-                      style={rsvps.includes(ev.id) ? { background: '#F0FDF4', color: '#166534', borderColor: '#BBF7D0' } : { background: '#131615', color: '#9ca3af', borderColor: '#262B28' }}>
+                      style={rsvps.includes(ev.id) ? { background: '#F0FDF4', color: '#166534', borderColor: '#BBF7D0' } : { background: '#0F2740', color: '#9ca3af', borderColor: '#1E446B' }}>
                       {rsvps.includes(ev.id) ? '✓ RSVP' : 'RSVP'}
                     </button>
                   </div>
@@ -3087,8 +3157,8 @@ export default function App() {
                     className="flex-1 bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 text-sm font-mono tracking-widest outline-none" />
                   <button onClick={async () => {
                       const { error } = await confirmRewardCode(confirmCodeInput)
-                      if (error) alert(error)
-                      else { setConfirmCodeInput(''); alert('Redemption confirmed!') }
+                      if (error) toast(error, 'error')
+                      else { setConfirmCodeInput(''); toast('Redemption confirmed!', 'success') }
                     }}
                     disabled={confirmCodeInput.length < 6}
                     className="px-4 py-2.5 rounded-xl text-xs font-black text-white disabled:opacity-40 flex-shrink-0"
@@ -3099,7 +3169,7 @@ export default function App() {
 
                 <div className="space-y-2 mb-3">
                   {myShopOffers.map((o: any) => (
-                    <div key={o.id} className="flex items-center justify-between p-3 rounded-2xl" style={{ background: '#131615' }}>
+                    <div key={o.id} className="flex items-center justify-between p-3 rounded-2xl" style={{ background: '#0F2740' }}>
                       <div className="min-w-0">
                         <p className="text-sm font-bold truncate">{o.title}</p>
                         <p className="text-xs text-zinc-400">{o.points_cost.toLocaleString()} OP{o.quantity_available != null ? ` · ${o.quantity_available - o.quantity_redeemed} left` : ''}{!o.active ? ' · inactive' : ''}</p>
@@ -3129,10 +3199,10 @@ export default function App() {
                         points_cost: parseInt(newOfferCost) || 0,
                         quantity_available: newOfferQty ? parseInt(newOfferQty) : null,
                       })
-                      if (error) alert(error)
+                      if (error) toast(error, 'error')
                       else { setNewOfferTitle(''); setNewOfferDesc(''); setNewOfferCost('500'); setNewOfferQty('') }
                     }}
-                    className="w-full py-2.5 rounded-2xl text-xs font-black uppercase text-white" style={{ background: '#0F9D8A' }}>
+                    className="w-full py-2.5 rounded-2xl text-xs font-black uppercase text-white" style={{ background: '#EF3E36' }}>
                     Post Reward
                   </button>
                 </div>
@@ -3147,21 +3217,21 @@ export default function App() {
                     const soldOut = o.quantity_available != null && o.quantity_redeemed >= o.quantity_available
                     const affordable = opBalance >= o.points_cost
                     return (
-                      <div key={o.id} className="flex items-center justify-between p-3 rounded-2xl" style={{ background: '#131615' }}>
+                      <div key={o.id} className="flex items-center justify-between p-3 rounded-2xl" style={{ background: '#0F2740' }}>
                         <div className="min-w-0">
                           <p className="text-sm font-bold truncate">{o.title}</p>
                           {o.description && <p className="text-xs text-zinc-400 truncate">{o.description}</p>}
-                          <p className="text-xs font-bold mt-0.5" style={{ color: '#0F9D8A' }}>{o.points_cost.toLocaleString()} OP</p>
+                          <p className="text-xs font-bold mt-0.5" style={{ color: '#EF3E36' }}>{o.points_cost.toLocaleString()} OP</p>
                         </div>
                         <button onClick={async () => {
                             if (!isSignedIn) { setModal('auth'); return }
                             const { code, error } = await redeemOffer(o.id)
-                            if (error) alert(error)
-                            else if (code) { setRedeemedCode(code); alert(`Redeemed! Show this code to staff: ${code}`) }
+                            if (error) toast(error, 'error')
+                            else if (code) { setRedeemedCode(code); (toast(`Redeemed! Show this code to staff: ${code}`, 'success'), celebrate()) }
                           }}
                           disabled={soldOut || !affordable}
                           className="px-3 py-2 rounded-xl text-xs font-black text-white disabled:opacity-40 flex-shrink-0"
-                          style={{ background: 'linear-gradient(135deg, #131615, #1A1E1C)' }}>
+                          style={{ background: 'linear-gradient(135deg, #0F2740, #143456)' }}>
                           {soldOut ? 'Sold out' : !affordable ? 'Not enough OP' : 'Redeem'}
                         </button>
                       </div>
@@ -3169,7 +3239,7 @@ export default function App() {
                   })}
                 </div>
                 {redeemedCode && (
-                  <div className="mt-3 p-3 rounded-2xl text-center" style={{ background: '#131615' }}>
+                  <div className="mt-3 p-3 rounded-2xl text-center" style={{ background: '#0F2740' }}>
                     <p className="text-[10px] text-white/50 uppercase font-black">Show this to staff</p>
                     <p className="text-2xl font-black tracking-widest text-white mt-1">{redeemedCode}</p>
                   </div>
@@ -3181,23 +3251,32 @@ export default function App() {
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-black uppercase text-zinc-400">Reviews</p>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-zinc-400 font-mono">{checkinCount} check-ins</span>
+                  <span className="text-xs text-zinc-400 font-mono relative"><CountUp value={checkinCount} duration={600} /> check-ins{checkinFx && <PlusPill key={checkinFx} text={checkinFx} />}</span>
                   <button onClick={async () => {
                       if (!isSignedIn) { setModal('auth'); return }
+                      const before = opBalance
                       const { error } = await checkIn(userLat, userLng)
-                      if (error) alert(error)
+                      if (error) { toast(error, 'error'); return }
+                      celebrate()
+                      // Show a real OP delta if this check-in awarded points; otherwise just +1 check-in.
+                      const { data: b } = await supabase.from('user_points_balance').select('balance').eq('user_id', user!.id).maybeSingle()
+                      const delta = (b?.balance || 0) - before
+                      refetchPoints()
+                      setCheckinFx(delta > 0 ? `+${delta.toLocaleString()} OP` : '+1')
+                      setTimeout(() => setCheckinFx(null), 1500)
+                      toast(delta > 0 ? `Checked in at ${selectedShop?.name}! +${delta.toLocaleString()} OP` : `Checked in at ${selectedShop?.name}!`, 'success')
                     }}
                     disabled={userCheckedIn}
-                    className="text-xs font-black px-3 py-1.5 rounded-xl text-white disabled:opacity-60 flex items-center gap-1"
-                    style={{ background: userCheckedIn ? 'linear-gradient(135deg, #059669, #047857)' : 'linear-gradient(135deg, #131615, #1A1E1C)' }}>
+                    className="text-xs font-black px-3 py-1.5 rounded-xl text-white disabled:opacity-60 flex items-center gap-1 op-press"
+                    style={{ background: userCheckedIn ? 'linear-gradient(135deg, #059669, #047857)' : 'linear-gradient(135deg, #EF3E36, #C62A23)' }}>
                     {userCheckedIn ? <><Check className="h-3 w-3" /> Checked In</> : 'Check In'}
                   </button>
                 </div>
               </div>
               {reviews.map((r: any) => (
-                <div key={r.id} className="p-3 rounded-2xl mb-2" style={{ background: '#131615' }}>
+                <div key={r.id} className="p-3 rounded-2xl mb-2" style={{ background: '#0F2740' }}>
                   <p className="text-sm font-medium">"{r.comment}"</p>
-                  <p className="text-xs font-mono font-bold mt-1" style={{ color: '#0F9D8A' }}>@{r.username}</p>
+                  <p className="text-xs font-mono font-bold mt-1" style={{ color: '#EF3E36' }}>@{r.username}</p>
                 </div>
               ))}
               {reviews.length === 0 && <p className="text-sm text-zinc-400 italic mb-3">No reviews yet</p>}
@@ -3211,7 +3290,7 @@ export default function App() {
                     className="flex-1 bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none disabled:opacity-50" />
                   <button type="submit" disabled={!isSignedIn}
                     className="text-white font-black px-4 py-2 rounded-2xl text-sm disabled:opacity-30"
-                    style={{ background: '#131615' }}>Post</button>
+                    style={{ background: '#0F2740' }}>Post</button>
                 </form>
               )}
             </div>
@@ -3222,7 +3301,7 @@ export default function App() {
       {/* LIST AN ITEM */}
       {modal === 'listsale' && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
-          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl p-5 pb-10 shadow-2xl max-h-[92vh] overflow-y-auto" style={{ background: '#0A0B0C' }}>
+          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl p-5 pb-10 shadow-2xl max-h-[92vh] overflow-y-auto" style={{ background: '#0A1A2B' }}>
             <div className="flex justify-between items-center mb-5">
               <h3 className="font-semibold text-lg">{editingListingId ? 'Edit listing' : 'List an item'}</h3>
               <button onClick={() => { setEditingListingId(null); setMktPhotos([]); setModal('none') }}><X className="h-5 w-5 text-zinc-400" /></button>
@@ -3255,7 +3334,7 @@ export default function App() {
               <input type="text" value={mktContact} onChange={e => setMktContact(e.target.value)}
                 placeholder="How buyers reach you (phone, email, IG…)" className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3 text-sm focus:outline-none" />
               <button type="submit" disabled={mktSubmitting}
-                className="w-full text-white font-medium py-3.5 rounded-2xl text-sm disabled:opacity-60" style={{ background: '#0F9D8A' }}>
+                className="w-full text-white font-medium py-3.5 rounded-2xl text-sm disabled:opacity-60" style={{ background: '#EF3E36' }}>
                 {mktSubmitting ? 'Saving…' : (editingListingId ? 'Save changes' : 'Post listing')}
               </button>
             </form>
@@ -3307,11 +3386,11 @@ export default function App() {
                 <div className="flex gap-2">
                   <button onClick={() => toggleFollow(viewedProfileUserId)}
                     className="flex-1 py-2.5 rounded-2xl text-sm font-medium"
-                    style={following.includes(viewedProfileUserId) ? { border: '1px solid #262B28', color: '#C2C8C4' } : { background: '#059669', color: 'white' }}>
+                    style={following.includes(viewedProfileUserId) ? { border: '1px solid #1E446B', color: '#C2C8C4' } : { background: '#059669', color: 'white' }}>
                     {following.includes(viewedProfileUserId) ? 'Following' : 'Follow'}
                   </button>
                   <button onClick={() => messageSeller(viewedProfileUserId)}
-                    className="flex-1 py-2.5 rounded-2xl text-sm font-medium text-white" style={{ background: '#0F9D8A' }}>
+                    className="flex-1 py-2.5 rounded-2xl text-sm font-medium text-white" style={{ background: '#EF3E36' }}>
                     Start a chat
                   </button>
                 </div>
@@ -3338,7 +3417,7 @@ export default function App() {
                           <div className="p-2">
                             {it._kind === 'listing'
                               ? <div className="flex items-center gap-1">
-                                  <p className="text-sm font-semibold" style={{ color: '#0F9D8A' }}>${Number(it.price).toLocaleString()}</p>
+                                  <p className="text-sm font-semibold" style={{ color: '#EF3E36' }}>${Number(it.price).toLocaleString()}</p>
                                   {it.quantity > 1 && <span className="text-[9px] font-semibold px-1 py-0.5 rounded-full bg-zinc-100 text-zinc-500">Qty: {it.quantity}</span>}
                                 </div>
                               : <p className="text-[11px] font-semibold text-emerald-700">TRADE</p>}
@@ -3366,7 +3445,7 @@ export default function App() {
               <div className="absolute top-3 left-3 flex gap-2">
                 <button onClick={() => toggleSaveListing(selectedListing.id)} aria-label="Save"
                   className="h-9 w-9 rounded-full bg-white/90 flex items-center justify-center shadow">
-                  <Heart className="h-4 w-4" style={savedListings.includes(selectedListing.id) ? { fill: '#0F9D8A', color: '#0F9D8A' } : { color: '#C2C8C4' }} />
+                  <Heart className="h-4 w-4" style={savedListings.includes(selectedListing.id) ? { fill: '#EF3E36', color: '#EF3E36' } : { color: '#C2C8C4' }} />
                 </button>
                 <button onClick={() => shareUrl(`/marketplace/${selectedListing.slug}`, selectedListing.title)} aria-label="Share"
                   className="h-9 w-9 rounded-full bg-white/90 flex items-center justify-center shadow">
@@ -3385,7 +3464,7 @@ export default function App() {
             <div className="p-5 space-y-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <p className="text-2xl font-semibold" style={{ color: '#0F9D8A' }}>${Number(selectedListing.price).toLocaleString()}</p>
+                  <p className="text-2xl font-semibold" style={{ color: '#EF3E36' }}>${Number(selectedListing.price).toLocaleString()}</p>
                   {selectedListing.quantity > 1 && (
                     <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-500">Qty: {selectedListing.quantity}</span>
                   )}
@@ -3468,12 +3547,12 @@ export default function App() {
                     </div>
                   ) : (
                     <button onClick={() => setShowContact(true)}
-                      className="flex-1 py-3 rounded-2xl text-sm font-medium text-white flex items-center justify-center gap-2" style={{ background: '#0F9D8A' }}>
+                      className="flex-1 py-3 rounded-2xl text-sm font-medium text-white flex items-center justify-center gap-2" style={{ background: '#EF3E36' }}>
                       <Phone className="h-4 w-4" /> Contact seller
                     </button>
                   )}
                   <button onClick={() => { if (!user) { setModal('auth'); return } setOfferFormOpen(v => !v) }}
-                    className="flex-1 py-3 rounded-2xl text-sm font-medium text-white flex items-center justify-center gap-1.5" style={{ background: '#0F9D8A' }}>
+                    className="flex-1 py-3 rounded-2xl text-sm font-medium text-white flex items-center justify-center gap-1.5" style={{ background: '#EF3E36' }}>
                     <DollarSign className="h-3.5 w-3.5" /> Make an Offer
                   </button>
                 </div>
@@ -3484,7 +3563,7 @@ export default function App() {
                 </div>
               ) : (
                 <button onClick={() => setShowContact(true)}
-                  className="w-full py-3.5 rounded-2xl text-sm font-medium text-white flex items-center justify-center gap-2" style={{ background: '#0F9D8A' }}>
+                  className="w-full py-3.5 rounded-2xl text-sm font-medium text-white flex items-center justify-center gap-2" style={{ background: '#EF3E36' }}>
                   <Phone className="h-4 w-4" /> Contact seller
                 </button>
               )}
@@ -3507,7 +3586,7 @@ export default function App() {
                             if (!error) { setOfferFormOpen(false); setOfferAmount(''); setOfferMessage('') }
                           }}
                           disabled={!offerAmount}
-                          className="w-full py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-50" style={{ background: '#0F9D8A' }}>
+                          className="w-full py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-50" style={{ background: '#EF3E36' }}>
                           Send offer
                         </button>
                       </div>
@@ -3565,7 +3644,7 @@ export default function App() {
       {/* EDIT PROFILE */}
       {modal === 'editprofile' && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
-          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl p-5 pb-10 shadow-2xl max-h-[92vh] overflow-y-auto" style={{ background: '#0A0B0C' }}>
+          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl p-5 pb-10 shadow-2xl max-h-[92vh] overflow-y-auto" style={{ background: '#0A1A2B' }}>
             <div className="flex justify-between items-center mb-5">
               <h3 className="font-semibold text-lg">Edit profile</h3>
               <button onClick={() => setModal('none')}><X className="h-5 w-5 text-zinc-400" /></button>
@@ -3598,7 +3677,7 @@ export default function App() {
               </div>
               <p className="text-xs text-zinc-400">Tap the square to change your avatar. Your @{profile?.username} handle stays the same.</p>
               <button onClick={handleSaveProfile} disabled={epSaving}
-                className="w-full py-3.5 rounded-2xl text-sm font-medium text-white disabled:opacity-60" style={{ background: '#0F9D8A' }}>
+                className="w-full py-3.5 rounded-2xl text-sm font-medium text-white disabled:opacity-60" style={{ background: '#EF3E36' }}>
                 {epSaving ? 'Saving…' : 'Save profile'}
               </button>
             </div>
@@ -3609,7 +3688,7 @@ export default function App() {
       {/* SET LOCATION */}
       {modal === 'setlocation' && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
-          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl shadow-2xl max-h-[92vh] overflow-y-auto" style={{ background: '#0A0B0C' }}>
+          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl shadow-2xl max-h-[92vh] overflow-y-auto" style={{ background: '#0A1A2B' }}>
             <div className="px-5 py-4 flex items-center justify-between border-b border-zinc-100">
               <h3 className="font-semibold text-lg">Set location</h3>
               <button onClick={() => setModal('none')}><X className="h-5 w-5 text-zinc-400" /></button>
@@ -3626,17 +3705,17 @@ export default function App() {
                 )}
                 <button onClick={requestLocation} aria-label="Use my location"
                   className="absolute top-3 right-3 h-10 w-10 rounded-full bg-zinc-50 shadow-lg flex items-center justify-center z-[400]">
-                  <Navigation className="h-4 w-4" style={{ color: locationLoading ? '#9ca3af' : '#0F9D8A' }} />
+                  <Navigation className="h-4 w-4" style={{ color: locationLoading ? '#9ca3af' : '#EF3E36' }} />
                 </button>
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-sm font-medium text-zinc-700">Distance</span>
-                  <span className="text-sm font-bold px-2.5 py-0.5 rounded-lg text-white" style={{ background: '#0F9D8A' }}>{locRadius} miles</span>
+                  <span className="text-sm font-bold px-2.5 py-0.5 rounded-lg text-white" style={{ background: '#EF3E36' }}>{locRadius} miles</span>
                 </div>
                 <input type="range" min={1} max={100} value={locRadius} onChange={e => setLocRadius(parseInt(e.target.value))}
-                  className="w-full accent-[#0F9D8A]" style={{ accentColor: '#0F9D8A' }} disabled={!userLat} />
+                  className="w-full accent-[#EF3E36]" style={{ accentColor: '#EF3E36' }} disabled={!userLat} />
                 <div className="flex justify-between text-[10px] text-zinc-400 mt-0.5"><span>1 mi</span><span>100 mi</span></div>
               </div>
 
@@ -3648,7 +3727,7 @@ export default function App() {
                   </button>
                 )}
                 <button onClick={() => { if (locTarget === 'discover') setRadius(locRadius); else setMktRadius(locRadius); setModal('none') }} disabled={!userLat}
-                  className="flex-1 py-3 rounded-2xl text-sm font-medium text-white disabled:opacity-50" style={{ background: '#0F9D8A' }}>
+                  className="flex-1 py-3 rounded-2xl text-sm font-medium text-white disabled:opacity-50" style={{ background: '#EF3E36' }}>
                   Apply
                 </button>
               </div>
@@ -3661,12 +3740,12 @@ export default function App() {
       {/* TRADE DETAIL */}
       {modal === 'tradedetail' && selectedTrade && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
-          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl shadow-2xl max-h-[92vh] overflow-y-auto" style={{ background: '#0A0B0C' }}>
+          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl shadow-2xl max-h-[92vh] overflow-y-auto" style={{ background: '#0A1A2B' }}>
             <div className="px-5 py-4 flex items-center justify-between gap-2 border-b border-zinc-100">
               <p className="font-semibold text-zinc-900 flex items-center gap-1.5 flex-wrap min-w-0">Trade · <button onClick={() => openUserProfile(selectedTrade.user_id)} className="hover:underline">@{selectedTrade.username}</button>{selectedTrade.distance != null ? ` · ${fmtDist(selectedTrade.distance)}` : ''} <StandingBadge standing={standingMap[selectedTrade.user_id]?.standing} verified={standingMap[selectedTrade.user_id]?.is_verified_seller} /> <RatingBadge avgRating={standingMap[selectedTrade.user_id]?.avg_rating} count={standingMap[selectedTrade.user_id]?.ratings_count} /></p>
               <div className="flex items-center gap-1 flex-shrink-0">
                 <button onClick={() => toggleSaveTrade(selectedTrade.id)} aria-label="Save" className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-zinc-100">
-                  <Heart className="h-4 w-4" style={savedTrades.includes(selectedTrade.id) ? { fill: '#0F9D8A', color: '#0F9D8A' } : { color: '#9ca3af' }} />
+                  <Heart className="h-4 w-4" style={savedTrades.includes(selectedTrade.id) ? { fill: '#EF3E36', color: '#EF3E36' } : { color: '#9ca3af' }} />
                 </button>
                 <button onClick={() => shareUrl(`/marketplace/trade/${selectedTrade.slug}`, `Trade: ${selectedTrade.offer}`)} aria-label="Share" className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-zinc-100">
                   <Share2 className="h-4 w-4 text-zinc-500" />
@@ -3699,7 +3778,7 @@ export default function App() {
                 </div>
                 <div className="flex gap-2 items-start">
                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 mt-0.5" style={{ background: '#FEF2F2', color: '#991B1B' }}>WANTS</span>
-                  <p className="text-sm font-medium" style={{ color: '#0F9D8A' }}>{selectedTrade.look_for}</p>
+                  <p className="text-sm font-medium" style={{ color: '#EF3E36' }}>{selectedTrade.look_for}</p>
                 </div>
               </div>
 
@@ -3769,7 +3848,7 @@ export default function App() {
       {/* POST A TRADE */}
       {modal === 'posttrade' && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
-          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl p-5 pb-10 shadow-2xl" style={{ background: '#0A0B0C' }}>
+          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl p-5 pb-10 shadow-2xl" style={{ background: '#0A1A2B' }}>
             <div className="flex justify-between items-center mb-5">
               <h3 className="font-semibold text-lg">{editingTradeId ? 'Edit trade' : 'Post a trade'}</h3>
               <button onClick={() => { setEditingTradeId(null); setMktPhotos([]); setModal('none') }}><X className="h-5 w-5 text-zinc-400" /></button>
@@ -3787,7 +3866,7 @@ export default function App() {
                   placeholder="e.g. Venusaur PSA 7+" className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3 text-sm focus:outline-none" />
               </div>
               <button type="submit" disabled={!isSignedIn}
-                className="w-full text-white font-medium py-3.5 rounded-2xl text-sm disabled:opacity-50" style={{ background: '#0F9D8A' }}>
+                className="w-full text-white font-medium py-3.5 rounded-2xl text-sm disabled:opacity-50" style={{ background: '#EF3E36' }}>
                 {!isSignedIn ? 'Sign in to post' : editingTradeId ? 'Save changes' : 'Post trade'}
               </button>
             </form>
@@ -3798,7 +3877,7 @@ export default function App() {
       {/* CLAIM */}
       {modal === 'claim' && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
-          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl p-5 pb-10 shadow-2xl" style={{ background: '#0A0B0C' }}>
+          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl p-5 pb-10 shadow-2xl" style={{ background: '#0A1A2B' }}>
             <div className="flex justify-between items-center mb-2">
               <h3 className="font-black text-lg">Claim Your Shop</h3>
               <button onClick={closeModal}><X className="h-5 w-5 text-zinc-400" /></button>
@@ -3821,7 +3900,7 @@ export default function App() {
                   </p>
                 </div>
                 <button onClick={closeModal} className="w-full text-white font-black py-3.5 rounded-2xl text-sm uppercase"
-                  style={{ background: 'linear-gradient(135deg, #0F9D8A, #14B8A6)' }}>Close</button>
+                  style={{ background: 'linear-gradient(135deg, #EF3E36, #FF6B5E)' }}>Close</button>
               </div>
             ) : claimCheckLoading ? (
               <div className="text-center py-8">
@@ -3835,10 +3914,10 @@ export default function App() {
               {[1,2,3].map(s => (
                 <React.Fragment key={s}>
                   <div className="h-7 w-7 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
-                    style={claimStep >= s ? { background: '#0F9D8A', color: 'white' } : { background: '#262B28', color: '#9ca3af' }}>
+                    style={claimStep >= s ? { background: '#EF3E36', color: 'white' } : { background: '#1E446B', color: '#9ca3af' }}>
                     {claimStep > s ? <Check className="h-3.5 w-3.5" /> : s}
                   </div>
-                  {s < 3 && <div className="flex-1 h-0.5 rounded-full" style={{ background: claimStep > s ? '#0F9D8A' : '#262B28' }} />}
+                  {s < 3 && <div className="flex-1 h-0.5 rounded-full" style={{ background: claimStep > s ? '#EF3E36' : '#1E446B' }} />}
                 </React.Fragment>
               ))}
             </div>
@@ -3863,7 +3942,7 @@ export default function App() {
                           : cat === 'comics' ? { background: '#FEF3C7', borderColor: '#D97706', color: '#D97706' }
                           : cat === 'toys' ? { background: '#D1FAE5', borderColor: '#059669', color: '#059669' }
                           : { background: '#EDE9FE', borderColor: '#7C3AED', color: '#7C3AED' }
-                          : { background: '#131615', borderColor: '#262B28', color: '#9ca3af' }}>
+                          : { background: '#0F2740', borderColor: '#1E446B', color: '#9ca3af' }}>
                         {cat === 'cards' ? '🃏' : cat === 'comics' ? '📚' : cat === 'toys' ? '🧸' : '🏆'} {cat}
                       </button>
                     ))}
@@ -3873,7 +3952,7 @@ export default function App() {
                   className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm focus:outline-none" />
                 <button onClick={() => setClaimStep(2)} disabled={!claimName || !claimAddress}
                   className="w-full text-white font-black py-4 rounded-2xl text-sm uppercase disabled:opacity-40"
-                  style={{ background: 'linear-gradient(135deg, #0F9D8A, #14B8A6)' }}>Continue →</button>
+                  style={{ background: 'linear-gradient(135deg, #EF3E36, #FF6B5E)' }}>Continue →</button>
               </div>
             )}
             {claimStep === 2 && (
@@ -3890,7 +3969,7 @@ export default function App() {
                   className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-mono tracking-widest focus:outline-none" />
                 <button onClick={handleClaimSubmit} disabled={einInput.length < 9}
                   className="w-full text-white font-black py-4 rounded-2xl text-sm uppercase disabled:opacity-40"
-                  style={{ background: 'linear-gradient(135deg, #0F9D8A, #14B8A6)' }}>Verify →</button>
+                  style={{ background: 'linear-gradient(135deg, #EF3E36, #FF6B5E)' }}>Verify →</button>
                 <button onClick={() => setClaimStep(1)} className="w-full text-zinc-400 text-sm font-bold py-2">← Back</button>
               </div>
             )}
@@ -3904,7 +3983,7 @@ export default function App() {
                   <p className="text-sm text-zinc-400 mt-2">We'll review your claim within 24 hours and email you at <span className="font-bold text-zinc-600">{user?.email}</span></p>
                 </div>
                 <button onClick={closeModal} className="w-full text-white font-black py-4 rounded-2xl text-sm uppercase"
-                  style={{ background: 'linear-gradient(135deg, #0F9D8A, #14B8A6)' }}>Done</button>
+                  style={{ background: 'linear-gradient(135deg, #EF3E36, #FF6B5E)' }}>Done</button>
               </div>
             )}
             </div>
@@ -3917,16 +3996,16 @@ export default function App() {
       {modal === 'auth' && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
           <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl overflow-hidden shadow-2xl">
-            <div className="px-5 py-4 flex items-center justify-between" style={{ background: 'linear-gradient(135deg, #131615, #1A1E1C)' }}>
+            <div className="px-5 py-4 flex items-center justify-between" style={{ background: 'linear-gradient(135deg, #0F2740, #143456)' }}>
               <div className="flex items-center gap-2.5">
-                <div className="h-7 w-7 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0F9D8A, #14B8A6)' }}>
+                <div className="h-7 w-7 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #EF3E36, #FF6B5E)' }}>
                   <Compass className="h-4 w-4 text-white" />
                 </div>
                 <span className="text-white font-black text-sm uppercase tracking-wider">Sign In</span>
               </div>
               <button onClick={closeModal} className="text-white/40 hover:text-white"><X className="h-5 w-5" /></button>
             </div>
-            <div className="p-5 pb-8" style={{ background: '#0A0B0C' }}>
+            <div className="p-5 pb-8" style={{ background: '#0A1A2B' }}>
               {authStep === 'gate' && (
                 <>
                   <div className="grid grid-cols-2 gap-3 mb-5">
@@ -3938,9 +4017,9 @@ export default function App() {
                         className="flex flex-col items-center gap-2 py-4 rounded-2xl border-2 transition-all"
                         style={role === r.id
                           ? r.id === 'merchant' ? { borderColor: '#7C3AED', background: '#7C3AED', color: 'white' }
-                            : { borderColor: '#131615', background: '#131615', color: 'white' }
-                          : { borderColor: '#262B28', background: '#131615', color: '#9ca3af' }}>
-                        <r.icon className="h-6 w-6" style={{ color: role === r.id ? (r.id === 'merchant' ? 'white' : '#0F9D8A') : '#3A403C' }} />
+                            : { borderColor: '#0F2740', background: '#0F2740', color: 'white' }
+                          : { borderColor: '#1E446B', background: '#0F2740', color: '#9ca3af' }}>
+                        <r.icon className="h-6 w-6" style={{ color: role === r.id ? (r.id === 'merchant' ? 'white' : '#EF3E36') : '#2E5880' }} />
                         <span className="text-sm font-black uppercase">{r.label}</span>
                         <span className="text-xs opacity-50 font-mono">{r.sub}</span>
                       </button>
@@ -3968,11 +4047,11 @@ export default function App() {
                   <form onSubmit={handleAuthSend} className="space-y-3">
                     <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com"
                       className="w-full border-2 border-zinc-100 rounded-2xl px-4 py-4 text-sm font-medium outline-none focus:border-zinc-300"
-                      style={{ background: '#131615' }} />
+                      style={{ background: '#0F2740' }} />
                     {authError && <p className="text-sm text-red-500">{authError}</p>}
                     <button type="submit" disabled={authLoading2}
                       className="w-full text-white font-black py-4 rounded-2xl text-sm uppercase disabled:opacity-50"
-                      style={{ background: role === 'merchant' ? '#7C3AED' : 'linear-gradient(135deg, #131615, #1A1E1C)' }}>
+                      style={{ background: role === 'merchant' ? '#7C3AED' : 'linear-gradient(135deg, #0F2740, #143456)' }}>
                       {authLoading2 ? 'Sending...' : 'Send Access Code →'}
                     </button>
                   </form>
@@ -3993,18 +4072,18 @@ export default function App() {
                           onChange={e => handleCodeInput(i, e.target.value)}
                           onKeyDown={e => handleCodeKey(i, e)}
                           className="w-11 h-13 text-center text-xl font-black border-2 rounded-2xl outline-none transition-all bg-zinc-50"
-                          style={{ borderColor: digit ? '#131615' : '#262B28', caretColor: 'transparent', height: '3.25rem' }} />
+                          style={{ borderColor: digit ? '#0F2740' : '#1E446B', caretColor: 'transparent', height: '3.25rem' }} />
                       ))}
                     </div>
                     {authError && <p className="text-sm text-red-500 text-center">{authError}</p>}
                     <button type="submit" disabled={authCode.join('').length < 6 || authLoading2}
                       className="w-full text-white font-black py-4 rounded-2xl text-sm uppercase disabled:opacity-25"
-                      style={{ background: 'linear-gradient(135deg, #131615, #1A1E1C)' }}>
+                      style={{ background: 'linear-gradient(135deg, #0F2740, #143456)' }}>
                       {authLoading2 ? 'Verifying...' : 'Authorize'}
                     </button>
                     <p className="text-center text-xs text-zinc-400 font-mono">
                       Didn't get it?{' '}
-                      <button type="button" onClick={() => setAuthStep('gate')} style={{ color: '#0F9D8A' }} className="underline">Resend</button>
+                      <button type="button" onClick={() => setAuthStep('gate')} style={{ color: '#EF3E36' }} className="underline">Resend</button>
                     </p>
                   </form>
                 </>
@@ -4017,7 +4096,7 @@ export default function App() {
       {/* SUBSCRIPTION */}
       {modal === 'sub' && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
-          <div className="w-full max-w-lg md:rounded-3xl rounded-t-3xl p-5 pb-10 shadow-2xl overflow-y-auto max-h-[90vh]" style={{ background: '#0A0B0C' }}>
+          <div className="w-full max-w-lg md:rounded-3xl rounded-t-3xl p-5 pb-10 shadow-2xl overflow-y-auto max-h-[90vh]" style={{ background: '#0A1A2B' }}>
             <div className="flex justify-between items-center mb-2">
               <h3 className="font-black text-xl">Membership</h3>
               <button onClick={() => setModal('none')}><X className="h-5 w-5 text-zinc-400" /></button>
@@ -4039,20 +4118,20 @@ export default function App() {
                 ))}
                 <button onClick={() => setModal('none')} className="w-full mt-3 py-2.5 rounded-2xl text-xs font-black uppercase bg-zinc-100 text-zinc-500">Current</button>
               </div>
-              <div className="rounded-3xl p-4 border-2 bg-zinc-50" style={{ borderColor: '#0F9D8A' }}>
-                <p className="font-black text-base" style={{ color: '#0F9D8A' }}>Elite Pass</p>
+              <div className="rounded-3xl p-4 border-2 bg-zinc-50" style={{ borderColor: '#EF3E36' }}>
+                <p className="font-black text-base" style={{ color: '#EF3E36' }}>Elite Pass</p>
                 <p className="text-2xl font-black mt-0.5 mb-1">$1.99<span className="text-sm font-normal text-zinc-400">/mo</span></p>
                 <p className="text-xs font-black text-emerald-600 mb-3">Free until 2028</p>
                 {['Everything in Free','Save favorite shops','Activity notifications','Customize your profile'].map(f => (
-                  <div key={f} className="flex items-center gap-2 py-1"><Check className="h-3.5 w-3.5" style={{ color: '#0F9D8A' }} /><p className="text-sm text-zinc-600">{f}</p></div>
+                  <div key={f} className="flex items-center gap-2 py-1"><Check className="h-3.5 w-3.5" style={{ color: '#EF3E36' }} /><p className="text-sm text-zinc-600">{f}</p></div>
                 ))}
                 <button onClick={() => handleUpgrade('elite')} disabled={checkoutLoading || profile?.tier === 'elite'}
                   className="w-full mt-3 py-2.5 rounded-2xl text-xs font-black uppercase text-white disabled:opacity-50"
-                  style={{ background: 'linear-gradient(135deg, #0F9D8A, #14B8A6)' }}>
+                  style={{ background: 'linear-gradient(135deg, #EF3E36, #FF6B5E)' }}>
                   {profile?.tier === 'elite' ? 'Active' : 'Get Free'}
                 </button>
               </div>
-              <div className="rounded-3xl p-4 text-white" style={{ background: 'linear-gradient(135deg, #131615, #1A1E1C)' }}>
+              <div className="rounded-3xl p-4 text-white" style={{ background: 'linear-gradient(135deg, #0F2740, #143456)' }}>
                 <p className="font-black text-base text-amber-400">Verified Store</p>
                 <p className="text-2xl font-black mt-0.5 mb-1">$2.99<span className="text-sm font-normal text-white/40">/mo</span></p>
                 <p className="text-xs font-black text-emerald-400 mb-3">Free until 2028</p>
@@ -4073,7 +4152,7 @@ export default function App() {
       {/* MENU */}
       {modal === 'menu' && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end justify-center md:hidden">
-          <div className="w-full max-w-md rounded-t-3xl p-5 pb-10 shadow-2xl" style={{ background: '#0A0B0C' }}>
+          <div className="w-full max-w-md rounded-t-3xl p-5 pb-10 shadow-2xl" style={{ background: '#0A1A2B' }}>
             <div className="flex justify-between items-center mb-5">
               <h3 className="font-black text-lg">Menu</h3>
               <button onClick={() => setModal('none')}><X className="h-5 w-5 text-zinc-400" /></button>
@@ -4111,7 +4190,7 @@ export default function App() {
       {/* SUBMIT SHOP OR EVENT */}
       {modal === 'submit' && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
-          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl p-5 pb-10 shadow-2xl" style={{ background: '#0A0B0C' }}>
+          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl p-5 pb-10 shadow-2xl" style={{ background: '#0A1A2B' }}>
             <div className="flex justify-between items-center mb-5">
               <h3 className="font-black text-lg">Submit for Review</h3>
               <button onClick={() => { setModal('none'); setSubmitSent(false); setSubmitName(''); setSubmitAddress(''); setSubmitDetails('') }}><X className="h-5 w-5 text-zinc-400" /></button>
@@ -4133,7 +4212,7 @@ export default function App() {
                   {(['shop', 'event'] as const).map(t => (
                     <button key={t} onClick={() => setSubmitType(t)}
                       className="py-3 rounded-2xl text-xs font-black uppercase border-2 transition-all"
-                      style={submitType === t ? { background: '#7C3AED', borderColor: '#7C3AED', color: 'white' } : { background: '#131615', borderColor: '#262B28', color: '#9ca3af' }}>
+                      style={submitType === t ? { background: '#7C3AED', borderColor: '#7C3AED', color: 'white' } : { background: '#0F2740', borderColor: '#1E446B', color: '#9ca3af' }}>
                       {t === 'shop' ? '🏪 New Shop' : '📅 New Event'}
                     </button>
                   ))}
@@ -4220,10 +4299,10 @@ export default function App() {
       {/* NOTIFICATIONS */}
       {modal === 'notifications' && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
-          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden" style={{ background: '#0A0B0C' }}>
-            <div className="px-5 py-4 flex items-center justify-between" style={{ background: 'linear-gradient(135deg, #131615, #1A1E1C)' }}>
+          <div className="w-full max-w-md md:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden" style={{ background: '#0A1A2B' }}>
+            <div className="px-5 py-4 flex items-center justify-between" style={{ background: 'linear-gradient(135deg, #0F2740, #143456)' }}>
               <div className="flex items-center gap-2.5">
-                <div className="h-7 w-7 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0F9D8A, #14B8A6)' }}>
+                <div className="h-7 w-7 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #EF3E36, #FF6B5E)' }}>
                   <Bell className="h-4 w-4 text-white" />
                 </div>
                 <span className="text-white font-black text-sm uppercase tracking-wider">Notifications</span>
@@ -4240,13 +4319,13 @@ export default function App() {
                 const mins = Math.floor((Date.now() - new Date(n.created_at).getTime()) / 60000)
                 const ago = mins < 1 ? 'just now' : mins < 60 ? `${mins}m ago` : mins < 1440 ? `${Math.floor(mins / 60)}h ago` : `${Math.floor(mins / 1440)}d ago`
                 return (
-                  <div key={n.id} className="flex items-start gap-3 px-5 py-4" style={{ background: !n.read ? 'rgba(15,157,138,0.04)' : 'white' }}>
+                  <div key={n.id} className="flex items-start gap-3 px-5 py-4" style={{ background: !n.read ? 'rgba(239,62,54,0.04)' : 'white' }}>
                     <div className="h-10 w-10 rounded-2xl flex items-center justify-center flex-shrink-0 text-lg"
-                      style={{ background: !n.read ? 'rgba(15,157,138,0.1)' : '#1A1E1C' }}>{n.type === 'reply' ? '💬' : n.type === 'reward' ? '🎁' : '❓'}</div>
+                      style={{ background: !n.read ? 'rgba(239,62,54,0.1)' : '#143456' }}>{n.type === 'reply' ? '💬' : n.type === 'reward' ? '🎁' : '❓'}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
                         <p className="font-black text-sm">{n.title}</p>
-                        {!n.read && <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: '#0F9D8A' }} />}
+                        {!n.read && <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: '#EF3E36' }} />}
                       </div>
                       {n.body && <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed">{n.body}</p>}
                       <p className="text-xs text-zinc-300 font-mono mt-1">{ago}</p>

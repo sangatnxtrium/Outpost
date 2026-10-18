@@ -4,7 +4,7 @@ import { FOR_SHOPS as C, FOR_SHOPS_CONTACT_EMAIL as EMAIL, FOR_SHOPS_META } from
 export default function ForShops() {
   if (typeof document !== 'undefined') document.title = FOR_SHOPS_META.title
   return (
-    <div className="min-h-screen font-sans text-[#F5F5F4]" style={{ background: '#0A0B0C' }}>
+    <div className="min-h-screen font-sans text-[#F5F5F4]" style={{ background: '#0A1A2B' }}>
       <header className="sticky top-0 z-10 bg-zinc-50 border-b border-zinc-200 px-4 py-4">
         <div className="max-w-2xl mx-auto flex items-center gap-3">
           <a href="/" aria-label="Back to Outpost" className="h-8 w-8 rounded-xl bg-zinc-100 flex items-center justify-center">
@@ -28,7 +28,7 @@ export default function ForShops() {
           <ul className="space-y-3">
             {C.benefits.map(b => (
               <li key={b.title} className="flex items-start gap-2">
-                <Check className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: '#0F9D8A' }} />
+                <Check className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: '#EF3E36' }} />
                 <p className="text-sm text-zinc-600"><span className="font-bold text-zinc-900">{b.title}.</span> {b.body}</p>
               </li>
             ))}
@@ -47,7 +47,7 @@ export default function ForShops() {
           Find and claim your shop →
         </a>
         <p className="text-center text-xs text-zinc-400">
-          Questions? <a href={`mailto:${EMAIL}`} className="underline" style={{ color: '#0F9D8A' }}>{EMAIL}</a>
+          Questions? <a href={`mailto:${EMAIL}`} className="underline" style={{ color: '#EF3E36' }}>{EMAIL}</a>
         </p>
       </main>
     </div>

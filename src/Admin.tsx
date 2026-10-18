@@ -15,10 +15,10 @@ class AdminErrorBoundary extends React.Component<{children: any}, {error: string
   render() {
     if (this.state.error) {
       return (
-        <div style={{ padding: 24, fontFamily: 'monospace', background: '#131615', minHeight: '100vh', color: 'white' }}>
-          <h2 style={{ color: '#0F9D8A', marginBottom: 12 }}>Admin Error</h2>
+        <div style={{ padding: 24, fontFamily: 'monospace', background: '#0F2740', minHeight: '100vh', color: 'white' }}>
+          <h2 style={{ color: '#EF3E36', marginBottom: 12 }}>Admin Error</h2>
           <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, wordBreak: 'break-all' }}>{this.state.error}</p>
-          <button onClick={() => window.location.reload()} style={{ marginTop: 16, padding: '8px 16px', background: '#0F9D8A', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer' }}>
+          <button onClick={() => window.location.reload()} style={{ marginTop: 16, padding: '8px 16px', background: '#EF3E36', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer' }}>
             Reload
           </button>
         </div>
@@ -459,9 +459,9 @@ export default function Admin() {
   // Loading
   if (checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #131615, #1A1E1C)' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0F2740, #143456)' }}>
         <div className="text-center">
-          <div className="h-12 w-12 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: 'linear-gradient(135deg, #0F9D8A, #14B8A6)' }}>
+          <div className="h-12 w-12 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: 'linear-gradient(135deg, #EF3E36, #FF6B5E)' }}>
             <Shield className="h-6 w-6 text-white animate-pulse" />
           </div>
           <p className="text-white/40 text-xs font-mono uppercase">Loading...</p>
@@ -473,10 +473,10 @@ export default function Admin() {
   // Login
   if (!authed) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #131615, #1A1E1C)' }}>
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #0F2740, #143456)' }}>
         <div className="w-full max-w-sm bg-zinc-50 rounded-3xl p-6 shadow-2xl text-[#D8DDD9]">
           <div className="flex items-center gap-3 mb-6">
-            <div className="h-10 w-10 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0F9D8A, #14B8A6)' }}>
+            <div className="h-10 w-10 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #EF3E36, #FF6B5E)' }}>
               <Shield className="h-5 w-5 text-white" />
             </div>
             <div>
@@ -492,7 +492,7 @@ export default function Admin() {
               {authError && <p className="text-xs text-red-500">{authError}</p>}
               <button type="submit" disabled={authLoading}
                 className="w-full text-white font-black py-3 rounded-2xl text-sm uppercase disabled:opacity-50"
-                style={{ background: 'linear-gradient(135deg, #131615, #1A1E1C)' }}>
+                style={{ background: 'linear-gradient(135deg, #0F2740, #143456)' }}>
                 {authLoading ? 'Sending...' : 'Send Code'}
               </button>
             </form>
@@ -505,7 +505,7 @@ export default function Admin() {
               {authError && <p className="text-xs text-red-500">{authError}</p>}
               <button type="submit" disabled={authLoading}
                 className="w-full text-white font-black py-3 rounded-2xl text-sm uppercase disabled:opacity-50"
-                style={{ background: 'linear-gradient(135deg, #0F9D8A, #14B8A6)' }}>
+                style={{ background: 'linear-gradient(135deg, #EF3E36, #FF6B5E)' }}>
                 {authLoading ? 'Verifying...' : 'Enter Admin'}
               </button>
               <button type="button" onClick={() => setAuthStep('email')} className="w-full text-zinc-400 text-xs py-2">← Back</button>
@@ -519,13 +519,13 @@ export default function Admin() {
   // Admin panel
   return (
     <AdminErrorBoundary>
-    <div className="min-h-screen font-sans text-[#D8DDD9]" style={{ background: '#0A0B0C' }}>
+    <div className="min-h-screen font-sans text-[#D8DDD9]" style={{ background: '#0A1A2B' }}>
 
       {/* Header */}
       <header className="sticky top-0 z-20 bg-zinc-50 border-b border-zinc-200 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0F9D8A, #14B8A6)' }}>
+            <div className="h-8 w-8 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #EF3E36, #FF6B5E)' }}>
               <Shield className="h-4 w-4 text-white" />
             </div>
             <div>
@@ -539,7 +539,7 @@ export default function Admin() {
             </button>
             <a href="/" className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-zinc-100 text-zinc-600">← App</a>
             <button onClick={signOut} className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-white"
-              style={{ background: '#131615' }}>
+              style={{ background: '#0F2740' }}>
               Out
             </button>
           </div>
@@ -551,7 +551,7 @@ export default function Admin() {
         {TABS.map(({ id, icon: Icon, label }) => (
           <button key={id} onClick={() => setTab(id as Tab)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap flex-shrink-0 transition-all"
-            style={tab === id ? { background: 'linear-gradient(135deg, #0F9D8A, #14B8A6)', color: 'white' } : { background: '#1A1E1C', color: '#ACB3AE' }}>
+            style={tab === id ? { background: 'linear-gradient(135deg, #EF3E36, #FF6B5E)', color: 'white' } : { background: '#143456', color: '#ACB3AE' }}>
             <Icon className="h-3 w-3" />{label}
           </button>
         ))}
@@ -601,7 +601,7 @@ export default function Admin() {
             {/* Totals row */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
-                { label: 'Shops', value: shops.length, color: '#0F9D8A', icon: Store },
+                { label: 'Shops', value: shops.length, color: '#EF3E36', icon: Store },
                 { label: 'Check-ins', value: checkins, color: '#059669', icon: BarChart2 },
                 { label: 'Est. MRR', value: `$${mrr}`, color: '#059669', icon: BarChart2 },
                 { label: 'Pending Claims', value: pendingClaims, color: '#F59E0B', icon: Shield },
@@ -624,13 +624,13 @@ export default function Admin() {
               <div className="h-64 -ml-2">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={signupsChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1A1E1C" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#143456" />
                     <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} />
                     <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} width={28} />
-                    <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #1A1E1C', fontSize: 12 }} />
+                    <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #143456', fontSize: 12 }} />
                     <Legend wrapperStyle={{ fontSize: 12 }} />
-                    <Line type="monotone" dataKey="This week" stroke="#0F9D8A" strokeWidth={2.5} dot={{ r: 3 }} />
-                    <Line type="monotone" dataKey="Prior week" stroke="#3A403C" strokeWidth={2} strokeDasharray="4 3" dot={{ r: 2 }} />
+                    <Line type="monotone" dataKey="This week" stroke="#EF3E36" strokeWidth={2.5} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="Prior week" stroke="#2E5880" strokeWidth={2} strokeDasharray="4 3" dot={{ r: 2 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -655,7 +655,7 @@ export default function Admin() {
                       {topListings.map((l: any) => (
                         <tr key={l.id} className="border-b border-zinc-50 last:border-0">
                           <td className="px-4 py-2.5 truncate max-w-[160px]">{l.title}</td>
-                          <td className="px-4 py-2.5 font-bold" style={{ color: '#0F9D8A' }}>${Number(l.price).toLocaleString()}</td>
+                          <td className="px-4 py-2.5 font-bold" style={{ color: '#EF3E36' }}>${Number(l.price).toLocaleString()}</td>
                           <td className="px-4 py-2.5 text-zinc-400">{l.quantity || 1}</td>
                         </tr>
                       ))}
@@ -670,12 +670,12 @@ export default function Admin() {
                 <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={activityChartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1A1E1C" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#143456" />
                       <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} />
                       <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} width={28} />
-                      <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #1A1E1C', fontSize: 12 }} />
+                      <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #143456', fontSize: 12 }} />
                       <Legend wrapperStyle={{ fontSize: 12 }} />
-                      <Bar dataKey="Listings" stackId="a" fill="#0F9D8A" radius={[0, 0, 0, 0]} />
+                      <Bar dataKey="Listings" stackId="a" fill="#EF3E36" radius={[0, 0, 0, 0]} />
                       <Bar dataKey="Trades" stackId="a" fill="#fca997" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -691,7 +691,7 @@ export default function Admin() {
                   <span className="text-xs font-black px-2 py-0.5 rounded-lg"
                     style={u.tier === 'elite' ? { background: '#EDE9FE', color: '#5B21B6' }
                       : u.tier === 'store' ? { background: '#FEF3C7', color: '#92400E' }
-                      : { background: '#1A1E1C', color: '#ACB3AE' }}>
+                      : { background: '#143456', color: '#ACB3AE' }}>
                     {u.tier}
                   </span>
                 </div>
@@ -707,7 +707,7 @@ export default function Admin() {
               <h2 className="font-black text-xl">Shops ({fShops.length})</h2>
               <button onClick={() => setAddingShop(!addingShop)}
                 className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-black text-white"
-                style={{ background: addingShop ? '#ACB3AE' : '#0F9D8A' }}>
+                style={{ background: addingShop ? '#ACB3AE' : '#EF3E36' }}>
                 {addingShop ? <><X className="h-3 w-3" /> Cancel</> : <><Plus className="h-3 w-3" /> Add shop</>}
               </button>
             </div>
@@ -804,7 +804,7 @@ export default function Admin() {
                   <p className="font-black text-sm">@{u.username}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-xs font-bold px-2 py-0.5 rounded-lg"
-                      style={u.role === 'merchant' ? { background: '#EDE9FE', color: '#5B21B6' } : { background: '#1A1E1C', color: '#ACB3AE' }}>
+                      style={u.role === 'merchant' ? { background: '#EDE9FE', color: '#5B21B6' } : { background: '#143456', color: '#ACB3AE' }}>
                       {u.role}
                     </span>
                     <span className="text-xs text-zinc-400 font-mono">{new Date(u.created_at).toLocaleDateString()}</span>
@@ -821,7 +821,7 @@ export default function Admin() {
                   </select>
                   <button onClick={() => banUser(u.id, u.banned)}
                     className="text-xs font-black px-2 py-1.5 rounded-xl transition-all"
-                    style={u.banned ? { background: '#FEF2F2', color: '#991B1B' } : { background: '#1A1E1C', color: '#ACB3AE' }}>
+                    style={u.banned ? { background: '#FEF2F2', color: '#991B1B' } : { background: '#143456', color: '#ACB3AE' }}>
                     {u.banned ? 'Banned' : 'Ban'}
                   </button>
                   <button onClick={() => deleteUser(u.id)} className="text-red-400 hover:text-red-600">
@@ -841,7 +841,7 @@ export default function Admin() {
               <div key={r.id} className="bg-zinc-50 rounded-2xl border border-zinc-100 shadow-sm p-4 flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium italic">"{r.comment}"</p>
-                  <p className="text-xs font-mono font-bold mt-1" style={{ color: '#0F9D8A' }}>@{r.username}</p>
+                  <p className="text-xs font-mono font-bold mt-1" style={{ color: '#EF3E36' }}>@{r.username}</p>
                   <p className="text-xs text-zinc-300 font-mono mt-0.5">{new Date(r.created_at).toLocaleDateString()}</p>
                 </div>
                 <button onClick={() => deleteItem('reviews', r.id, setReviews, reviews)} className="text-red-400 flex-shrink-0">
@@ -866,7 +866,7 @@ export default function Admin() {
                   </div>
                   <div className="flex gap-2 items-center">
                     <span className="text-xs font-black px-1.5 py-0.5 rounded-lg" style={{ background: '#FEF2F2', color: '#991B1B' }}>WANT</span>
-                    <p className="text-sm font-bold truncate" style={{ color: '#0F9D8A' }}>{t.look_for}</p>
+                    <p className="text-sm font-bold truncate" style={{ color: '#EF3E36' }}>{t.look_for}</p>
                   </div>
                 </div>
                 <button onClick={() => deleteItem('trade_posts', t.id, setTrades, trades)} className="text-red-400 flex-shrink-0">
@@ -884,7 +884,7 @@ export default function Admin() {
               <h2 className="font-black text-xl">Events ({fEvents.length})</h2>
               <button onClick={() => setAddingEvent(!addingEvent)}
                 className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-black text-white"
-                style={{ background: addingEvent ? '#ACB3AE' : '#0F9D8A' }}>
+                style={{ background: addingEvent ? '#ACB3AE' : '#EF3E36' }}>
                 {addingEvent ? <><X className="h-3 w-3" /> Cancel</> : <><Plus className="h-3 w-3" /> Add event</>}
               </button>
             </div>
@@ -1084,7 +1084,7 @@ export default function Admin() {
                         )}
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold" style={{ color: '#0F9D8A' }}>${Number(item.price).toLocaleString()}</span>
+                        <span className="text-sm font-bold" style={{ color: '#EF3E36' }}>${Number(item.price).toLocaleString()}</span>
                         {item.category && <span className="text-xs font-bold px-2 py-0.5 rounded-lg capitalize" style={{ background: '#F0FDF4', color: '#166634' }}>{item.category}</span>}
                         {item.condition && <span className="text-xs text-zinc-400">{item.condition}</span>}
                       </div>
@@ -1137,7 +1137,7 @@ export default function Admin() {
                 </div>
                 <button onClick={addFcbdComic} disabled={ftSaving}
                   className="w-full py-2 rounded-xl text-xs font-black text-white flex items-center justify-center gap-1 disabled:opacity-60"
-                  style={{ background: '#0F9D8A' }}><Plus className="h-3 w-3" /> {ftSaving ? 'Adding…' : 'Add comic'}</button>
+                  style={{ background: '#EF3E36' }}><Plus className="h-3 w-3" /> {ftSaving ? 'Adding…' : 'Add comic'}</button>
               </div>
 
               <div>
@@ -1188,7 +1188,7 @@ export default function Admin() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
                   { label: 'OP Issued', value: pointStats.issued.toLocaleString(), color: '#059669' },
-                  { label: 'OP Redeemed', value: pointStats.redeemed.toLocaleString(), color: '#0F9D8A' },
+                  { label: 'OP Redeemed', value: pointStats.redeemed.toLocaleString(), color: '#EF3E36' },
                   { label: 'Referral Signups', value: pointStats.referralSignups, color: '#7C3AED' },
                   { label: 'Referral First Visits', value: pointStats.referralVisits, color: '#0284C7' },
                   { label: 'Founding Members', value: `${pointStats.foundingMembers} / 1,000`, color: '#7C3AED' },
@@ -1212,7 +1212,7 @@ export default function Admin() {
                     </div>
                     <button onClick={() => toggleRewardOfferActive(o)}
                       className="text-xs font-black px-2.5 py-1.5 rounded-xl flex-shrink-0"
-                      style={o.active ? { background: '#F0FDF4', color: '#166534' } : { background: '#1A1E1C', color: '#ACB3AE' }}>
+                      style={o.active ? { background: '#F0FDF4', color: '#166534' } : { background: '#143456', color: '#ACB3AE' }}>
                       {o.active ? 'Active' : 'Inactive'}
                     </button>
                   </div>
@@ -1242,7 +1242,7 @@ export default function Admin() {
     {/* DROP MODAL */}
       {dropShop && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end justify-center">
-          <div className="w-full max-w-md rounded-t-3xl p-5 pb-10 shadow-2xl" style={{ background: '#0A0B0C' }}>
+          <div className="w-full max-w-md rounded-t-3xl p-5 pb-10 shadow-2xl" style={{ background: '#0A1A2B' }}>
             <div className="flex justify-between items-center mb-4">
               <div>
                 <h3 className="font-black text-lg">Publish Drop</h3>
@@ -1262,7 +1262,7 @@ export default function Admin() {
               className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none resize-none mb-3" />
             <button onClick={publishDrop} disabled={!dropText.trim()}
               className="w-full text-white font-black py-3.5 rounded-2xl text-sm uppercase flex items-center justify-center gap-2 disabled:opacity-40"
-              style={{ background: 'linear-gradient(135deg, #0F9D8A, #14B8A6)' }}>
+              style={{ background: 'linear-gradient(135deg, #EF3E36, #FF6B5E)' }}>
               <Flame className="h-4 w-4" /> Publish Drop
             </button>
           </div>
