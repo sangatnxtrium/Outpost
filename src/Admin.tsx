@@ -1077,7 +1077,7 @@ export default function Admin() {
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <p className="font-black text-sm truncate">{item.title}</p>
                         {item.status === 'sold' && (
-                          <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded-full bg-zinc-800 text-white flex-shrink-0">Sold</span>
+                          <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded-md bg-zinc-800 text-white flex-shrink-0">Sold</span>
                         )}
                         {item.quantity > 1 && (
                           <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-lg bg-zinc-100 text-zinc-500 flex-shrink-0">Qty: {item.quantity}</span>
