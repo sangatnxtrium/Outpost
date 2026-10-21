@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
+import AdminDrawings from './AdminDrawings'
 import { Shield, Store, Users, Trash2, Edit2, Check, X, RefreshCw, Search, Flame, BarChart2, MessageSquare, ArrowLeftRight, Calendar, Plus, Package } from 'lucide-react'
 import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend, BarChart, Bar } from 'recharts'
 
@@ -30,7 +31,7 @@ class AdminErrorBoundary extends React.Component<{children: any}, {error: string
 
 const ADMIN_EMAILS = ['sangtruong@gmail.com']
 
-type Tab = 'dashboard' | 'shops' | 'users' | 'reviews' | 'trades' | 'events' | 'submissions' | 'claims' | 'marketplace' | 'fcbd' | 'rewards'
+type Tab = 'dashboard' | 'shops' | 'users' | 'reviews' | 'trades' | 'events' | 'submissions' | 'claims' | 'marketplace' | 'fcbd' | 'rewards' | 'drawings'
 
 export default function Admin() {
   const [checking, setChecking] = useState(true)
@@ -408,6 +409,7 @@ export default function Admin() {
     { id: 'marketplace', icon: Package, label: `Listings (${marketItems.length})` },
     { id: 'fcbd', icon: Calendar, label: `FCBD (${fcbdTitles.length})` },
     { id: 'rewards', icon: Shield, label: `Rewards (${rewardOffers.length})` },
+    { id: 'drawings', icon: Package, label: 'Drawings' },
   ]
 
   // Event submissions live behind RLS, so go through the service-key API with
@@ -1181,6 +1183,7 @@ export default function Admin() {
           )}
 
           {/* REWARDS */}
+          {tab === 'drawings' && <AdminDrawings adminFetch={adminFetch} />}
           {tab === 'rewards' && (
             <div className="space-y-4">
               <h2 className="font-black text-xl">Outpost Rewards</h2>

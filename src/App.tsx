@@ -7,9 +7,10 @@ import { FACEBOOK_URL, FacebookIcon } from './FacebookLink'
 import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useMajorEvents, type EventRange, useEventsByIds, useNews, NEWS_CATEGORIES, useListings, useFcbd, useFcbdTitles, useNotifications, useAppSettings, useListingOffers, useFollows, useConversations, useMessages, useItemMessages, usePoints, useReferrals, useMyRedemptions, useRewardOffers, useMerchantRewards } from './hooks/useShops'
 import { startCheckout } from './lib/stripe'
 import { supabase } from './lib/supabase'
+import { useDrawing, DrawingBanner, DrawingPage } from './drawing'
 import { toast, Toaster, celebrate, CountUp, PlusPill, CountdownChip, CountdownBig, eventStart, TiltCard, SkeletonGrid, SkeletonRows, useFoundingCount, FoundingProgress, FoundingReveal } from './polish'
 
-type TabType = 'discover' | 'classifieds' | 'marketplace' | 'news' | 'profile' | 'messages'
+type TabType = 'discover' | 'classifieds' | 'marketplace' | 'news' | 'profile' | 'messages' | 'drawing'
 type ModalType = 'none' | 'sub' | 'auth' | 'notifications' | 'shop' | 'menu' | 'claim' | 'additem' | 'submit' | 'listsale' | 'listingdetail' | 'posttrade' | 'tradedetail' | 'editprofile' | 'setlocation' | 'userprofile'
 // A photo slot in the listing/trade forms is either a URL already on the
 // post (editing) or a freshly picked File waiting to be uploaded on submit.
@@ -919,6 +920,7 @@ export default function App() {
   }, [])
   const nextMajor = majorEvents[0] || null
   const { founding, refetchFounding } = useFoundingCount()
+  const { drawing, stats: drawingStats, checkForNewEntry, claimFree } = useDrawing(user?.id || null)
   const [foundingReveal, setFoundingReveal] = useState<number | null>(null)
   const [checkinFx, setCheckinFx] = useState<string | null>(null)
 
@@ -1051,7 +1053,7 @@ export default function App() {
 
   const TAB_PATHS: Record<TabType, string> = {
     discover: '/', classifieds: '/marketplace', marketplace: '/marketplace',
-    news: '/news', profile: '/profile', messages: '/messages',
+    news: '/news', profile: '/profile', messages: '/messages', drawing: '/drawing',
   }
 
   // Every setTab(...) that represents real user navigation should go through
@@ -1127,6 +1129,7 @@ export default function App() {
     if (parts[0] === 'fcbd') { setTab('discover'); setActiveSection('fcbd'); setModal('none'); return }
     if (parts[0] === 'profile') { setTab('profile'); setModal('none'); return }
     if (parts[0] === 'messages') { setTab('messages'); setModal('none'); return }
+    if (parts[0] === 'drawing') { setTab('drawing'); setModal('none'); return }
 
     // '/' or anything unrecognized
     setUrlCity(null); setModal('none'); setTab('discover')
@@ -1586,6 +1589,7 @@ export default function App() {
       setEditingListingId(null)
       setMktTitle(''); setMktPrice(''); setMktDesc(''); setMktContact(''); setMktQuantity('1')
       setMktPhotos([]); setModal('none')
+      if (!editingListingId) checkForNewEntry()
     }
   }
 
@@ -1893,6 +1897,7 @@ export default function App() {
                     <LocalMap shops={filteredShops} onSelect={s => openShop(s)} activeId={hoverShopId} userLat={userLat} userLng={userLng} />
                   </div>
                 )}
+                {activeSection === 'shops' && !urlCity && drawing && <DrawingBanner drawing={drawing} stats={drawingStats} onOpen={() => goTab('drawing')} />}
                 {activeSection === 'shops' && !urlCity && <DropBanner shops={shops} />}
                 {activeSection === 'shops' && !discoverReady && <SkeletonGrid n={8} />}
                 {activeSection === 'shops' && discoverReady && filteredShops.length === 0 && !locationDenied && (
@@ -2303,6 +2308,17 @@ export default function App() {
             )}
 
             {/* NEWS */}
+            {tab === 'drawing' && (drawing ? (
+              <DrawingPage drawing={drawing} stats={drawingStats} isSignedIn={isSignedIn}
+                onSignIn={() => setModal('auth')} onClaimFree={claimFree} onBack={() => goTab('discover')}
+                onListItem={() => { goTab('marketplace'); setMktSection('sale'); setMktPhotos([]); setEditingListingId(null); setModal('listsale') }} />
+            ) : (
+              <div className="p-8 text-center text-zinc-400">
+                <p className="font-display text-2xl" style={{ color: '#F6F1E7' }}>No drawing running right now</p>
+                <p className="text-sm mt-1">Check back soon — a new prize drops every month.</p>
+                <button onClick={() => goTab('discover')} className="mt-4 px-4 py-2 rounded-md text-sm text-white" style={{ background: '#EF3E36' }}>Back to Discover</button>
+              </div>
+            ))}
             {tab === 'news' && (
               <div className="p-4 space-y-4 max-w-3xl">
                 <div>
