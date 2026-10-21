@@ -13,6 +13,9 @@ async function loadApp() {
   } else if (path.startsWith('/privacy')) {
     const { PrivacyPolicy } = await import('./Legal.tsx')
     root.render(<React.StrictMode><PrivacyPolicy /></React.StrictMode>)
+  } else if (path === '/drawing/rules' || path === '/drawing/rules/') {
+    const { DrawingRules } = await import('./drawing.tsx')
+    root.render(<React.StrictMode><DrawingRules /></React.StrictMode>)
   } else if (path.startsWith('/terms')) {
     const { TermsOfService } = await import('./Legal.tsx')
     root.render(<React.StrictMode><TermsOfService /></React.StrictMode>)
