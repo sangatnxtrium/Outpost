@@ -7,7 +7,7 @@ import { FACEBOOK_URL, FacebookIcon } from './FacebookLink'
 import { useShops, useReviews, useTradePosts, useCheckins, useEvents, useMajorEvents, type EventRange, useEventsByIds, useNews, NEWS_CATEGORIES, useListings, useFcbd, useFcbdTitles, useNotifications, useAppSettings, useListingOffers, useFollows, useConversations, useMessages, useItemMessages, usePoints, useReferrals, useMyRedemptions, useRewardOffers, useMerchantRewards } from './hooks/useShops'
 import { startCheckout } from './lib/stripe'
 import { supabase } from './lib/supabase'
-import { useDrawing, DrawingBanner, DrawingPage } from './drawing'
+import { useDrawing, DrawingBanner, DrawingPage, SocialBonusCard } from './drawing'
 import { toast, Toaster, celebrate, CountUp, PlusPill, CountdownChip, CountdownBig, eventStart, TiltCard, SkeletonGrid, SkeletonRows, useFoundingCount, FoundingProgress, FoundingReveal } from './polish'
 
 type TabType = 'discover' | 'classifieds' | 'marketplace' | 'news' | 'profile' | 'messages' | 'drawing'
@@ -920,7 +920,7 @@ export default function App() {
   }, [])
   const nextMajor = majorEvents[0] || null
   const { founding, refetchFounding } = useFoundingCount()
-  const { drawing, stats: drawingStats, checkForNewEntry, claimFree } = useDrawing(user?.id || null)
+  const { drawing, stats: drawingStats, checkForNewEntry, claimFree, mySocial, submitSocial } = useDrawing(user?.id || null)
   const [foundingReveal, setFoundingReveal] = useState<number | null>(null)
   const [checkinFx, setCheckinFx] = useState<string | null>(null)
 
@@ -2311,6 +2311,7 @@ export default function App() {
             {tab === 'drawing' && (drawing ? (
               <DrawingPage drawing={drawing} stats={drawingStats} isSignedIn={isSignedIn}
                 onSignIn={() => setModal('auth')} onClaimFree={claimFree} onBack={() => goTab('discover')}
+                social={<SocialBonusCard drawing={drawing} isSignedIn={isSignedIn} referralCode={referralCode} mySocial={mySocial} onSubmit={submitSocial} onSignIn={() => setModal('auth')} />}
                 onListItem={() => { goTab('marketplace'); setMktSection('sale'); setMktPhotos([]); setEditingListingId(null); setModal('listsale') }} />
             ) : (
               <div className="p-8 text-center text-zinc-400">

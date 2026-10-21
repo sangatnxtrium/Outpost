@@ -7,6 +7,8 @@ import { createClient } from '@supabase/supabase-js'
 // POST { action: 'create', drawing }    -> insert a drawing (scheduled)
 // POST { action: 'draw', id }           -> pick a random winner (only after ends_at)
 // POST { action: 'cancel', id }         -> cancel a drawing that hasn't been drawn
+// GET  ?view=social&status=pending|approved|rejected|all -> social bonus submissions
+// POST { action: 'review', id, status: 'approved'|'rejected'|'pending', note }
 // Auth: same pattern as /api/admin-submissions — the caller's Supabase session
 // token must belong to an email in ADMIN_EMAILS; writes use the service key
 // because drawings/drawing_entries have no client write policies.
@@ -25,6 +27,21 @@ export default async function handler(req, res) {
   const email = userData?.user?.email?.toLowerCase()
   if (userErr || !email || !ADMIN_EMAILS.includes(email)) return res.status(403).json({ error: 'not an admin' })
   const adminId = userData.user.id
+
+  if (req.method === 'GET' && new URL(req.url, 'http://localhost').searchParams.get('view') === 'social') {
+    const status = new URL(req.url, 'http://localhost').searchParams.get('status') || 'pending'
+    let q = supabase.from('drawing_social_submissions').select('*, drawings(title)').order('created_at', { ascending: true }).limit(300)
+    if (status !== 'all') q = q.eq('status', status)
+    const { data, error } = await q
+    if (error) return res.status(500).json({ error: error.message })
+    const uids = [...new Set((data || []).map((r) => r.user_id))]
+    const profs = {}
+    if (uids.length) {
+      const { data: p } = await supabase.from('profiles').select('id, username, display_name, avatar_url').in('id', uids)
+      for (const x of p || []) profs[x.id] = x
+    }
+    return res.status(200).json({ submissions: (data || []).map((r) => ({ ...r, profile: profs[r.user_id] || null })) })
+  }
 
   if (req.method === 'GET') {
     const { data: drawings, error } = await supabase.from('drawings').select('*').order('starts_at', { ascending: false }).limit(100)
@@ -48,7 +65,9 @@ export default async function handler(req, res) {
     }
     const { data: myListings } = await supabase.from('listings').select('id, title, description, image_url, price')
       .eq('user_id', adminId).eq('status', 'active').order('created_at', { ascending: false }).limit(100)
+    const { count: socialPending } = await supabase.from('drawing_social_submissions').select('id', { count: 'exact', head: true }).eq('status', 'pending')
     return res.status(200).json({
+      socialPending: socialPending || 0,
       drawings: (drawings || []).map((d) => ({ ...d, entry_count: counts[d.id] || 0, winner: d.winner_user_id ? winners[d.winner_user_id] || null : null })),
       myListings: myListings || [],
     })
@@ -71,6 +90,7 @@ export default async function handler(req, res) {
       starts_at: d.starts_at,
       ends_at: d.ends_at,
       max_entries_per_user: Math.max(1, Math.min(1000, parseInt(d.max_entries_per_user) || 10)),
+      social_bonus_entries: Math.max(0, Math.min(100, d.social_bonus_entries === '' || d.social_bonus_entries == null ? 3 : parseInt(d.social_bonus_entries) || 0)),
       status: 'scheduled',
     }
     const { data, error } = await supabase.from('drawings').insert(row).select().single()
@@ -90,6 +110,13 @@ export default async function handler(req, res) {
     const { error } = await supabase.from('drawings').update({ status: 'cancelled' }).eq('id', body.id).eq('status', 'scheduled')
     if (error) return res.status(400).json({ error: error.message })
     return res.status(200).json({ ok: true })
+  }
+
+  if (action === 'review') {
+    if (!body.id || !['approved', 'rejected', 'pending'].includes(body.status)) return res.status(400).json({ error: 'id and status required' })
+    const { data, error } = await supabase.rpc('review_social_submission', { p_id: body.id, p_status: body.status, p_note: body.note || '', p_reviewer: adminId })
+    if (error) return res.status(400).json({ error: error.message })
+    return res.status(200).json({ status: data })
   }
 
   return res.status(400).json({ error: 'unknown action' })

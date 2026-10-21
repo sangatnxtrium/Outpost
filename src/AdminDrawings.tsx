@@ -4,7 +4,7 @@
 // <their user id>/ (the same path pattern marketplace listings use).
 import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
-import { monthWindowMT, fmtMT, fmtArv } from './drawing'
+import { monthWindowMT, fmtMT, fmtArv, PlatformIcon } from './drawing'
 
 type AdminFetch = (path: string, init?: RequestInit) => Promise<Response>
 
@@ -14,7 +14,12 @@ function nextMonthValue() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
-export default function AdminDrawings({ adminFetch }: { adminFetch: AdminFetch }) {
+export default function AdminDrawings({ adminFetch, onPendingCount }: { adminFetch: AdminFetch; onPendingCount?: (n: number) => void }) {
+  const [social, setSocial] = useState<any[]>([])
+  const [socialStatus, setSocialStatus] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending')
+  const [notes, setNotes] = useState<Record<string, string>>({})
+  const [socialPending, setSocialPending] = useState(0)
+  const [bonus, setBonus] = useState('3')
   const [drawings, setDrawings] = useState<any[]>([])
   const [myListings, setMyListings] = useState<any[]>([])
   const [error, setError] = useState('')
@@ -36,8 +41,23 @@ export default function AdminDrawings({ adminFetch }: { adminFetch: AdminFetch }
     const j = await r.json().catch(() => ({}))
     if (!r.ok) { setMissing(!!j.missingTables); setError(j.missingTables ? '' : (j.error || `HTTP ${r.status}`)); return }
     setMissing(false); setDrawings(j.drawings || []); setMyListings(j.myListings || [])
+    setSocialPending(j.socialPending || 0); onPendingCount?.(j.socialPending || 0)
+  }
+  async function loadSocial(status = socialStatus) {
+    const r = await adminFetch(`/api/admin-drawings?view=social&status=${status}`)
+    const j = await r.json().catch(() => ({}))
+    if (r.ok) setSocial(j.submissions || [])
+  }
+  async function review(sub: any, status: 'approved' | 'rejected' | 'pending') {
+    setBusy(sub.id); setError('')
+    const r = await adminFetch('/api/admin-drawings', { method: 'POST', body: JSON.stringify({ action: 'review', id: sub.id, status, note: notes[sub.id] ?? sub.note ?? '' }) })
+    const j = await r.json().catch(() => ({}))
+    setBusy(null)
+    if (!r.ok) setError(j.error || `HTTP ${r.status}`)
+    loadSocial(); load()
   }
   useEffect(() => { load() }, [])
+  useEffect(() => { if (!missing) loadSocial(socialStatus) }, [socialStatus, missing])
 
   function pickListing(id: string) {
     setPrizeListingId(id)
@@ -69,7 +89,7 @@ export default function AdminDrawings({ adminFetch }: { adminFetch: AdminFetch }
     const r = await adminFetch('/api/admin-drawings', { method: 'POST', body: JSON.stringify({ action: 'create', drawing: {
       title: title.trim(), prize_description: desc, prize_image_url: imageUrl || null,
       prize_arv_cents: arv ? Math.round(parseFloat(arv) * 100) : null, prize_listing_id: prizeListingId || null,
-      starts_at: win.starts_at.toISOString(), ends_at: win.ends_at.toISOString(), max_entries_per_user: parseInt(cap) || 10,
+      starts_at: win.starts_at.toISOString(), ends_at: win.ends_at.toISOString(), max_entries_per_user: parseInt(cap) || 10, social_bonus_entries: bonus === '' ? 3 : parseInt(bonus) || 0,
     } }) })
     const j = await r.json().catch(() => ({}))
     setBusy(null)
@@ -127,15 +147,46 @@ export default function AdminDrawings({ adminFetch }: { adminFetch: AdminFetch }
             {imageUrl && <button onClick={() => setImageUrl('')} className="mt-1 underline">Remove photo</button>}
           </label>
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <label className="block text-xs text-zinc-400">ARV ($)<input value={arv} onChange={e => setArv(e.target.value)} inputMode="decimal" placeholder="250" className={input + ' mt-1'} /></label>
           <label className="block text-xs text-zinc-400">Month<input type="month" value={month} onChange={e => setMonth(e.target.value)} className={input + ' mt-1'} /></label>
           <label className="block text-xs text-zinc-400">Max listing entries / user<input value={cap} onChange={e => setCap(e.target.value)} inputMode="numeric" className={input + ' mt-1'} /></label>
+          <label className="block text-xs text-zinc-400">Bonus entries / approved post<input value={bonus} onChange={e => setBonus(e.target.value)} inputMode="numeric" className={input + ' mt-1'} /></label>
         </div>
         {win && <p className="text-xs text-zinc-400">Runs {fmtMT(win.starts_at)} → {fmtMT(win.ends_at)}. Only one drawing can run at a time; overlapping months are rejected.</p>}
         <button onClick={create} disabled={busy === 'create' || uploading} className="px-4 py-2 rounded-md text-sm font-bold text-white disabled:opacity-50" style={{ background: '#EF3E36' }}>
           {busy === 'create' ? 'Saving…' : 'Create drawing'}
         </button>
+      </div>
+
+      <div className="bg-zinc-50 rounded-md border border-zinc-100 overflow-hidden">
+        <div className="px-4 py-3 border-b border-zinc-100 flex items-center gap-2 flex-wrap">
+          <span className="font-black text-sm">Social entries</span>
+          {socialPending > 0 && <span className="text-[11px] font-black px-1.5 py-0.5 rounded-md text-white" style={{ background: '#EF3E36' }}>{socialPending} pending</span>}
+          <div className="ml-auto flex gap-1">
+            {(['pending', 'approved', 'rejected', 'all'] as const).map(st => (
+              <button key={st} onClick={() => setSocialStatus(st)} className="text-[11px] px-2 py-1 rounded-md capitalize"
+                style={socialStatus === st ? { background: '#EF3E36', color: 'white' } : { background: '#143456', color: '#ACB3AE' }}>{st}</button>
+            ))}
+          </div>
+        </div>
+        {social.length === 0 ? <p className="text-center text-zinc-400 py-6 text-sm font-mono">No {socialStatus === 'all' ? '' : socialStatus} submissions</p> : social.map(sub => (
+          <div key={sub.id} className="px-4 py-3 border-b border-zinc-50 last:border-0 space-y-2">
+            <div className="flex items-center gap-3">
+              <PlatformIcon p={sub.platform} size={28} />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold truncate">@{sub.profile?.username || sub.user_id.slice(0, 8)} <span className="font-normal text-zinc-400">· {sub.drawings?.title || 'drawing'} · {fmtMT(sub.created_at)}</span></p>
+                <a href={sub.post_url} target="_blank" rel="noopener noreferrer" className="text-xs underline truncate block" style={{ color: '#FF6B5E' }}>Open post ↗ {sub.post_url.replace(/^https:\/\//, '')}</a>
+              </div>
+              <span className="text-[11px] font-bold px-2 py-1 rounded-md flex-shrink-0 capitalize" style={sub.status === 'approved' ? { background: '#F0FDF4', color: '#166534' } : sub.status === 'rejected' ? { background: 'rgba(239,62,54,0.2)', color: '#FFB4AE' } : { background: '#FEF3C7', color: '#92400E' }}>{sub.status}</span>
+            </div>
+            <div className="flex gap-2">
+              <input value={notes[sub.id] ?? sub.note ?? ''} onChange={e => setNotes({ ...notes, [sub.id]: e.target.value })} placeholder="Note (shown to the user if rejected)" className={input + ' flex-1 py-1.5 text-xs'} />
+              {sub.status !== 'approved' && <button onClick={() => review(sub, 'approved')} disabled={busy === sub.id} className="text-xs font-black px-3 py-1.5 rounded-md text-white disabled:opacity-50" style={{ background: '#059669' }}>Approve</button>}
+              {sub.status !== 'rejected' && <button onClick={() => review(sub, 'rejected')} disabled={busy === sub.id} className="text-xs font-black px-3 py-1.5 rounded-md text-white disabled:opacity-50" style={{ background: '#EF3E36' }}>{sub.status === 'approved' ? 'Un-approve' : 'Reject'}</button>}
+            </div>
+          </div>
+        ))}
       </div>
 
       <div className="bg-zinc-50 rounded-md border border-zinc-100 overflow-hidden">

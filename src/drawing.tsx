@@ -9,8 +9,9 @@ import { BRAND, CountdownBig, CountUp, celebrate, toast } from './polish'
 export type Drawing = {
   id: string; title: string; prize_description: string; prize_image_url: string | null
   prize_arv_cents: number | null; starts_at: string; ends_at: string; status: string; max_entries_per_user: number
+  social_bonus_entries?: number
 }
-export type DrawingStats = { total_entries: number; entrants: number; my_entries: number; my_listing_entries: number; my_free_claimed: boolean }
+export type DrawingStats = { total_entries: number; entrants: number; my_entries: number; my_listing_entries: number; my_free_claimed: boolean; my_social_entries: number }
 
 // --- Mountain Time month window ------------------------------------------------
 // Offset (minutes) of America/Denver from UTC at a given instant, e.g. -360 / -420.
@@ -46,14 +47,14 @@ export function useDrawing(userId: string | null) {
     const { data, error } = await supabase.rpc('drawing_stats', { p_drawing_id: id })
     if (error) { setStats(null); return null }
     const r = (Array.isArray(data) ? data[0] : data) || {}
-    const s: DrawingStats = { total_entries: Number(r.total_entries || 0), entrants: Number(r.entrants || 0), my_entries: Number(r.my_entries || 0), my_listing_entries: Number(r.my_listing_entries || 0), my_free_claimed: !!r.my_free_claimed }
+    const s: DrawingStats = { total_entries: Number(r.total_entries || 0), entrants: Number(r.entrants || 0), my_entries: Number(r.my_entries || 0), my_listing_entries: Number(r.my_listing_entries || 0), my_free_claimed: !!r.my_free_claimed, my_social_entries: Number(r.my_social_entries || 0) }
     setStats(s); return s
   }, [])
 
   const load = useCallback(async () => {
     const now = new Date().toISOString()
     const { data, error } = await supabase.from('drawings')
-      .select('id,title,prize_description,prize_image_url,prize_arv_cents,starts_at,ends_at,status,max_entries_per_user')
+      .select('id,title,prize_description,prize_image_url,prize_arv_cents,starts_at,ends_at,status,max_entries_per_user,social_bonus_entries')
       .eq('status', 'scheduled').lte('starts_at', now).gt('ends_at', now)
       .order('starts_at').limit(1)
     // Missing table (migration not run) or any error: hide the feature.
@@ -63,6 +64,29 @@ export function useDrawing(userId: string | null) {
   }, [loadStats])
 
   useEffect(() => { load() }, [load, userId])
+
+  const [mySocial, setMySocial] = useState<SocialSubmission[]>([])
+  const loadSocial = useCallback(async (drawingId: string) => {
+    if (!userId) { setMySocial([]); return }
+    const { data, error } = await supabase.from('drawing_social_submissions')
+      .select('id,platform,post_url,status,note,created_at').eq('drawing_id', drawingId).eq('user_id', userId).order('created_at')
+    setMySocial(error ? [] : (data as SocialSubmission[]) || [])
+  }, [userId])
+  useEffect(() => { if (drawing) loadSocial(drawing.id) }, [drawing, loadSocial])
+
+  const submitSocial = useCallback(async (platform: SocialPlatform, url: string): Promise<boolean> => {
+    if (!drawing || !userId) return false
+    const v = validateSocialUrl(platform, url)
+    if (!v.ok) { toast((v as any).error, 'error'); return false }
+    const { error } = await supabase.from('drawing_social_submissions').insert({ drawing_id: drawing.id, user_id: userId, platform, post_url: v.url })
+    if (error) {
+      toast(/duplicate|unique/i.test(error.message) ? 'You already submitted this post or this platform for this drawing.' : error.message, 'error')
+      return false
+    }
+    toast('Submitted! We\u2019ll review your post soon.', 'success')
+    loadSocial(drawing.id)
+    return true
+  }, [drawing, userId, loadSocial])
 
   // Call after a listing is created: if the trigger awarded an entry, celebrate.
   const checkForNewEntry = useCallback(async () => {
@@ -82,7 +106,106 @@ export function useDrawing(userId: string | null) {
     loadStats(drawing.id)
   }, [drawing, loadStats])
 
-  return { drawing, stats, refresh: load, checkForNewEntry, claimFree }
+  return { drawing, stats, refresh: load, checkForNewEntry, claimFree, mySocial, submitSocial }
+}
+
+// --- social bonus -----------------------------------------------------------------
+export type SocialPlatform = 'facebook' | 'x' | 'instagram' | 'tiktok'
+export type SocialSubmission = { id: string; platform: SocialPlatform; post_url: string; status: 'pending' | 'approved' | 'rejected'; note: string | null; created_at: string }
+export const PLATFORMS: { id: SocialPlatform; label: string; short: string; color: string; hosts: string[] }[] = [
+  { id: 'facebook', label: 'Facebook', short: 'f', color: '#1877F2', hosts: ['facebook.com', 'fb.com', 'fb.watch'] },
+  { id: 'x', label: 'X', short: '𝕏', color: '#000000', hosts: ['x.com', 'twitter.com'] },
+  { id: 'instagram', label: 'Instagram', short: 'IG', color: '#E1306C', hosts: ['instagram.com', 'instagr.am'] },
+  { id: 'tiktok', label: 'TikTok', short: 'TT', color: '#111111', hosts: ['tiktok.com', 'vm.tiktok.com', 'vt.tiktok.com'] },
+]
+export function PlatformIcon({ p, size = 22 }: { p: SocialPlatform; size?: number }) {
+  const m = PLATFORMS.find(x => x.id === p)!
+  return <span className="inline-flex items-center justify-center rounded-md font-black text-white flex-shrink-0" style={{ background: m.color, width: size, height: size, fontSize: size * 0.45, border: '1px solid rgba(255,255,255,0.2)' }}>{m.short}</span>
+}
+// Mirrors normalize_social_url() in SQL (the server is the source of truth).
+export function validateSocialUrl(platform: SocialPlatform, raw: string): { ok: true; url: string } | { ok: false; error: string } {
+  let u = raw.trim()
+  if (!u) return { ok: false, error: 'Paste the link to your post' }
+  if (!/^https?:\/\//i.test(u)) u = 'https://' + u
+  let url: URL
+  try { url = new URL(u) } catch { return { ok: false, error: 'That doesn\u2019t look like a link' } }
+  const host = url.hostname.toLowerCase().replace(/^(www\.|m\.|mobile\.|web\.)/, '')
+  const meta = PLATFORMS.find(x => x.id === platform)!
+  if (!meta.hosts.includes(host)) return { ok: false, error: `That link isn\u2019t ${/^[aeiouIX]/.test(meta.label) ? 'an' : 'a'} ${meta.label} post` }
+  const path = url.pathname.replace(/\/+$/, '')
+  if (path.length < 2) return { ok: false, error: 'Paste the link to the post itself, not a profile home page' }
+  return { ok: true, url: `https://${host === 'twitter.com' ? 'x.com' : host}${path}` }
+}
+
+export function SocialBonusCard({ drawing, isSignedIn, referralCode, mySocial, onSubmit, onSignIn }: {
+  drawing: Drawing; isSignedIn: boolean; referralCode: string | null; mySocial: SocialSubmission[]
+  onSubmit: (p: SocialPlatform, url: string) => Promise<boolean>; onSignIn: () => void
+}) {
+  const bonus = drawing.social_bonus_entries ?? 3
+  const [platform, setPlatform] = useState<SocialPlatform>('instagram')
+  const [url, setUrl] = useState('')
+  const [busy, setBusy] = useState(false)
+  const link = referralCode ? `https://getoutpost.net/?ref=${referralCode}` : 'https://getoutpost.net'
+  const caption = `I'm entered to win ${drawing.title} on Outpost, the app for finding card & comic shops, drops and trades near you. Join me: ${link} #OutpostGiveaway #contest`
+  const used = new Set(mySocial.map(s => s.platform))
+  const firstFree = PLATFORMS.find(p => !used.has(p.id))?.id
+  useEffect(() => { if (used.has(platform) && firstFree) setPlatform(firstFree) }, [mySocial.length])
+  const v = url ? validateSocialUrl(platform, url) : null
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(caption); toast('Caption copied', 'success') } catch { toast('Couldn\u2019t copy. Long-press to select the text instead.', 'error') }
+  }
+  if (bonus <= 0) return null
+  return (
+    <div className="rounded-md p-4 border" style={{ background: BRAND.navy, borderColor: 'rgba(246,241,231,0.18)' }}>
+      <p className="text-[11px] font-display tracking-[0.18em] uppercase" style={{ color: '#FFD166' }}>Optional · bonus</p>
+      <p className="font-display text-2xl leading-tight" style={{ color: BRAND.cream }}>Earn {bonus} bonus entries</p>
+      <p className="text-xs mt-1" style={{ color: 'rgba(246,241,231,0.75)' }}>Post about Outpost publicly with <b>#OutpostGiveaway #contest</b>, then paste the link. Each approved post earns {bonus} entries (one post per platform).</p>
+      <div className="mt-3 rounded-md p-3 text-xs leading-relaxed" style={{ background: '#0A1A2B', color: BRAND.cream, border: '1px dashed rgba(246,241,231,0.25)' }}>{caption}</div>
+      <button onClick={copy} className="mt-2 w-full rounded-md py-2 text-sm font-bold op-press" style={{ background: 'rgba(246,241,231,0.12)', color: BRAND.cream }}>Copy caption</button>
+      <p className="text-[11px] text-zinc-500 mt-2">Facebook: post or comment with the hashtag; sharing is not required.</p>
+
+      {!isSignedIn ? (
+        <button onClick={onSignIn} className="mt-3 w-full rounded-md py-2.5 font-display text-lg text-white" style={{ background: BRAND.red }}>Sign in to submit a post</button>
+      ) : (
+        <div className="mt-3 space-y-2">
+          <div className="grid grid-cols-4 gap-1.5">
+            {PLATFORMS.map(p => (
+              <button key={p.id} onClick={() => setPlatform(p.id)} disabled={used.has(p.id)}
+                className="rounded-md py-2 flex flex-col items-center gap-1 text-[11px] border disabled:opacity-40"
+                style={platform === p.id ? { borderColor: BRAND.red, background: 'rgba(239,62,54,0.15)', color: BRAND.cream } : { borderColor: 'rgba(246,241,231,0.15)', color: '#9ca3af' }}>
+                <PlatformIcon p={p.id} />{p.label}
+              </button>
+            ))}
+          </div>
+          <input value={url} onChange={e => setUrl(e.target.value)} inputMode="url" placeholder={`Link to your ${PLATFORMS.find(p => p.id === platform)!.label} post`}
+            className="w-full rounded-md px-3 py-2.5 text-sm outline-none bg-zinc-100 border" style={{ borderColor: v && !v.ok ? BRAND.red : 'rgba(246,241,231,0.15)' }} />
+          {v && !v.ok && <p className="text-[11px]" style={{ color: '#FF9A93' }}>{(v as any).error}</p>}
+          <button disabled={busy || !v?.ok || used.has(platform)} onClick={async () => { setBusy(true); if (await onSubmit(platform, url)) setUrl(''); setBusy(false) }}
+            className="w-full rounded-md py-2.5 font-display text-lg text-white disabled:opacity-50 op-press" style={{ background: BRAND.red }}>
+            {used.has(platform) ? 'Already submitted for this platform' : busy ? 'Submitting…' : 'Submit for review'}
+          </button>
+        </div>
+      )}
+
+      {mySocial.length > 0 && (
+        <div className="mt-3 space-y-1.5">
+          <p className="text-[11px] font-display tracking-[0.15em] uppercase text-zinc-500">Your submissions</p>
+          {mySocial.map(s => (
+            <div key={s.id} className="flex items-center gap-2 rounded-md px-2.5 py-2" style={{ background: '#0A1A2B' }}>
+              <PlatformIcon p={s.platform} size={20} />
+              <a href={s.post_url} target="_blank" rel="noopener noreferrer" className="flex-1 min-w-0 text-xs truncate underline" style={{ color: BRAND.cream }}>{s.post_url.replace(/^https:\/\//, '')}</a>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md flex-shrink-0" style={
+                s.status === 'approved' ? { background: '#F0FDF4', color: '#166534' } : s.status === 'rejected' ? { background: 'rgba(239,62,54,0.2)', color: '#FFB4AE' } : { background: 'rgba(246,241,231,0.12)', color: BRAND.cream }}>
+                {s.status === 'approved' ? `Approved · +${bonus}` : s.status === 'rejected' ? 'Not approved' : 'Pending review'}
+              </span>
+            </div>
+          ))}
+          {mySocial.filter(s => s.status === 'rejected' && s.note).map(s => <p key={s.id + 'n'} className="text-[11px] text-zinc-500">Note on {PLATFORMS.find(p => p.id === s.platform)!.label}: {s.note}</p>)}
+        </div>
+      )}
+      <p className="text-[11px] text-zinc-500 mt-3">Optional. You can always use the free entry instead. Posts must be public, follow the platform's rules and include #contest. Outpost isn't sponsored by or affiliated with any social platform.</p>
+    </div>
+  )
 }
 
 // --- UI -------------------------------------------------------------------------
@@ -105,8 +228,8 @@ export function DrawingBanner({ drawing, stats, onOpen }: { drawing: Drawing; st
   )
 }
 
-export function DrawingPage({ drawing, stats, isSignedIn, onSignIn, onListItem, onClaimFree, onBack }: {
-  drawing: Drawing; stats: DrawingStats | null; isSignedIn: boolean
+export function DrawingPage({ drawing, stats, isSignedIn, onSignIn, onListItem, onClaimFree, onBack, social }: {
+  drawing: Drawing; stats: DrawingStats | null; isSignedIn: boolean; social?: React.ReactNode
   onSignIn: () => void; onListItem: () => void; onClaimFree: () => void; onBack: () => void
 }) {
   const arv = fmtArv(drawing.prize_arv_cents)
@@ -139,7 +262,7 @@ export function DrawingPage({ drawing, stats, isSignedIn, onSignIn, onListItem, 
           <p className="font-display text-4xl leading-none mt-1" style={{ color: BRAND.cream }}>
             {isSignedIn ? <CountUp value={stats?.my_entries ?? 0} /> : '—'}
           </p>
-          {isSignedIn && <p className="text-[11px] text-zinc-500 mt-1">{stats?.my_listing_entries ?? 0}/{cap} from listings{stats?.my_free_claimed ? ' · +1 free' : ''}</p>}
+          {isSignedIn && <p className="text-[11px] text-zinc-500 mt-1">{stats?.my_listing_entries ?? 0}/{cap} from listings{stats?.my_free_claimed ? ' · +1 free' : ''}{stats?.my_social_entries ? ` · +${stats.my_social_entries} social` : ''}</p>}
         </div>
         <div className="rounded-md p-3 bg-zinc-50 border border-zinc-100">
           <p className="text-[11px] font-display tracking-[0.15em] uppercase text-zinc-500">Total entries</p>
@@ -158,6 +281,7 @@ export function DrawingPage({ drawing, stats, isSignedIn, onSignIn, onListItem, 
         <Ticket className="h-5 w-5" /> {stats?.my_free_claimed ? 'Free entry claimed' : 'Free entry'}
       </button>
       <p className="text-[11px] text-zinc-500 px-1">No purchase or listing necessary. One free entry per person per drawing.</p>
+      {social}
       <a href="/drawing/rules" className="flex items-center justify-center gap-1.5 text-xs underline text-zinc-400 py-2">
         <FileText className="h-3.5 w-3.5" /> Official Rules
       </a>
@@ -195,11 +319,13 @@ export function DrawingRules() {
         <H>4. How to Enter</H>
         <p><b>Listing entry:</b> while signed in, create a new marketplace listing during the Entry Period that includes at least one photo and a price. Each qualifying listing earns one (1) entry, up to {cap} listing entries per person per drawing. Listings that are deleted, fraudulent, duplicative, or that violate Outpost's Terms of Service do not count and their entries may be removed.</p>
         <p className="mt-2"><b>Free entry (no listing required):</b> while signed in, tap "Free entry" on the drawing page to receive one (1) entry. Limit one free entry per person per drawing. [OPTIONAL: alternative mail-in entry — hand-print your name, email, and phone number on a 3"x5" card and mail to [ADDRESS], postmarked by the end of the Entry Period; limit one per person.]</p>
+        <p className="mt-2"><b>Optional social bonus entry:</b> during the Entry Period, publish a public post on Facebook, X, Instagram, or TikTok about Outpost that includes the hashtags #OutpostGiveaway and #contest, then submit the post's link on the drawing page. On Facebook you may post or comment with the hashtag; sharing is not required. Each post approved by Sponsor earns {d?.social_bonus_entries ?? 3} bonus entries, limited to one approved post per platform per person per drawing. Posts must be original, remain public through the winner selection, comply with the platform's terms, and not be misleading or offensive; Sponsor may reject posts at its discretion and remove entries for posts later deleted or found non-compliant. <b>The social method is optional:</b> the free entry above remains available to everyone, and social posting is not required to enter or win.</p>
+        <p className="mt-2"><b>Disclosure (FTC):</b> participants who post about Outpost in exchange for bonus entries must clearly disclose that connection, for example by including #contest (or #sweepstakes) in the post. This drawing is not sponsored, endorsed, or administered by, or associated with, Meta (Facebook/Instagram), X Corp., or TikTok, and each platform is released from all liability. [Confirm with counsel: some platforms prohibit requiring shares or tags as an entry condition; this method only asks for an original post or comment.]</p>
         <p className="mt-2">Limit one Outpost account per person. Use of multiple accounts, bots, or automated means will void all of a participant's entries.</p>
         <H>5. Prize</H>
         <p>One (1) prize: {prize}. Approximate retail value (ARV): {arv}. No cash or substitution except by Sponsor, who may substitute a prize of equal or greater value. Taxes are the winner's responsibility. Winner may be required to complete an IRS Form W-9 if the prize value is $600 or more.</p>
         <H>6. Odds</H>
-        <p>Odds of winning depend on the total number of eligible entries received during the Entry Period. Each eligible entry has an equal chance of being selected.</p>
+        <p>Odds of winning depend on the total number of eligible entries received during the Entry Period. Each eligible entry (listing, free, or social bonus) has an equal chance of being selected. Maximum per person: {cap} listing entries + 1 free entry + {(d?.social_bonus_entries ?? 3) * 4} social bonus entries.</p>
         <H>7. Winner Selection & Notification</H>
         <p>On or about [DRAW DATE] after the Entry Period ends, Sponsor will select one (1) winning entry in a random drawing from all eligible entries. The potential winner will be notified by email and/or in-app message within [7] days and must respond within [7] days [and sign an affidavit of eligibility/release where lawful], or an alternate winner may be selected. Sponsor ships the prize to a U.S. address at no cost to the winner.</p>
         <H>8. General</H>
