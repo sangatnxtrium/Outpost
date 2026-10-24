@@ -854,10 +854,19 @@ export default function App() {
   const cityShops = urlCity ? shops.filter((s: any) => s.city_slug === urlCity) : null
   const discoverReady = urlCity ? true : !locationLoading
 
-  const filteredShops = (cityShops ?? sortedShops).filter((s: any) =>
+  // A non-empty search looks across ALL shops (not just the nearby top 50), and
+  // matches address/city too, so "Search shops, cities, tags" actually finds cities.
+  const q = search.trim().toLowerCase()
+  const searchPool = q && !cityShops
+    ? shops.map((s: any) => ({ ...s, distance: userLat && userLng ? getDistance(userLat, userLng, s.lat, s.lng) : null }))
+    : (cityShops ?? sortedShops)
+  const filteredShops = searchPool.filter((s: any) =>
     (filter === 'all' || s.category === filter || (s.categories && s.categories.includes(filter))) &&
-    (s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.tags?.some((t: string) => t.toLowerCase().includes(search.toLowerCase())))
+    (!q ||
+      s.name?.toLowerCase().includes(q) ||
+      s.address?.toLowerCase().includes(q) ||
+      s.city_slug?.replace(/-/g, ' ').includes(q) ||
+      s.tags?.some((t: string) => t.toLowerCase().includes(q)))
   )
 
   const inRadius = (distance: number | null) =>
