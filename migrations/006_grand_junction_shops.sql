@@ -1,0 +1,11 @@
+-- Grand Junction, CO card/comic shops. Idempotent: skips rows whose name+address already exist.
+-- image_url left null; run backfill-shop-photos.mjs afterwards to fill photos (same as other shops).
+insert into public.shops (owner_id, name, address, category, hot_find, rating, tags, lat, lng, hours, description, phone, categories, image_url, website, gallery, city_slug, name_slug)
+select v.owner_id, v.name, v.address, v.category, v.hot_find, v.rating, v.tags, v.lat, v.lng, v.hours, v.description, v.phone, v.categories, v.image_url, v.website, v.gallery, v.city_slug, v.name_slug
+from (values
+  (null::uuid, 'TOP 5 COMICS', '1938 N 1st St, Grand Junction, CO 81501, USA', 'comics', '', 4.7::numeric, '{}'::text[], 39.0854528, -108.5700241, 'Mon: 11:30 AM – 7:00 PM', 'TOP 5 COMICS — Colorado collectibles shop.', '(970) 234-3197', '{}'::text[], null::text, 'http://www.top5comicshop.com/', '{}'::text[], 'grand-junction', 'top-5-comics'),
+  (null::uuid, 'Eclectic', '200 W Grand Ave Unit 4B, Grand Junction, CO 81501, USA', 'cards', '', 5.0::numeric, '{}'::text[], 39.0707602, -108.5730126, 'Mon: 3:00 PM – 7:00 PM', 'Eclectic — Colorado collectibles shop.', '(970) 314-9972', '{}'::text[], null::text, 'https://eclecticgj.company.site/', '{}'::text[], 'grand-junction', 'eclectic'),
+  (null::uuid, 'The Card District', '683 Horizon Dr #111, Grand Junction, CO 81506, USA', 'cards', '', null::numeric, '{}'::text[], 39.1042940, -108.5507004, 'Mon: Closed', 'The Card District — Colorado collectibles shop.', '(970) 201-9688', '{}'::text[], null::text, 'https://www.thecard-district.com/', '{}'::text[], 'grand-junction', 'the-card-district'),
+  (null::uuid, 'Board Fox Games', '623 Main St, Grand Junction, CO 81501, USA', 'cards', '', 4.9::numeric, '{}'::text[], 39.0670150, -108.5621131, 'Mon: Closed', 'Board Fox Games — Colorado collectibles shop.', '(970) 208-4071', '{}'::text[], null::text, 'https://www.boardfoxgames.com/', '{}'::text[], 'grand-junction', 'board-fox-games')
+) as v(owner_id, name, address, category, hot_find, rating, tags, lat, lng, hours, description, phone, categories, image_url, website, gallery, city_slug, name_slug)
+where not exists (select 1 from public.shops s where s.name = v.name and s.address = v.address);
