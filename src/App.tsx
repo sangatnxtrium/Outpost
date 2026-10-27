@@ -1201,39 +1201,11 @@ export default function App() {
         }
       }
     } catch (err) {
-      console.log('eBay API error, using Finding API fallback')
+      console.log('eBay Browse API error')
     }
 
-    // Fallback: eBay Finding API (works with App ID directly)
-    try {
-      const res = await fetch(
-        `https://svcs.ebay.com/services/search/FindingService/v1?OPERATION-NAME=findItemsByKeywords&SERVICE-VERSION=1.0.0&SECURITY-APPNAME=${appId}&RESPONSE-DATA-FORMAT=JSON&keywords=${encodeURIComponent(query)}&paginationInput.entriesPerPage=6&itemFilter(0).name=ListingType&itemFilter(0).value=FixedPrice&sortOrder=BestMatch`
-      )
-      const data = await res.json()
-      const items = data?.findItemsByKeywordsResponse?.[0]?.searchResult?.[0]?.item || []
-      if (items.length > 0) {
-        setEbayResults(items.map((item: any) => ({
-          id: item.itemId?.[0],
-          title: item.title?.[0],
-          price: parseFloat(item.sellingStatus?.[0]?.currentPrice?.[0]?.__value__ || '0'),
-          condition: item.condition?.[0]?.conditionDisplayName?.[0] || 'See listing',
-          url: item.viewItemURL?.[0],
-          image: item.galleryURL?.[0],
-        })))
-        setEbaySearching(false)
-        return
-      }
-    } catch (err) {
-      console.log('eBay Finding API error')
-    }
-
-    // Final fallback: mock data
-    setEbayResults([
-      { id: '1', title: `${query} PSA 9`, price: Math.floor(Math.random() * 400 + 80), condition: 'Graded', url: `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(query)}` },
-      { id: '2', title: `${query} Raw Near Mint`, price: Math.floor(Math.random() * 200 + 30), condition: 'Ungraded', url: `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(query)}` },
-      { id: '3', title: `${query} CGC 9.8`, price: Math.floor(Math.random() * 800 + 200), condition: 'Graded', url: `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(query)}` },
-      { id: '4', title: `${query} 1st Edition`, price: Math.floor(Math.random() * 1200 + 400), condition: 'Graded', url: `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(query)}` },
-    ])
+    // Browse failed or unavailable: show no listings (empty state links to eBay search)
+    setEbayResults([])
     setEbaySearching(false)
   }
 
@@ -1957,6 +1929,17 @@ export default function App() {
                         See all results on eBay →
                       </a>
                     )}
+                  </div>
+                )}
+                {activeSection === 'shops' && !ebaySearching && ebayResults.length === 0 && search.length >= 3 && lastEbaySearch === search && (
+                  <div className="text-center py-6 text-zinc-400">
+                    <p className="text-sm font-mono mb-3">No eBay listings found for "{search}"</p>
+                    <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(search)}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="inline-block px-4 py-2 rounded-md text-xs font-black border-2"
+                      style={{ borderColor: '#E53238', color: '#E53238' }}>
+                      Search on eBay →
+                    </a>
                   </div>
                 )}
                 {/* Events section */}
